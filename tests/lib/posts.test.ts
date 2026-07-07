@@ -15,17 +15,30 @@ describe('getAllPosts', () => {
   it('excludes drafts and sorts by date descending', () => {
     const posts = getAllPosts(FIXTURES);
     expect(posts.map((p) => p.slug)).toEqual([
+      'ch4-leading-blank-line',
       'ch1-only-post',
       'ch2-second-post',
       'ch1-first-post',
     ]);
+  });
+
+  it('parses title and description even with a leading blank line before the frontmatter delimiter', () => {
+    const posts = getAllPosts(FIXTURES);
+    const post = posts.find((p) => p.slug === 'ch4-leading-blank-line');
+    expect(post?.title).toBe('Leading Blank Line Post');
+    expect(post?.description).toBe('Should still parse correctly despite a leading blank line');
+    expect(post?.date).toBe('2026-01-25');
   });
 });
 
 describe('getPostsBySeries', () => {
   it('returns only that series, sorted by slug ascending, drafts excluded', () => {
     const posts = getPostsBySeries('seriesa', FIXTURES);
-    expect(posts.map((p) => p.slug)).toEqual(['ch1-first-post', 'ch2-second-post']);
+    expect(posts.map((p) => p.slug)).toEqual([
+      'ch1-first-post',
+      'ch2-second-post',
+      'ch4-leading-blank-line',
+    ]);
   });
 
   it('returns an empty array for a series with only a draft', () => {
@@ -69,6 +82,7 @@ describe('getPostsByTag', () => {
   it('returns matching posts sorted by date descending', () => {
     const posts = getPostsByTag('testing', FIXTURES);
     expect(posts.map((p) => p.slug)).toEqual([
+      'ch4-leading-blank-line',
       'ch1-only-post',
       'ch2-second-post',
       'ch1-first-post',
