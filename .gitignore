@@ -4,3 +4,4 @@ node_modules/
 docs/
 .vercel
 next-env.d.ts
+.env*
