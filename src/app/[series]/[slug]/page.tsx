@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import { getAllPosts, getPostBySlug } from '../../../lib/posts';
+import { getSeriesTitle } from '../../../lib/covers';
 import { buildBlogPostingJsonLd, buildBreadcrumbJsonLd, serializeJsonLd } from '../../../lib/jsonLd';
 import ChatWidget from '../../../components/ChatWidget';
 
@@ -62,15 +63,15 @@ export default async function PostPage({
         />
         {/* Ambient Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-64 bg-amber-500/10 rounded-full blur-[100px] -z-10 pointer-events-none" />
-        
+
         <header className="mb-14">
-          <Link 
-            href={`/${series}`} 
+          <Link
+            href={`/${series}`}
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-500 text-xs font-bold uppercase tracking-widest mb-6 transition-colors hover:bg-amber-500/20"
           >
-            {series}
+            {getSeriesTitle(series)}
           </Link>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 !leading-[1.1] tracking-tight text-black dark:text-white">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 !leading-[1.1] tracking-tight text-gradient-gold">
             {post.title}
           </h1>
           <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)] font-medium">

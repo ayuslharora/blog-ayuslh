@@ -21,7 +21,7 @@ export default function NavBar() {
                 src="/navbar-logo.webp" 
                 alt="Ayush Arora" 
                 fill 
-                className="object-contain dark:invert drop-shadow-sm"
+                className="object-contain invert dark:invert-0 transition-all"
               />
             </Link>
           </div>
@@ -56,8 +56,9 @@ export default function NavBar() {
             
             <ThemeToggle />
             
-            <button className="hidden md:block px-5 py-2 rounded-full text-sm font-bold bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-md hover:shadow-lg hover:shadow-amber-500/20 active:scale-95">
-              Subscribe
+            <button className="group/sub relative overflow-hidden hidden md:block px-5 py-2 rounded-full text-sm font-bold bg-black dark:bg-white text-white dark:text-black transition-transform hover:scale-105 active:scale-95 shadow-md hover:shadow-lg hover:shadow-amber-500/20">
+              <span className="relative z-10 group-hover/sub:text-black dark:group-hover/sub:text-white transition-colors duration-300">Subscribe</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-200 transform -translate-x-full group-hover/sub:translate-x-0 transition-transform duration-500 ease-in-out z-0" />
             </button>
 
             {/* Mobile Menu Toggle */}

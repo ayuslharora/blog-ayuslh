@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getAllSeries, getPostsBySeries } from '../../lib/posts';
+import { getSeriesTitle } from '../../lib/covers';
 
 export const dynamicParams = false;
 
@@ -18,9 +19,11 @@ export async function generateMetadata({
   const posts = getPostsBySeries(series);
   if (posts.length === 0) return {};
 
+  const seriesTitle = getSeriesTitle(series);
+
   return {
-    title: series,
-    description: `All posts in the "${series}" series.`,
+    title: seriesTitle,
+    description: `All posts in the "${seriesTitle}" series.`,
     alternates: { canonical: `/${series}` },
   };
 }
@@ -33,6 +36,8 @@ export default async function SeriesPage({
   const { series } = await params;
   const posts = getPostsBySeries(series);
   if (posts.length === 0) notFound();
+  
+  const seriesTitle = getSeriesTitle(series);
 
   return (
     <div className="max-w-3xl mx-auto px-6 pb-24 pt-8">
@@ -42,12 +47,13 @@ export default async function SeriesPage({
       <div className="mb-12">
         <Link 
           href="/" 
-          className="inline-flex items-center gap-2 text-sm font-bold bg-black text-white dark:bg-white dark:text-black px-4 py-2 rounded-full mb-8 hover:bg-black/80 dark:hover:bg-white/80 transition-transform hover:-translate-x-1"
+          className="group/back relative overflow-hidden inline-flex items-center gap-2 text-sm font-bold bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full mb-8 transition-transform hover:-translate-x-1"
         >
-          ← Back
+          <span className="relative z-10 group-hover/back:text-black dark:group-hover/back:text-white transition-colors duration-300">← Back</span>
+          <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-200 transform -translate-x-full group-hover/back:translate-x-0 transition-transform duration-500 ease-in-out z-0" />
         </Link>
-        <h1 className="text-5xl md:text-6xl font-extrabold mb-4 text-gradient-gold capitalize tracking-tight">
-          {series}
+        <h1 className="text-5xl md:text-6xl font-extrabold mb-4 text-gradient-gold tracking-tight">
+          {seriesTitle}
         </h1>
         <p className="text-lg md:text-xl text-[var(--text-secondary)] font-medium">All posts in this series.</p>
       </div>
