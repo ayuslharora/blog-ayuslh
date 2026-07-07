@@ -1,8 +1,53 @@
+import Link from 'next/link';
+import { getAllPosts, getAllSeries } from '../lib/posts';
+
 export default function Home() {
+  const series = getAllSeries();
+  const recentPosts = getAllPosts().slice(0, 10);
+
   return (
-    <div className="max-w-3xl mx-auto px-6 py-24">
-      <h1 className="text-3xl font-bold">blog.ayuslh.in</h1>
-      <p className="text-zinc-500 mt-2">Coming soon.</p>
+    <div className="max-w-3xl mx-auto px-6 py-12">
+      <h1 className="text-3xl font-bold mb-2">blog.ayuslh.in</h1>
+      <p className="text-zinc-500 mb-10">Learning notes and write-ups.</p>
+
+      {series.length > 0 && (
+        <section className="mb-12">
+          <h2 className="text-xl font-semibold mb-4">Series</h2>
+          <ul className="flex flex-wrap gap-3">
+            {series.map((s) => (
+              <li key={s}>
+                <Link
+                  href={`/${s}`}
+                  className="px-4 py-2 rounded-full bg-black/5 hover:bg-black/10 transition-colors text-sm font-medium"
+                >
+                  {s}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section>
+        <h2 className="text-xl font-semibold mb-4">Recent posts</h2>
+        {recentPosts.length === 0 ? (
+          <p className="text-zinc-500">Nothing published yet.</p>
+        ) : (
+          <ul className="space-y-4">
+            {recentPosts.map((post) => (
+              <li key={`${post.series}/${post.slug}`}>
+                <Link
+                  href={`/${post.series}/${post.slug}`}
+                  className="text-lg font-medium hover:text-amber-500 transition-colors"
+                >
+                  {post.title}
+                </Link>
+                <p className="text-sm text-zinc-500">{post.date} · {post.description}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
