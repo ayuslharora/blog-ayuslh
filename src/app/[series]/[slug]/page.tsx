@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import { getAllPosts, getPostBySlug } from '../../../lib/posts';
 import { buildBlogPostingJsonLd, buildBreadcrumbJsonLd, serializeJsonLd } from '../../../lib/jsonLd';
+import ChatWidget from '../../../components/ChatWidget';
 
 export const dynamicParams = false;
 
@@ -48,18 +49,21 @@ export default async function PostPage({
   if (!post) notFound();
 
   return (
-    <article className="max-w-3xl mx-auto px-6 py-12 prose">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildBlogPostingJsonLd(post)) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildBreadcrumbJsonLd(post)) }}
-      />
-      <h1>{post.title}</h1>
-      <p className="text-sm text-zinc-500">{post.date}</p>
-      <MDXRemote source={post.content} />
-    </article>
+    <>
+      <article className="max-w-3xl mx-auto px-6 py-12 prose">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildBlogPostingJsonLd(post)) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildBreadcrumbJsonLd(post)) }}
+        />
+        <h1>{post.title}</h1>
+        <p className="text-sm text-zinc-500">{post.date}</p>
+        <MDXRemote source={post.content} />
+      </article>
+      <ChatWidget postContext={post.content} />
+    </>
   );
 }
