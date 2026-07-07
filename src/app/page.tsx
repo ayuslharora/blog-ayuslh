@@ -1,5 +1,7 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { getAllPosts, getAllSeries } from '../lib/posts';
+import { getSeriesTitle, hasCover } from '../lib/covers';
 
 export default function Home() {
   const series = getAllSeries();
@@ -13,17 +15,31 @@ export default function Home() {
       {series.length > 0 && (
         <section className="mb-12">
           <h2 className="text-xl font-semibold mb-4">Series</h2>
-          <ul className="flex flex-wrap gap-3">
-            {series.map((s) => (
-              <li key={s}>
-                <Link
-                  href={`/${s}`}
-                  className="px-4 py-2 rounded-full bg-black/5 hover:bg-black/10 transition-colors text-sm font-medium"
-                >
-                  {s}
-                </Link>
-              </li>
-            ))}
+          <ul className="flex flex-wrap gap-4">
+            {series.map((s) => {
+              const title = getSeriesTitle(s);
+              return (
+                <li key={s}>
+                  <Link
+                    href={`/${s}`}
+                    className="flex flex-col items-center gap-2 w-28 group"
+                  >
+                    {hasCover(s) && (
+                      <Image
+                        src={`/covers/${s}.jpg`}
+                        alt={title}
+                        width={112}
+                        height={168}
+                        className="rounded-md shadow-md object-cover group-hover:shadow-lg transition-shadow"
+                      />
+                    )}
+                    <span className="text-sm font-medium text-center group-hover:text-amber-500 transition-colors">
+                      {title}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
