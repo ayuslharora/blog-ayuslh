@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import { getAllPosts, getPostBySlug } from '../../../lib/posts';
@@ -50,7 +51,7 @@ export default async function PostPage({
 
   return (
     <>
-      <article className="max-w-3xl mx-auto px-6 py-12 prose">
+      <article className="max-w-3xl mx-auto px-6 pb-24 pt-8 prose dark:prose-invert prose-headings:font-bold prose-a:text-amber-600 dark:prose-a:text-amber-400 hover:prose-a:text-amber-500 prose-blockquote:border-amber-500 prose-blockquote:bg-amber-500/5 prose-blockquote:px-5 prose-blockquote:py-2 prose-blockquote:rounded-r-xl prose-blockquote:shadow-sm prose-img:rounded-2xl prose-img:shadow-xl mt-8 relative">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildBlogPostingJsonLd(post)) }}
@@ -59,8 +60,26 @@ export default async function PostPage({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildBreadcrumbJsonLd(post)) }}
         />
-        <h1>{post.title}</h1>
-        <p className="text-sm text-zinc-500">{post.date}</p>
+        {/* Ambient Glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-64 bg-amber-500/10 rounded-full blur-[100px] -z-10 pointer-events-none" />
+        
+        <header className="mb-14">
+          <Link 
+            href={`/${series}`} 
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-500 text-xs font-bold uppercase tracking-widest mb-6 transition-colors hover:bg-amber-500/20"
+          >
+            {series}
+          </Link>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 !leading-[1.1] tracking-tight text-black dark:text-white">
+            {post.title}
+          </h1>
+          <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)] font-medium">
+            <time dateTime={post.date}>{post.date}</time>
+            <span>•</span>
+            <span>5 min read</span>
+          </div>
+        </header>
+
         <MDXRemote source={post.content} />
       </article>
       <ChatWidget postContext={post.content} />

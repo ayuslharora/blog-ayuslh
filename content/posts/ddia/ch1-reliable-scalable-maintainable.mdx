@@ -1,6 +1,6 @@
 
 ---
-title: "Designing Data-Intensive Applications — Ch.1: Reliable, Scalable, Maintainable"
+title: "Designing Data-Intensive Applications Ch.1: Reliable, Scalable, Maintainable"
 description: "Notes on Kleppmann's framing of reliability, scalability, and maintainability."
 date: "2026-07-08"
 tags: ["system-design", "book-notes", "ddia"]
@@ -11,23 +11,23 @@ Notes from working through Chapter 1 of *Designing Data-Intensive Applications*.
 
 ## There is no solution, only trade-offs
 
-The whole book — and really, the whole discipline of system design — starts from one sentence: **there is no solution, there are only trade-offs.** Nothing is ever "solved" perfectly. Every decision means accepting a compromise somewhere. Postgres isn't "better" than MongoDB and vice versa — both are excellent, production-proven databases, and calling one universally superior misses the point. Every database has trade-offs, and which one is "better" entirely depends on the situation it's used in. That single idea — trade-offs, not solutions — is the thread that runs through the entire book.
+The whole book and really, the whole discipline of system design starts from one sentence: **there is no solution, there are only trade-offs.** Nothing is ever "solved" perfectly. Every decision means accepting a compromise somewhere. Postgres isn't "better" than MongoDB and vice versa both are excellent, production-proven databases, and calling one universally superior misses the point. Every database has trade-offs, and which one is "better" entirely depends on the situation it's used in. That single idea trade-offs, not solutions is the thread that runs through the entire book.
 
-Interestingly, the book doesn't open with system design at all. It opens with **data**. And "important data" isn't a fixed, universal category — it's entirely perspective-dependent. What's critical data for a fintech app is irrelevant for a game. A PAN card number matters enormously to a payments platform and means nothing to a gaming app. What data matters, and how, always depends on the application.
+Interestingly, the book doesn't open with system design at all. It opens with **data**. And "important data" isn't a fixed, universal category it's entirely perspective-dependent. What's critical data for a fintech app is irrelevant for a game. A PAN card number matters enormously to a payments platform and means nothing to a gaming app. What data matters, and how, always depends on the application.
 
 ## What is a data-intensive application?
 
-Every application — an IRCTC ticket booking flow, a UPI payment, a food delivery order — has one thing in common: **data, and a continuous flow of data.** Data generally moves through three states:
+Every application an IRCTC ticket booking flow, a UPI payment, a food delivery order has one thing in common: **data, and a continuous flow of data.** Data generally moves through three states:
 
-- **Store** — persisting something so it can be used later
-- **Read** — retrieving data that was previously stored (e.g. your order history, saved address)
-- **Generate** — new data being created (a new order, a new comment — "generate" here doesn't just mean AI generation; humans have been generating data for years, e.g. every Stack Overflow answer ever written)
+- **Store** persisting something so it can be used later
+- **Read** retrieving data that was previously stored (e.g. your order history, saved address)
+- **Generate** new data being created (a new order, a new comment "generate" here doesn't just mean AI generation; humans have been generating data for years, e.g. every Stack Overflow answer ever written)
 
-This store → read → generate cycle repeats constantly. For a single user, this is trivial — you could track it in a spreadsheet, and plenty of very early-stage startups genuinely do exactly that when they only have a handful of customers. The trouble starts at scale: 1 lakh users, 10 lakh users, 1 crore orders a day. At that point:
+This store → read → generate cycle repeats constantly. For a single user, this is trivial you could track it in a spreadsheet, and plenty of very early-stage startups genuinely do exactly that when they only have a handful of customers. The trouble starts at scale: 1 lakh users, 10 lakh users, 1 crore orders a day. At that point:
 
-- A single machine has **limited storage, limited CPU, limited RAM** — it's a single point of failure, and it slows down and overloads.
-- This doesn't mean single machines are bad — they're rock solid at the scale they're meant for. Plenty of real products run perfectly fine on one machine, comfortably serving tens of thousands of users. It's entirely about whether the scale matches the machine.
-- Once you're at Swiggy/IRCTC/Zomato scale — crores of orders in an afternoon — data has to spread across multiple machines. And that's exactly where the real challenges begin: how do you *distribute* the data, how do you keep it *consistent*, how do you handle *fault tolerance*, how do you keep it *scalable*, and how do you keep access *fast*.
+- A single machine has **limited storage, limited CPU, limited RAM** it's a single point of failure, and it slows down and overloads.
+- This doesn't mean single machines are bad they're rock solid at the scale they're meant for. Plenty of real products run perfectly fine on one machine, comfortably serving tens of thousands of users. It's entirely about whether the scale matches the machine.
+- Once you're at Swiggy/IRCTC/Zomato scale crores of orders in an afternoon data has to spread across multiple machines. And that's exactly where the real challenges begin: how do you *distribute* the data, how do you keep it *consistent*, how do you handle *fault tolerance*, how do you keep it *scalable*, and how do you keep access *fast*.
 
 This is precisely why we call these **data-intensive applications**: the hard part isn't computation, it's storing, managing, and quickly accessing data.
 
@@ -35,15 +35,15 @@ This is precisely why we call these **data-intensive applications**: the hard pa
 
 Every data-intensive system tends to lean on the same handful of building blocks:
 
-- **Databases** — the obvious first one. The "right" database is entirely purpose-driven, not a popularity contest.
-- **Caching** — one of the single best hacks to make any application ridiculously fast. Caching isn't just Redis or an in-memory store — it can live in the browser, in local storage, at the edge (e.g. Cloudflare's edge caching).
-- **Search indexes** — a strange topic, because indexes aren't universally "good." They're excellent for reads/searches, but they slow down writes and updates. Indexes need to be used thoughtfully, not scattered everywhere.
-- **Stream processing** — real-time event handling. Worth noting: a lot of things that *feel* real-time aren't. YouTube's "live" playback, for instance, isn't truly real-time — you're watching video chunks that were processed and distributed via CDN moments earlier, which is exactly why YouTube can scale to enormous audiences so cheaply. Genuinely real-time systems (like Zoom, built on WebRTC) are a fundamentally different and more expensive architecture.
-- **Batch processing** — slower, scheduled processing (e.g. running all of last night's transactions together), closely tied to OLAP-style workloads.
+- **Databases** the obvious first one. The "right" database is entirely purpose-driven, not a popularity contest.
+- **Caching** one of the single best hacks to make any application ridiculously fast. Caching isn't just Redis or an in-memory store it can live in the browser, in local storage, at the edge (e.g. Cloudflare's edge caching).
+- **Search indexes** a strange topic, because indexes aren't universally "good." They're excellent for reads/searches, but they slow down writes and updates. Indexes need to be used thoughtfully, not scattered everywhere.
+- **Stream processing** real-time event handling. Worth noting: a lot of things that *feel* real-time aren't. YouTube's "live" playback, for instance, isn't truly real-time you're watching video chunks that were processed and distributed via CDN moments earlier, which is exactly why YouTube can scale to enormous audiences so cheaply. Genuinely real-time systems (like Zoom, built on WebRTC) are a fundamentally different and more expensive architecture.
+- **Batch processing** slower, scheduled processing (e.g. running all of last night's transactions together), closely tied to OLAP-style workloads.
 
 ## Frontend and backend, quickly
 
-A simple restaurant analogy: the menu, the waiter, the table, the screen — that's the **frontend** experience. The kitchen, staff, inventory, billing system — invisible to the customer — that's the **backend**. Every application has both. Building a backend doesn't automatically make someone "a web developer" — building with databases, throughput, and caching is just as much a part of building any real product, whether that's Zoom, Photoshop, or a machine learning platform.
+A simple restaurant analogy: the menu, the waiter, the table, the screen that's the **frontend** experience. The kitchen, staff, inventory, billing system invisible to the customer that's the **backend**. Every application has both. Building a backend doesn't automatically make someone "a web developer" building with databases, throughput, and caching is just as much a part of building any real product, whether that's Zoom, Photoshop, or a machine learning platform.
 
 One line from this section is worth remembering: **the frontend only ever handles one user's data at a time; the backend handles thousands or millions of users' data at once.** That asymmetry is why backend systems need so much more care.
 
@@ -51,76 +51,76 @@ Backends are mostly accessed over HTTP: a request goes out over the internet to 
 
 ### Stateless backends
 
-Many modern backends are **stateless** — increasingly so with architectures like Vercel's fluid compute, where machines can scale all the way down to zero with no compute cost when idle. Stateless means the server doesn't remember anything between requests.
+Many modern backends are **stateless** increasingly so with architectures like Vercel's fluid compute, where machines can scale all the way down to zero with no compute cost when idle. Stateless means the server doesn't remember anything between requests.
 
-The clearest way to picture this: think of an auto-rickshaw driver. Once you get out, they genuinely don't remember who you were — they only cared about the fare for that ride. If you forget something in the auto, that's on you; there's no memory of the trip. That's exactly what a stateless backend is. If information needs to be remembered from one request to the next, it has to be explicitly stored — and that's exactly where a database comes into the picture.
+The clearest way to picture this: think of an auto-rickshaw driver. Once you get out, they genuinely don't remember who you were they only cared about the fare for that ride. If you forget something in the auto, that's on you; there's no memory of the trip. That's exactly what a stateless backend is. If information needs to be remembered from one request to the next, it has to be explicitly stored and that's exactly where a database comes into the picture.
 
-Not every backend needs a database, though — some backends just *process* data without storing it. A PNG-to-JPG converter is a good example: it needs a backend to do the conversion, but not a database, since the file is processed, served for download, and then discarded.
+Not every backend needs a database, though some backends just *process* data without storing it. A PNG-to-JPG converter is a good example: it needs a backend to do the conversion, but not a database, since the file is processed, served for download, and then discarded.
 
 ## OLTP vs. OLAP
 
 Two different problems that look similar but need entirely different databases:
 
-**OLTP (Online Transaction Processing)** — the day-to-day operational work. "Transaction" here doesn't only mean money — signing up for an account, posting a YouTube comment, or writing a comment in a livestream chat are all transactions in this sense. A transaction is best thought of as **one small, fast operation** — e.g., an ATM checking your balance and then updating it. OLTP databases read/write a small number of records at a time, and speed (ideally milliseconds) matters enormously, because what matters most here is that the *current state* of the data is accurate and immediately available.
+**OLTP (Online Transaction Processing)** the day-to-day operational work. "Transaction" here doesn't only mean money signing up for an account, posting a YouTube comment, or writing a comment in a livestream chat are all transactions in this sense. A transaction is best thought of as **one small, fast operation** e.g., an ATM checking your balance and then updating it. OLTP databases read/write a small number of records at a time, and speed (ideally milliseconds) matters enormously, because what matters most here is that the *current state* of the data is accurate and immediately available.
 
-**OLAP (Online Analytical Processing)** — leans toward analytics rather than day-to-day operations. Example: a supermarket chain manager asking "what was our best-selling product in January?" That kind of report can reasonably take 10–30 minutes to compute — and that's completely fine, because OLAP work runs over huge amounts of historical data (scanning millions of transactions, aggregating totals), not a single record. Here, processing over large batches of data matters more than raw speed.
+**OLAP (Online Analytical Processing)** leans toward analytics rather than day-to-day operations. Example: a supermarket chain manager asking "what was our best-selling product in January?" That kind of report can reasonably take 10–30 minutes to compute and that's completely fine, because OLAP work runs over huge amounts of historical data (scanning millions of transactions, aggregating totals), not a single record. Here, processing over large batches of data matters more than raw speed.
 
 This split maps to two different roles:
-- **Business analysts** — look at OLAP reports to make decisions (which product to prioritize, where to adjust pricing or discounts).
-- **Data scientists** — dig into that same OLAP-style data hunting for new patterns (predicting demand spikes for a big sale day, deciding inventory ahead of time).
+- **Business analysts** look at OLAP reports to make decisions (which product to prioritize, where to adjust pricing or discounts).
+- **Data scientists** dig into that same OLAP-style data hunting for new patterns (predicting demand spikes for a big sale day, deciding inventory ahead of time).
 
-As a rule of thumb: **OLTP is for transactions, OLAP is for records/analytics** — this is the standard industry split, and it's worth being clear on early since the rest of the book builds on it.
+As a rule of thumb: **OLTP is for transactions, OLAP is for records/analytics** this is the standard industry split, and it's worth being clear on early since the rest of the book builds on it.
 
 ## Data warehouses, data lakes, and the data engineer
 
-Historically, a single database handled both transactions and reporting — this only really changed in the last several years, once OLTP and OLAP got properly separated into specialized systems. Before that split, running reports directly against the live transactional database meant both jobs got slower — like an old kirana store where the same counter is doing billing *and* the monthly accounts at once, and both suffer for it. Bigger, more organized stores solve this by keeping billing and back-office management completely separate — which is exactly the idea behind a data warehouse.
+Historically, a single database handled both transactions and reporting this only really changed in the last several years, once OLTP and OLAP got properly separated into specialized systems. Before that split, running reports directly against the live transactional database meant both jobs got slower like an old kirana store where the same counter is doing billing *and* the monthly accounts at once, and both suffer for it. Bigger, more organized stores solve this by keeping billing and back-office management completely separate which is exactly the idea behind a data warehouse.
 
-A **data warehouse** is a copy (often literally a replica) of operational data, used purely for analytics — so analytics workloads never slow down the live transactional system. Getting data from the source systems into the warehouse is a process called **ETL — Extract, Transform, Load**, one of the foundational terms in data engineering:
+A **data warehouse** is a copy (often literally a replica) of operational data, used purely for analytics so analytics workloads never slow down the live transactional system. Getting data from the source systems into the warehouse is a process called **ETL Extract, Transform, Load**, one of the foundational terms in data engineering:
 
-- **Extract** — pull data out of dozens of different source systems (website, store, inventory, CRM, payments — sometimes SQL, sometimes NoSQL, sometimes JSON, CSV, or even PDF).
-- **Transform** — clean it up, standardize formats, handle missing fields — genuinely one of the hardest parts of the job, since raw data arrives in wildly inconsistent shapes.
-- **Load** — put the cleaned, standardized data into the warehouse, organized into rows and columns so analysts and BI tools (Power BI, SQL queries, Excel) can easily build reports and dashboards from it.
+- **Extract** pull data out of dozens of different source systems (website, store, inventory, CRM, payments sometimes SQL, sometimes NoSQL, sometimes JSON, CSV, or even PDF).
+- **Transform** clean it up, standardize formats, handle missing fields genuinely one of the hardest parts of the job, since raw data arrives in wildly inconsistent shapes.
+- **Load** put the cleaned, standardized data into the warehouse, organized into rows and columns so analysts and BI tools (Power BI, SQL queries, Excel) can easily build reports and dashboards from it.
 
-This is essentially the whole job of a **data engineer**: extracting data from many different distributed sources, cleaning and standardizing it, and loading it somewhere queryable. It looks simple from the outside ("just move and clean data") but is genuinely one of the harder, more critical engineering roles — not a typical entry-level job, precisely because of how much responsibility rides on getting this pipeline right.
+This is essentially the whole job of a **data engineer**: extracting data from many different distributed sources, cleaning and standardizing it, and loading it somewhere queryable. It looks simple from the outside ("just move and clean data") but is genuinely one of the harder, more critical engineering roles not a typical entry-level job, precisely because of how much responsibility rides on getting this pipeline right.
 
-The limitation of a data warehouse: it mostly holds **structured** data (rows and columns). Data scientists and ML engineers, on the other hand, want data in its *rawest possible form* — text, images, video, whatever format — so they can transform it however their model or analysis needs. That need led to the **data lake**: a centralized repository that can hold structured *and* unstructured data side by side, no fixed schema required. The "sushi principle" applies here — raw data is better, because you can always shape it later, but you can't get back information that's already been cleaned away.
+The limitation of a data warehouse: it mostly holds **structured** data (rows and columns). Data scientists and ML engineers, on the other hand, want data in its *rawest possible form* text, images, video, whatever format so they can transform it however their model or analysis needs. That need led to the **data lake**: a centralized repository that can hold structured *and* unstructured data side by side, no fixed schema required. The "sushi principle" applies here raw data is better, because you can always shape it later, but you can't get back information that's already been cleaned away.
 
-Data warehouses and data lakes exist to serve these two different audiences — data warehouses for structured, report-ready data (analysts, BI tools), and data lakes for raw, flexible data (data scientists, ML engineers, researchers). Worth a mention: because traditional data warehouses can get very expensive, newer open table formats like **Apache Iceberg**, Hudi, and Delta Lake have emerged, letting teams get warehouse-like features (ACID transactions, streaming support) on top of cheap, S3-compatible object storage instead.
+Data warehouses and data lakes exist to serve these two different audiences data warehouses for structured, report-ready data (analysts, BI tools), and data lakes for raw, flexible data (data scientists, ML engineers, researchers). Worth a mention: because traditional data warehouses can get very expensive, newer open table formats like **Apache Iceberg**, Hudi, and Delta Lake have emerged, letting teams get warehouse-like features (ACID transactions, streaming support) on top of cheap, S3-compatible object storage instead.
 
 ## Cloud vs. self-hosting (brief)
 
-The book also touches on cloud vs. self-hosted infrastructure — the familiar trade-offs apply: cloud gives you easy scaling and less operational overhead, at the cost of higher spend, potential vendor lock-in, and (depending on setup) different security considerations. Worth noting: "cloud-native" is a way of building products, not the same thing as the CNCF (which is an organization) — a common mix-up.
+The book also touches on cloud vs. self-hosted infrastructure the familiar trade-offs apply: cloud gives you easy scaling and less operational overhead, at the cost of higher spend, potential vendor lock-in, and (depending on setup) different security considerations. Worth noting: "cloud-native" is a way of building products, not the same thing as the CNCF (which is an organization) a common mix-up.
 
 ## Distributed systems
 
-If a system isn't distributed, there's genuinely no "distributed systems problem" — one machine, one database, one processing engine, whatever the stack. The moment more than one machine has to work together, that's where the real complexity starts, and that's what the rest of this book is really about.
+If a system isn't distributed, there's genuinely no "distributed systems problem" one machine, one database, one processing engine, whatever the stack. The moment more than one machine has to work together, that's where the real complexity starts, and that's what the rest of this book is really about.
 
-**IRCTC** is a great example. One computer can't possibly handle every train ticket booking in India — even today's (larger) infrastructure genuinely struggles under Tatkal load. The moment you split things across multiple servers, each with its own database, a very real problem shows up: **keeping them in sync.** If three separate servers each independently think they can sell 10 tickets for the same berth, that's 30 tickets sold against a seat that doesn't have room for 30 people — and none of those servers know what the others just did.
+**IRCTC** is a great example. One computer can't possibly handle every train ticket booking in India even today's (larger) infrastructure genuinely struggles under Tatkal load. The moment you split things across multiple servers, each with its own database, a very real problem shows up: **keeping them in sync.** If three separate servers each independently think they can sell 10 tickets for the same berth, that's 30 tickets sold against a seat that doesn't have room for 30 people and none of those servers know what the others just did.
 
 This is the seed of everything the rest of the book explores:
-- **Scalability** — how do you scale a system when load increases unevenly (e.g. all the traffic suddenly hits one database)?
-- **Fault tolerance** — a node accepts 10 bookings and then disappears — now what?
-- **Latency** — one part of the system responds instantly, another takes half an hour — that inconsistency alone is a serious problem.
-- **Elasticity** — scaling *down* just as easily when there's no traffic (this is what fluid/serverless compute is built around).
-- **Legal compliance** — covered as its own dedicated section further in, more below.
+- **Scalability** how do you scale a system when load increases unevenly (e.g. all the traffic suddenly hits one database)?
+- **Fault tolerance** a node accepts 10 bookings and then disappears now what?
+- **Latency** one part of the system responds instantly, another takes half an hour that inconsistency alone is a serious problem.
+- **Elasticity** scaling *down* just as easily when there's no traffic (this is what fluid/serverless compute is built around).
+- **Legal compliance** covered as its own dedicated section further in, more below.
 
-The core problems a distributed system is built to reduce (never fully eliminate) are: **network failures will happen**, **complexity never fully goes away**, **consistency** gets genuinely hard (consistency algorithms, consistent hashing, and more — worth their own separate deep dive), and — a point that surprises a lot of people — **a distributed system is not automatically faster.** A well-written single-machine program can outperform a 100-CPU cluster in some cases. We only distribute because a single machine can't handle the load, not because distributing is inherently "better" — it's a forced trade-off, not a free upgrade. And even the popular reflex to microservice everything (separate DB for users, search, bookings, payments, notifications) is not automatically "the right approach" — as with everything in system design, **it depends.**
+The core problems a distributed system is built to reduce (never fully eliminate) are: **network failures will happen**, **complexity never fully goes away**, **consistency** gets genuinely hard (consistency algorithms, consistent hashing, and more worth their own separate deep dive), and a point that surprises a lot of people **a distributed system is not automatically faster.** A well-written single-machine program can outperform a 100-CPU cluster in some cases. We only distribute because a single machine can't handle the load, not because distributing is inherently "better" it's a forced trade-off, not a free upgrade. And even the popular reflex to microservice everything (separate DB for users, search, bookings, payments, notifications) is not automatically "the right approach" as with everything in system design, **it depends.**
 
-**Distributed vs. decentralized**, quickly: a distributed system still has a single authority — one shared database, a single source of truth, just spread across machines computationally. **Decentralized** (the Web3-style model) has no single authority at all — more about voting/consensus among independent parties. Different problem space entirely.
+**Distributed vs. decentralized**, quickly: a distributed system still has a single authority one shared database, a single source of truth, just spread across machines computationally. **Decentralized** (the Web3-style model) has no single authority at all more about voting/consensus among independent parties. Different problem space entirely.
 
 ## Data law, privacy, and compliance
 
-A section I was genuinely glad the book included, since most engineers never think about it. Every ISP is legally required to be able to report, on request, what data was accessed from where. This obligation sits on the ISP (e.g. Tata Communications, regardless of whether you're on Jio or Airtel), not directly on the end user. In the EU especially, this is enforced heavily — downloading something you're not supposed to can result in fines running into thousands of euros, purely because ISPs are compelled to hand over access logs on request.
+A section I was genuinely glad the book included, since most engineers never think about it. Every ISP is legally required to be able to report, on request, what data was accessed from where. This obligation sits on the ISP (e.g. Tata Communications, regardless of whether you're on Jio or Airtel), not directly on the end user. In the EU especially, this is enforced heavily downloading something you're not supposed to can result in fines running into thousands of euros, purely because ISPs are compelled to hand over access logs on request.
 
 India's own data protection law, the **DPDP Act**, is moving in a broadly similar direction. Alongside GDPR (EU) and CCPA (California), these laws govern things like:
 - What data you're allowed to collect and retain, and for how long
 - How and when user data must be deleted, and to what depth
-- If even a single EU user signs up to your product, you're bound by GDPR compliance for your whole platform — which is exactly why some products explicitly exclude the EU region rather than deal with that scope.
+- If even a single EU user signs up to your product, you're bound by GDPR compliance for your whole platform which is exactly why some products explicitly exclude the EU region rather than deal with that scope.
 
-Certifications like **SOC 2** and **HIPAA** go further than just governing data — they also govern office/operational practices: whether two-factor auth is enforced org-wide, whether office access itself is secured (e.g. biometric entry), and more. A healthcare-facing product, for instance, cannot operate in certain regions without HIPAA compliance and the right certifications in place.
+Certifications like **SOC 2** and **HIPAA** go further than just governing data they also govern office/operational practices: whether two-factor auth is enforced org-wide, whether office access itself is secured (e.g. biometric entry), and more. A healthcare-facing product, for instance, cannot operate in certain regions without HIPAA compliance and the right certifications in place.
 
-One very concrete engineering consequence of these laws: traditional systems often use **append-only logs.** But under GDPR-style rules, if a user's account is deleted, their old log entries technically still reference them — so how do you reconcile "we must delete this user's data" with "we can't rewrite an append-only log"? In practice, this is handled through techniques like **anonymizing** old data (stripping identifying markers) or **encrypting and later discarding the keys** — deciding exactly what data to retain, and for how long, is genuinely a legal question as much as an engineering one.
+One very concrete engineering consequence of these laws: traditional systems often use **append-only logs.** But under GDPR-style rules, if a user's account is deleted, their old log entries technically still reference them so how do you reconcile "we must delete this user's data" with "we can't rewrite an append-only log"? In practice, this is handled through techniques like **anonymizing** old data (stripping identifying markers) or **encrypting and later discarding the keys** deciding exactly what data to retain, and for how long, is genuinely a legal question as much as an engineering one.
 
 ## Summary
 
-The chapter's real throughline: **there's no such thing as a perfect system, only accepted trade-offs.** From a single spreadsheet to a fully distributed, multi-database architecture, every step up in scale trades one set of problems for another — and understanding *which* trade-off you're accepting, and why, is what system design actually is.
+The chapter's real throughline: **there's no such thing as a perfect system, only accepted trade-offs.** From a single spreadsheet to a fully distributed, multi-database architecture, every step up in scale trades one set of problems for another and understanding *which* trade-off you're accepting, and why, is what system design actually is.
