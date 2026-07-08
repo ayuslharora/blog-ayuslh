@@ -146,25 +146,21 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Newsletter */}
+          {/* Follow via RSS */}
           <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 p-6 text-white shadow-xl shadow-amber-500/20">
             <div className="flex items-center gap-3 mb-4">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
               <h3 className="font-bold text-lg">Stay in the loop</h3>
             </div>
             <p className="text-sm text-white/90 mb-6">
-              Get the latest posts delivered straight to your inbox. No spam.
+              Follow the RSS feed to get every new post the moment it's published — works with any feed reader.
             </p>
-            <form className="flex flex-col gap-3" action="#">
-              <input 
-                type="email" 
-                placeholder="Enter your email" 
-                className="bg-white/20 px-4 py-2.5 rounded-lg text-sm outline-none placeholder:text-white/70 text-white border border-white/30 backdrop-blur-sm focus:border-white transition-colors"
-              />
-              <button className="bg-white text-amber-600 px-4 py-2.5 rounded-lg text-sm font-bold shadow-md hover:bg-zinc-50 transition-colors">
-                Subscribe
-              </button>
-            </form>
+            <a
+              href="/feed.xml"
+              className="block text-center bg-white text-amber-600 px-4 py-2.5 rounded-lg text-sm font-bold shadow-md hover:bg-zinc-50 transition-colors"
+            >
+              Follow the feed
+            </a>
           </div>
         </div>
       </div>
