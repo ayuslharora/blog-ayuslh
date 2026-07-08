@@ -185,13 +185,20 @@ export default function NavBar({ tags }: { tags: string[] }) {
                 >
                   Categories
                 </button>
+                <a
+                  href="https://ayuslh.in"
+                  className="animate-fade-in-up text-4xl sm:text-5xl font-bold capitalize tracking-tight text-zinc-100 hover:text-amber-500 transition-colors"
+                  style={{ animationDelay: `${(STATIC_LINKS.length + 1) * 0.08 + 0.1}s` }}
+                >
+                  About
+                </a>
               </>
             )}
           </div>
 
           <div
             className="animate-fade-in-up pb-12 flex items-center justify-center gap-6 text-zinc-500 text-sm font-medium"
-            style={{ animationDelay: `${STATIC_LINKS.length * 0.08 + 0.3}s` }}
+            style={{ animationDelay: `${(STATIC_LINKS.length + 2) * 0.08 + 0.3}s` }}
           >
             <a
               href="https://www.linkedin.com/in/ayuslh/"
