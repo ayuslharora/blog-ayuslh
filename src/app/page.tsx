@@ -4,8 +4,7 @@ import { getAllPosts, getAllSeries } from '../lib/posts';
 import { getSeriesTitle, hasCover } from '../lib/covers';
 export default function Home() {
   const series = getAllSeries();
-  const recentPosts = getAllPosts().slice(0, 10);
-  const remainingPosts = recentPosts.slice(1);
+  const recentPosts = getAllPosts().slice(0, 5);
 
   return (
     <div className="max-w-7xl mx-auto px-6 pb-32 pt-8">
@@ -162,7 +161,7 @@ export default function Home() {
               Latest Posts
             </h3>
             <div className="flex flex-col gap-6">
-              {remainingPosts.slice(0, 4).map((post) => (
+              {recentPosts.map((post) => (
                 <Link
                   key={`${post.series}/${post.slug}`}
                   href={`/${post.series}/${post.slug}`}
