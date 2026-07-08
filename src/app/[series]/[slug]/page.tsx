@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
-import { getAllPosts, getPostBySlug } from '../../../lib/posts';
+import { getAllPosts, getPostBySlug, getPostsBySeries } from '../../../lib/posts';
 import { getSeriesTitle } from '../../../lib/covers';
+import { getReadingTimeMinutes } from '../../../lib/readingTime';
 import { buildBlogPostingJsonLd, buildBreadcrumbJsonLd, serializeJsonLd } from '../../../lib/jsonLd';
 import ChatWidget from '../../../components/ChatWidget';
 
@@ -50,6 +51,11 @@ export default async function PostPage({
   const post = getPostBySlug(series, slug);
   if (!post) notFound();
 
+  const seriesPosts = getPostsBySeries(series);
+  const currentIndex = seriesPosts.findIndex((p) => p.slug === slug);
+  const prevPost = currentIndex > 0 ? seriesPosts[currentIndex - 1] : null;
+  const nextPost = currentIndex < seriesPosts.length - 1 ? seriesPosts[currentIndex + 1] : null;
+
   return (
     <>
       <article className="w-[90%] md:w-[80%] max-w-none mx-auto px-6 pb-24 pt-8 prose dark:prose-invert prose-headings:font-bold prose-a:text-amber-600 dark:prose-a:text-amber-400 hover:prose-a:text-amber-500 prose-blockquote:border-amber-500 prose-blockquote:bg-amber-500/5 prose-blockquote:px-5 prose-blockquote:py-2 prose-blockquote:rounded-r-xl prose-blockquote:shadow-sm prose-img:rounded-2xl prose-img:shadow-xl mt-8 relative">
@@ -77,11 +83,43 @@ export default async function PostPage({
           <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)] font-medium">
             <time dateTime={post.date}>{post.date}</time>
             <span>•</span>
-            <span>5 min read</span>
+            <span>{getReadingTimeMinutes(post.content)} min read</span>
           </div>
         </header>
 
         <MDXRemote source={post.content} />
+
+        <nav className="not-prose mt-16 pt-8 border-t border-black/10 dark:border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {prevPost ? (
+            <Link
+              href={`/${series}/${prevPost.slug}`}
+              className="group flex flex-col rounded-2xl border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] p-5 transition-colors"
+            >
+              <span className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-1">← Previous</span>
+              <span className="font-bold group-hover:text-amber-500 transition-colors">{prevPost.title}</span>
+            </Link>
+          ) : (
+            <div />
+          )}
+          {nextPost && (
+            <Link
+              href={`/${series}/${nextPost.slug}`}
+              className="group flex flex-col rounded-2xl border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] p-5 transition-colors sm:text-right sm:items-end"
+            >
+              <span className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-1">Next →</span>
+              <span className="font-bold group-hover:text-amber-500 transition-colors">{nextPost.title}</span>
+            </Link>
+          )}
+        </nav>
+
+        <div className="not-prose mt-6 text-center">
+          <Link
+            href={`/${series}`}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--text-secondary)] hover:text-amber-500 transition-colors"
+          >
+            View all chapters in {getSeriesTitle(series)} →
+          </Link>
+        </div>
       </article>
       <ChatWidget postContext={post.content} />
     </>
