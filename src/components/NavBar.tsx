@@ -7,10 +7,11 @@ import ThemeToggle from './ThemeToggle';
 
 export default function NavBar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
 
   return (
     <header className="fixed inset-x-0 top-6 z-50 flex flex-col items-center px-4 md:px-6 pointer-events-none">
-      <div className={`flex flex-col w-full max-w-7xl glass-panel pointer-events-auto overflow-hidden transition-all duration-300 ${isMobileMenuOpen ? 'rounded-2xl' : 'rounded-full'}`}>
+      <div className={`flex flex-col w-full max-w-7xl glass-panel pointer-events-auto transition-all duration-300 ${isMobileMenuOpen ? 'rounded-2xl' : 'rounded-full'}`}>
         
         {/* Main Navbar Bar */}
         <div className="flex items-center justify-between px-6 py-3">
@@ -29,17 +30,26 @@ export default function NavBar() {
           {/* Center: Navigation Links (Hidden on small screens) */}
           <nav className="hidden lg:flex items-center justify-center gap-6 xl:gap-8 text-sm font-medium text-[var(--text-secondary)]">
             <Link href="/" className="hover:text-black dark:hover:text-white transition-colors">Home</Link>
-            <Link href="/" className="hover:text-black dark:hover:text-white transition-colors">Articles</Link>
+            <Link href="/series" className="hover:text-black dark:hover:text-white transition-colors">Series</Link>
             
             {/* Categories Dropdown */}
-            <div className="relative group cursor-pointer py-2">
-              <span className="flex items-center gap-1 hover:text-black dark:hover:text-white transition-colors">
+            <div className="relative py-2">
+              <button 
+                onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
+                className="flex items-center gap-1 hover:text-black dark:hover:text-white transition-colors outline-none cursor-pointer"
+              >
                 Categories
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="opacity-50 group-hover:opacity-100 transition-opacity"><polyline points="6 9 12 15 18 9"></polyline></svg>
-              </span>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-48 bg-white/90 dark:bg-black/90 backdrop-blur-xl border border-black/10 dark:border-white/10 rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 flex flex-col p-2">
-                <Link href="/ddia" className="px-4 py-2.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl text-sm transition-colors text-black dark:text-white font-semibold">Designing Data Intensive Applications</Link>
-                <Link href="/system-design" className="px-4 py-2.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl text-sm transition-colors text-black dark:text-white font-semibold">System Design</Link>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${isCategoriesOpen ? 'rotate-180 opacity-100 text-black dark:text-white' : 'opacity-50'}`}><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+              
+              {/* Invisible Backdrop for click-outside */}
+              {isCategoriesOpen && (
+                <div className="fixed inset-0 z-40" onClick={() => setIsCategoriesOpen(false)} />
+              )}
+              
+              <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-1 w-48 bg-white/90 dark:bg-black/90 backdrop-blur-xl border border-black/10 dark:border-white/10 rounded-2xl shadow-xl transition-all duration-200 flex flex-col p-2 z-50 ${isCategoriesOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}>
+                <Link href="/category/tech" onClick={() => setIsCategoriesOpen(false)} className="px-4 py-2.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl text-sm transition-colors text-black dark:text-white font-semibold">Tech</Link>
+                <Link href="/category/self-improvement" onClick={() => setIsCategoriesOpen(false)} className="px-4 py-2.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl text-sm transition-colors text-black dark:text-white font-semibold">Self-improvements</Link>
               </div>
             </div>
 
@@ -89,11 +99,13 @@ export default function NavBar() {
         {isMobileMenuOpen && (
           <nav className="lg:hidden flex flex-col border-t border-black/10 dark:border-white/10 px-6 py-4 gap-4 text-sm font-medium">
             <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-amber-500 transition-colors block">Home</Link>
-            <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-amber-500 transition-colors block">Articles</Link>
+            <Link href="/series" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-amber-500 transition-colors block">Series</Link>
             <div className="flex flex-col gap-2 pl-4 border-l-2 border-black/5 dark:border-white/5 py-1">
-              <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Categories</span>
-              <Link href="/ddia" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-amber-500 transition-colors text-sm">Designing Data Intensive Applications</Link>
-              <Link href="/system-design" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-amber-500 transition-colors text-sm">System Design</Link>
+              <div className="flex flex-col gap-2">
+                <span className="text-[var(--text-secondary)] text-sm font-bold uppercase tracking-wider">Categories</span>
+                <Link href="/category/tech" onClick={() => setIsMobileMenuOpen(false)} className="pl-4 hover:text-amber-500 transition-colors">Tech</Link>
+                <Link href="/category/self-improvement" onClick={() => setIsMobileMenuOpen(false)} className="pl-4 hover:text-amber-500 transition-colors">Self-improvements</Link>
+              </div>
             </div>
             <span className="hover:text-amber-500 transition-colors cursor-pointer block">Trending</span>
             <a href="https://ayuslh.in" className="hover:text-amber-500 transition-colors block">About</a>
