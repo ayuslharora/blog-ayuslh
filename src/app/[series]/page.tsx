@@ -59,12 +59,17 @@ export default async function SeriesPage({
       </div>
 
       <ul className="space-y-3">
-        {posts.map((post) => (
+        {posts.map((post, i) => (
           <li key={post.slug}>
             <Link
               href={`/${series}/${post.slug}`}
               className="block p-5 rounded-2xl border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:border-black/10 dark:hover:border-white/10 transition-all hover:-translate-y-0.5 group"
             >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">Chapter {i + 1}</span>
+                <span className="text-xs text-[var(--text-secondary)]">•</span>
+                <time dateTime={post.date} className="text-xs text-[var(--text-secondary)]">{post.date}</time>
+              </div>
               <h3 className="text-xl font-bold mb-2 group-hover:text-amber-500 transition-colors">
                 {post.title}
               </h3>
