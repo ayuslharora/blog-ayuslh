@@ -124,7 +124,10 @@ export default function NavBar({ tags }: { tags: string[] }) {
               <Image src="/navbar-logo.webp" alt="Ayush Arora" fill className="object-contain" />
             </div>
             <button
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsCategoriesOpen(false);
+              }}
               className="w-12 h-12 flex items-center justify-center text-zinc-400 hover:text-white transition-colors text-4xl leading-none font-light"
               aria-label="Close menu"
             >
@@ -133,37 +136,56 @@ export default function NavBar({ tags }: { tags: string[] }) {
           </div>
 
           <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 py-8">
-            {STATIC_LINKS.map((link, i) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="animate-fade-in-up text-4xl sm:text-5xl font-bold capitalize tracking-tight text-zinc-100 hover:text-amber-500 transition-colors"
-                style={{ animationDelay: `${i * 0.08 + 0.1}s` }}
-              >
-                {link.label}
-              </Link>
-            ))}
-
-            {tags.length > 0 && (
-              <div
-                className="animate-fade-in-up flex flex-col items-center gap-4 mt-4"
-                style={{ animationDelay: `${STATIC_LINKS.length * 0.08 + 0.1}s` }}
-              >
-                <span className="text-amber-500 text-sm font-bold uppercase tracking-widest">Categories</span>
-                <div className="flex flex-wrap items-center justify-center gap-3 max-w-sm">
-                  {tags.map((tag) => (
-                    <Link
-                      key={tag}
-                      href={`/tag/${tag}`}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="text-lg font-semibold text-zinc-300 hover:text-amber-500 transition-colors"
-                    >
-                      {formatTagLabel(tag)}
-                    </Link>
-                  ))}
+            {isCategoriesOpen ? (
+              <>
+                <button
+                  onClick={() => setIsCategoriesOpen(false)}
+                  className="animate-fade-in-up text-4xl sm:text-5xl font-bold capitalize tracking-tight text-amber-500"
+                  style={{ animationDelay: '0.1s' }}
+                >
+                  Categories
+                </button>
+                <div className="animate-fade-in-up flex flex-col items-center gap-5 mt-2" style={{ animationDelay: '0.18s' }}>
+                  {tags.length === 0 ? (
+                    <span className="text-lg text-zinc-400">No categories yet</span>
+                  ) : (
+                    tags.map((tag) => (
+                      <Link
+                        key={tag}
+                        href={`/tag/${tag}`}
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          setIsCategoriesOpen(false);
+                        }}
+                        className="text-2xl sm:text-3xl font-semibold text-zinc-100 hover:text-amber-500 transition-colors"
+                      >
+                        {formatTagLabel(tag)}
+                      </Link>
+                    ))
+                  )}
                 </div>
-              </div>
+              </>
+            ) : (
+              <>
+                {STATIC_LINKS.map((link, i) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="animate-fade-in-up text-4xl sm:text-5xl font-bold capitalize tracking-tight text-zinc-100 hover:text-amber-500 transition-colors"
+                    style={{ animationDelay: `${i * 0.08 + 0.1}s` }}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+                <button
+                  onClick={() => setIsCategoriesOpen(true)}
+                  className="animate-fade-in-up text-4xl sm:text-5xl font-bold capitalize tracking-tight text-zinc-100 hover:text-amber-500 transition-colors"
+                  style={{ animationDelay: `${STATIC_LINKS.length * 0.08 + 0.1}s` }}
+                >
+                  Categories
+                </button>
+              </>
             )}
           </div>
 
