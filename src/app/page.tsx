@@ -131,16 +131,7 @@ export default function Home() {
                   href={`/${post.series}/${post.slug}`}
                   className="flex flex-col overflow-hidden group"
                 >
-                  <div className="relative w-full h-32 rounded-lg overflow-hidden bg-zinc-200 dark:bg-zinc-800 mb-3">
-                    {hasCover(post.series) && (
-                      <Image
-                        src={`/covers/${post.series}.jpg`}
-                        alt={post.title}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    )}
-                  </div>
+
                   <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500 mb-1.5 block">
                     {getSeriesTitle(post.series)}
                   </span>
