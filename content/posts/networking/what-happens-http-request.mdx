@@ -1,0 +1,110 @@
+---
+title: "What Happens When You Do an HTTP Request?"
+description: "Demystifying the journey of an HTTP request under the hood, from DNS resolution to MAC addresses."
+date: "2026-07-09"
+tags: ["networking", "http", "tcp", "ip", "dns"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=_dCmQCiQmPE)
+
+In this post, we are going to demystify exactly **what happens under the hood when you make an HTTP request**, introducing foundational networking concepts from DNS resolution down to MAC addresses.
+
+## The Setup
+
+Let's say we have a React frontend running on my local laptop on `127.0.0.1` at port `3000`. We all know what this is - it's `localhost`, a loopback IP. And `3000` is the port on which my React JS is running.
+
+Then, I also have a Node.js backend deployed on an AWS EC2 instance. It is running on, let's say, IP `10.0.0.1` and port `443`. It could be 8000, but I have taken 443 because I hosted this Node.js backend with the domain name `https://api.example.com`. HTTPS is a secured HTTP protocol, which we will look into in detail in the future.
+
+> **Disclaimer:** Throughout this post, I will take `127.0.0.1` as my Source IP (the one initiating the request, my frontend) and `10.0.0.1` as my Destination IP. However, `127.0.0.1` is a loopback IP and generally has no significance outside of this laptop. Similarly, `10.0.0.1` typically falls into a private IP range. But for the sake of simplicity, let's assume `127.0.0.1` is the public IP of my laptop and `10.0.0.1` is the public IP of my server. 
+
+### What is an HTTP request?
+
+When you execute code as a developer, you write something like this and forget about it:
+```javascript
+const response = await fetch('https://api.example.com/profile')
+```
+Let's see what exactly happens under the hood of this code.
+
+## 1. The DNS Query
+
+The first thing that happens is we do a **DNS Query**. Why? Because in the `fetch` call, we are using a domain name. 
+
+Over the internet, my local laptop and my AWS EC2 instance (which is sitting in a completely different data center) are physically two different machines. To connect them, we have to travel over the internet. Just knowing the hostname (`api.example.com`) is not enough because it is just a string, and you cannot travel over the network using a string. 
+
+We need the IP address of the destination. When `fetch` runs, under the hood it makes a DNS (Domain Name System) request. DNS takes the hostname as an input and returns the respective public IP - in our case, `10.0.0.1`. 
+
+*(We will see DNS in depth later, including what a recursive resolver, authoritative name servers, root servers, and top-level domain servers are. But for now, just know that fetch runs a DNS query to get the IP).*
+
+So, let's keep a note of all the criteria we have gathered:
+*   **Source IP:** `127.0.0.1` (Assuming public)
+*   **Source Port:** `3000`
+*   **Destination IP:** `10.0.0.1`
+*   **Destination Port:** `443` (Because React runs in a browser, and when a browser sees HTTPS, it assumes the destination port is 443).
+
+## 2. Preparing the Request and Converting to Bytes
+
+An HTTP request basically looks like this:
+*   **Type of Request (Method):** `GET`
+*   **Path Name:** `/profile`
+*   **Headers:** Bearer authentication tokens, cookies, custom headers, etc.
+
+HTTP is built on top of **TCP (Transmission Control Protocol)**. *(In the future, we will have a dedicated module of 5-6 posts to demystify TCP, covering flow control, congestion control, everything).*
+
+The first thing that happens is this HTTP request - which is basically text - needs to be converted into **bytes**. Over the network, data obviously travels in bits (1s and 0s). Using some text encoders, the string request is converted into bytes. 
+
+Let's assume we now have a large stream of bytes represented in hexadecimal format (e.g., a bunch of bytes). Once this is done, the browser says: *"I have prepared the data that needs to be sent to the backend. Please send this over the internet."* 
+
+It says this to the **Operating System (OS)**. The browser's job ends at understanding the request, running DNS queries, fetching the IPs, and preparing the bytes. To physically send it, it has to take help from the underlying OS.
+
+## 3. The OS TCP/IP Stack
+
+The browser delegates the actual networking work to the OS's **TCP/IP stack**. Whether it's macOS, Windows, or Linux, they all have their own implementations for handling networking (TCP, UDP, ICMP, IP) because, at the end of the day, physical transfer through the Network Interface Card (NIC) is controlled by the OS. The browser cannot handle it.
+
+### The TCP Three-Way Handshake
+
+Before sending the data, the TCP/IP stack notes that TCP is a **connection-oriented protocol**. This means before actually sending data from the client (frontend) to the server (backend), we need to establish a pipe. 
+
+To create this pipe, TCP does something called a **TCP Three-Way Handshake**. This creates a connection between the frontend and backend through which data will flow.
+
+### Chunks (MSS and MTU)
+
+Once the connection is established, TCP takes the entire block of byte data and breaks it into smaller chunks. Our HTTP request might just be 500 or 600 bytes, but what if it was a 1GB PDF file? Instead of sending all data at a single time, TCP breaks it down. 
+
+The size of these chunks depends on factors like **MTU (Maximum Transmission Unit)** and **MSS (Maximum Segment Size)**. Let's assume it makes 2-byte chunks - for example, one chunk is `fe12`, the next is `00`, etc. Let's say it makes 20 chunks in total out of our hexadecimal stream.
+
+### Adding Ports (The TCP Segment)
+
+Along with converting actual data into chunks, TCP attaches a **Source Port** and **Destination Port**. TCP deals with port numbers. 
+
+An EC2 instance is a standalone machine that might have 1000 processes running on it. Maybe you are running a Python FastAPI app on 8000, and a Django app on another port. The destination port (443) tells the server exactly which process (the Node.js backend) should receive this data once it arrives. The source port (3000) tells it where it came from.
+
+### Sequence Numbers
+
+In the TCP segment, along with the data chunk (`fe12`), Source Port, and Destination Port, we also attach a **Sequence Number**. 
+
+Since we are sending these chunks independently over the network, there is a chance that they arrive out of order (e.g., chunk 2 arrives before chunk 1). TCP uses the sequence number to reorder these chunks at the destination, ensuring the data is perfectly reassembled in the order it was sent.
+
+## 4. The IP Packet
+
+Once the TCP segment is ready, we further encapsulate it into an **IP Packet**. Here, we attach the **Source IP** (`127.0.0.1`) and **Destination IP** (`10.0.0.1`). 
+
+Why do we need them?
+*   **Destination IP:** Helps routers across the internet decide how to reach the machine. When your React JS app sends this packet, it goes to your first router. The router looks at the Destination IP and decides the next router to send it to (taking a "hop"). Hopping from router to router, it eventually reaches the AWS EC2 instance.
+*   **Source IP:** Tells the backend where the data came from. When the Node.js backend fetches data from the DB and creates a JSON response (First name, username, email, phone number), it uses the Source IP to know exactly where to return that response.
+
+## 5. The Ethernet Frame and MAC Addresses
+
+The final encapsulation is wrapping the IP Packet with Source and Destination **MAC (Media Access Control) Addresses**. 
+
+While an IP address is a virtual address showing location on the internet, a MAC address is a physical address. 
+*   **Source MAC:** This is the MAC address of your local laptop's **Network Interface Card (NIC)**. A NIC is a physical device that has a kind of antenna to transmit and receive data in the form of signals.
+*   **Destination MAC:** Technically, this should be the backend's MAC. *But*, my laptop does not know the Node.js backend's MAC address because it is not on my local network! My Local Area Network (LAN) only consists of devices I am aware of (my machine, mobile phone, printer, home router). Therefore, the Destination MAC attached here is actually the MAC address of my **Default Gateway (my home router)**.
+
+**How do we find the router's MAC address? ARP!**
+Since my laptop knows it needs to send the frame to the router, but it only has the router's local IP address, it uses **ARP (Address Resolution Protocol)**. ARP essentially shouts to the local network: *"Hey, who has this IP address? Send me your MAC address!"* The router responds with its MAC, and then our laptop can finally attach the **Destination MAC** to the Ethernet frame.
+
+The router receives the frame, unwraps it, looks at the Destination IP, attaches a new MAC address for the next hop, and sends it out. We will learn more about ARP, MAC addressing, and routing in detail later!
+
+---
+And that's a brief overview of everything that happens under the hood of an HTTP request!
