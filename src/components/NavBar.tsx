@@ -11,7 +11,7 @@ export default function NavBar() {
 
   return (
     <header className="fixed inset-x-0 top-6 z-50 flex flex-col items-center px-4 md:px-6 pointer-events-none">
-      <div className={`flex flex-col w-full max-w-7xl glass-panel pointer-events-auto transition-all duration-300 ${isMobileMenuOpen ? 'rounded-2xl' : 'rounded-full'}`}>
+      <div className={`flex flex-col w-full max-w-7xl navbar-frost pointer-events-auto transition-all duration-300 ${isMobileMenuOpen ? 'rounded-2xl' : 'rounded-full'}`}>
         
         {/* Main Navbar Bar */}
         <div className="flex items-center justify-between px-6 py-3">
