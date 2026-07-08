@@ -187,7 +187,7 @@ export default function NavBar({ tags }: { tags: string[] }) {
                 </button>
                 <Link
                   href="/about"
-                  onClick={closeMenu}
+                  onClick={() => setIsMobileMenuOpen(false)}
                   className="animate-fade-in-up text-4xl sm:text-5xl font-bold capitalize tracking-tight text-zinc-100 hover:text-amber-500 transition-colors"
                   style={{ animationDelay: `${(STATIC_LINKS.length + 1) * 0.08 + 0.1}s` }}
                 >
