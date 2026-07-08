@@ -6,14 +6,19 @@ import Image from 'next/image';
 import ThemeToggle from './ThemeToggle';
 import { Github, Linkedin } from './icons/SocialIcons';
 
-const MOBILE_MENU_LINKS = [
+function formatTagLabel(tag: string): string {
+  return tag
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+const STATIC_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/series', label: 'Series' },
-  { href: '/category/tech', label: 'Tech' },
-  { href: '/category/self-improvement', label: 'Self-improvements' },
 ];
 
-export default function NavBar() {
+export default function NavBar({ tags }: { tags: string[] }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
 
@@ -37,31 +42,44 @@ export default function NavBar() {
 
             {/* Center: Navigation Links (Hidden on small screens) */}
             <nav className="hidden lg:flex items-center justify-center gap-6 xl:gap-8 text-sm font-medium text-[var(--text-secondary)]">
-              <Link href="/" className="hover:text-black dark:hover:text-white transition-colors">Home</Link>
-              <Link href="/series" className="hover:text-black dark:hover:text-white transition-colors">Series</Link>
-
-              {/* Categories Dropdown */}
-              <div className="relative py-2">
-                <button
-                  onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
-                  className="flex items-center gap-1 hover:text-black dark:hover:text-white transition-colors outline-none cursor-pointer"
-                >
-                  Categories
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${isCategoriesOpen ? 'rotate-180 opacity-100 text-black dark:text-white' : 'opacity-50'}`}><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </button>
-
-                {/* Invisible Backdrop for click-outside */}
-                {isCategoriesOpen && (
-                  <div className="fixed inset-0 z-40" onClick={() => setIsCategoriesOpen(false)} />
-                )}
-
-                <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-1 w-48 bg-white/90 dark:bg-black/90 backdrop-blur-xl border border-black/10 dark:border-white/10 rounded-2xl shadow-xl transition-all duration-200 flex flex-col p-2 z-50 ${isCategoriesOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}>
-                  <Link href="/category/tech" onClick={() => setIsCategoriesOpen(false)} className="px-4 py-2.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl text-sm transition-colors text-black dark:text-white font-semibold">Tech</Link>
-                  <Link href="/category/self-improvement" onClick={() => setIsCategoriesOpen(false)} className="px-4 py-2.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl text-sm transition-colors text-black dark:text-white font-semibold">Self-improvements</Link>
-                </div>
-              </div>
-
-              <a href="https://ayuslh.in" className="hover:text-black dark:hover:text-white transition-colors">About</a>
+              {isCategoriesOpen ? (
+                <>
+                  <button
+                    onClick={() => setIsCategoriesOpen(false)}
+                    className="flex items-center gap-1.5 font-bold text-amber-500"
+                  >
+                    Categories
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="rotate-180"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </button>
+                  {tags.length === 0 ? (
+                    <span>No categories yet</span>
+                  ) : (
+                    tags.map((tag) => (
+                      <Link
+                        key={tag}
+                        href={`/tag/${tag}`}
+                        onClick={() => setIsCategoriesOpen(false)}
+                        className="hover:text-black dark:hover:text-white transition-colors"
+                      >
+                        {formatTagLabel(tag)}
+                      </Link>
+                    ))
+                  )}
+                </>
+              ) : (
+                <>
+                  <Link href="/" className="hover:text-black dark:hover:text-white transition-colors">Home</Link>
+                  <Link href="/series" className="hover:text-black dark:hover:text-white transition-colors">Series</Link>
+                  <button
+                    onClick={() => setIsCategoriesOpen(true)}
+                    className="flex items-center gap-1 hover:text-black dark:hover:text-white transition-colors outline-none cursor-pointer"
+                  >
+                    Categories
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="opacity-50"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </button>
+                  <a href="https://ayuslh.in" className="hover:text-black dark:hover:text-white transition-colors">About</a>
+                </>
+              )}
             </nav>
 
             {/* Right: Actions */}
@@ -100,7 +118,7 @@ export default function NavBar() {
 
       {/* Full-screen Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-[60] flex flex-col bg-zinc-950/95 backdrop-blur-3xl lg:hidden animate-fade-in-up" style={{ animationDuration: '0.25s' }}>
+        <div className="fixed inset-0 z-[60] flex flex-col bg-zinc-950/95 backdrop-blur-3xl lg:hidden animate-fade-in-up overflow-y-auto" style={{ animationDuration: '0.25s' }}>
           <div className="flex items-center justify-between px-6 py-8">
             <div className="relative w-10 h-10">
               <Image src="/navbar-logo.webp" alt="Ayush Arora" fill className="object-contain" />
@@ -114,8 +132,8 @@ export default function NavBar() {
             </button>
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6">
-            {MOBILE_MENU_LINKS.map((link, i) => (
+          <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 py-8">
+            {STATIC_LINKS.map((link, i) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -126,11 +144,32 @@ export default function NavBar() {
                 {link.label}
               </Link>
             ))}
+
+            {tags.length > 0 && (
+              <div
+                className="animate-fade-in-up flex flex-col items-center gap-4 mt-4"
+                style={{ animationDelay: `${STATIC_LINKS.length * 0.08 + 0.1}s` }}
+              >
+                <span className="text-amber-500 text-sm font-bold uppercase tracking-widest">Categories</span>
+                <div className="flex flex-wrap items-center justify-center gap-3 max-w-sm">
+                  {tags.map((tag) => (
+                    <Link
+                      key={tag}
+                      href={`/tag/${tag}`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="text-lg font-semibold text-zinc-300 hover:text-amber-500 transition-colors"
+                    >
+                      {formatTagLabel(tag)}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div
             className="animate-fade-in-up pb-12 flex items-center justify-center gap-6 text-zinc-500 text-sm font-medium"
-            style={{ animationDelay: `${MOBILE_MENU_LINKS.length * 0.08 + 0.2}s` }}
+            style={{ animationDelay: `${STATIC_LINKS.length * 0.08 + 0.3}s` }}
           >
             <a
               href="https://www.linkedin.com/in/ayuslh/"

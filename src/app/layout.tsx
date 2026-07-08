@@ -4,6 +4,7 @@ import './globals.css';
 import NavBar from '../components/NavBar';
 import Footer from '../components/Footer';
 import { serializeJsonLd, buildWebsiteJsonLd } from '../lib/jsonLd';
+import { getAllTags } from '../lib/posts';
 import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -19,6 +20,8 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const tags = getAllTags();
+
   // Theme init script to prevent FOUC
   const themeInitScript = `
     (function() {
@@ -42,7 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={`${inter.className} min-h-screen flex flex-col antialiased`}>
-        <NavBar />
+        <NavBar tags={tags} />
         <main className="w-full relative z-10 pt-28 flex-1">{children}</main>
         <Footer />
         <Analytics />
