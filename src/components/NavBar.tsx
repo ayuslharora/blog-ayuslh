@@ -77,7 +77,7 @@ export default function NavBar({ tags }: { tags: string[] }) {
                     Categories
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="opacity-50"><polyline points="6 9 12 15 18 9"></polyline></svg>
                   </button>
-                  <a href="https://ayuslh.in" className="hover:text-black dark:hover:text-white transition-colors">About</a>
+                  <Link href="/about" className="hover:text-black dark:hover:text-white transition-colors">About</Link>
                 </>
               )}
             </nav>
@@ -185,13 +185,14 @@ export default function NavBar({ tags }: { tags: string[] }) {
                 >
                   Categories
                 </button>
-                <a
-                  href="https://ayuslh.in"
+                <Link
+                  href="/about"
+                  onClick={closeMenu}
                   className="animate-fade-in-up text-4xl sm:text-5xl font-bold capitalize tracking-tight text-zinc-100 hover:text-amber-500 transition-colors"
                   style={{ animationDelay: `${(STATIC_LINKS.length + 1) * 0.08 + 0.1}s` }}
                 >
                   About
-                </a>
+                </Link>
               </>
             )}
           </div>

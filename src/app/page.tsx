@@ -117,42 +117,6 @@ export default function Home() {
         {/* Right Column (Sidebar) */}
         <div className="space-y-8">
           
-          {/* About Me (Premium Redesign) */}
-          <div className="relative overflow-hidden rounded-3xl p-8 glass-panel border border-black/10 dark:border-white/10 shadow-2xl group">
-            {/* Ambient Background Glow */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/20 rounded-full blur-[80px] pointer-events-none group-hover:bg-amber-500/30 transition-colors duration-700" />
-            
-            <div className="relative z-10">
-              <div className="flex items-center gap-5 mb-6">
-                <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center font-black text-3xl text-white shadow-xl ring-4 ring-black/5 dark:ring-white/10 transform group-hover:scale-110 transition-transform duration-500">
-                  A
-                </div>
-                <div>
-                  <p className="font-bold text-2xl tracking-tight">Hey! I'm Ayush 👋</p>
-                </div>
-              </div>
-              
-              <p className="text-base text-[var(--text-secondary)] leading-relaxed font-medium mb-8">
-                Developer and tech enthusiast. I love building things, breaking things, and sharing what I learn along the way.
-              </p>
-              
-              <div className="flex items-center gap-3">
-                <a href="https://ayuslh.in" className="group/btn relative overflow-hidden flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[15px] font-bold bg-black dark:bg-white text-white dark:text-black hover:scale-[1.02] active:scale-[0.98] transition-transform duration-300 shadow-xl hover:shadow-2xl">
-                  <span className="relative z-10 group-hover/btn:text-black dark:group-hover/btn:text-white transition-colors duration-300">ayuslh.in</span>
-                  <svg className="relative z-10 group-hover/btn:text-black dark:group-hover/btn:text-white transition-colors duration-300" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
-                  <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-200 transform -translate-x-full group-hover/btn:translate-x-0 transition-transform duration-500 ease-in-out z-0" />
-                </a>
-                <a href="https://github.com/ayuslharora" target="_blank" rel="noopener noreferrer" className="group/github relative overflow-hidden flex-shrink-0 p-3.5 rounded-2xl bg-black dark:bg-white text-white dark:text-black transition-transform duration-300 hover:scale-110 hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/20">
-                  <svg className="relative z-10 group-hover/github:text-black dark:group-hover/github:text-white transition-colors duration-300" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"></path><path d="M9 18c-4.51 2-5-2-7-2"></path></svg>
-                  <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-200 transform -translate-y-full group-hover/github:translate-y-0 transition-transform duration-500 ease-in-out z-0" />
-                </a>
-                <a href="https://linkedin.com/in/ayuslharora" target="_blank" rel="noopener noreferrer" className="group/linkedin relative overflow-hidden flex-shrink-0 p-3.5 rounded-2xl bg-black dark:bg-white text-white dark:text-black transition-transform duration-300 hover:scale-110 hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/20">
-                  <svg className="relative z-10 group-hover/linkedin:text-black dark:group-hover/linkedin:text-white transition-colors duration-300" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect width="4" height="12" x="2" y="9"></rect><circle cx="4" cy="4" r="2"></circle></svg>
-                  <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-200 transform -translate-y-full group-hover/linkedin:translate-y-0 transition-transform duration-500 ease-in-out z-0" />
-                </a>
-              </div>
-            </div>
-          </div>
 
           {/* Latest Posts */}
           <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-zinc-900 p-6 shadow-sm">
