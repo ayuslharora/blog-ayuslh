@@ -4,6 +4,7 @@ import './globals.css';
 import NavBar from '../components/NavBar';
 import Footer from '../components/Footer';
 import { serializeJsonLd, buildWebsiteJsonLd } from '../lib/jsonLd';
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <NavBar />
         <main className="w-full relative z-10 pt-28 flex-1">{children}</main>
         <Footer />
+        <Analytics />
       </body>
     </html>
   );
