@@ -61,7 +61,6 @@ export default function NavBar() {
                 </div>
               </div>
 
-              <span className="hover:text-black dark:hover:text-white transition-colors cursor-pointer">Trending</span>
               <a href="https://ayuslh.in" className="hover:text-black dark:hover:text-white transition-colors">About</a>
             </nav>
 
