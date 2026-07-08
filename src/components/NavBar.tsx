@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import ThemeToggle from './ThemeToggle';
+import SearchModal from './SearchModal';
 import { Github, Linkedin } from './icons/SocialIcons';
 
 function formatTagLabel(tag: string): string {
@@ -21,6 +22,7 @@ const STATIC_LINKS = [
 export default function NavBar({ tags }: { tags: string[] }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   return (
     <>
@@ -84,6 +86,14 @@ export default function NavBar({ tags }: { tags: string[] }) {
 
             {/* Right: Actions */}
             <div className="flex items-center justify-end gap-3 md:gap-4 min-w-[120px]">
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                aria-label="Search posts"
+                className="text-[var(--text-secondary)] hover:text-black dark:hover:text-white transition-colors p-1"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              </button>
+
               <ThemeToggle />
 
               <a
@@ -191,13 +201,23 @@ export default function NavBar({ tags }: { tags: string[] }) {
                 >
                   About
                 </Link>
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setIsSearchOpen(true);
+                  }}
+                  className="animate-fade-in-up text-4xl sm:text-5xl font-bold capitalize tracking-tight text-zinc-100 hover:text-amber-500 transition-colors"
+                  style={{ animationDelay: `${(STATIC_LINKS.length + 2) * 0.08 + 0.1}s` }}
+                >
+                  Search
+                </button>
               </>
             )}
           </div>
 
           <div
             className="animate-fade-in-up pb-12 flex items-center justify-center gap-6 text-zinc-500 text-sm font-medium"
-            style={{ animationDelay: `${(STATIC_LINKS.length + 2) * 0.08 + 0.3}s` }}
+            style={{ animationDelay: `${(STATIC_LINKS.length + 3) * 0.08 + 0.3}s` }}
           >
             <a
               href="https://www.linkedin.com/in/ayuslh/"
@@ -220,6 +240,8 @@ export default function NavBar({ tags }: { tags: string[] }) {
           </div>
         </div>
       )}
+
+      <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </>
   );
 }

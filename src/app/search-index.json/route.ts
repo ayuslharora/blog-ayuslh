@@ -1,4 +1,5 @@
 import { getAllPosts } from '../../lib/posts';
+import { getSeriesTitle } from '../../lib/covers';
 import type { SearchEntry } from '../../lib/searchIndex';
 
 export async function GET() {
@@ -6,6 +7,7 @@ export async function GET() {
     title,
     description,
     series,
+    seriesTitle: getSeriesTitle(series),
     slug,
     tags,
   }));

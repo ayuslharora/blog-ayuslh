@@ -2,6 +2,7 @@ export type SearchEntry = {
   title: string;
   description: string;
   series: string;
+  seriesTitle: string;
   slug: string;
   tags: string[];
 };
