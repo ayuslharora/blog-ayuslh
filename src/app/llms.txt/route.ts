@@ -1,6 +1,8 @@
 import { getAllSeries, getPostsBySeries } from '../../lib/posts';
 import { getSeriesTitle, getSeriesDescription } from '../../lib/covers';
 
+export const dynamic = 'force-static';
+
 const BASE_URL = 'https://blog.ayuslh.in';
 
 const TOOLS = [
