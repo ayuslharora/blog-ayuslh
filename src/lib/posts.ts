@@ -38,7 +38,7 @@ function readAllPostFiles(baseDir: string): RawFile[] {
 
 function parsePost(series: string, slug: string, raw: string): Post {
   // gray-matter only recognizes frontmatter if `---` is the file's literal
-  // first line — a leading blank line (e.g. from an editor's auto-format)
+  // first line - a leading blank line (e.g. from an editor's auto-format)
   // silently makes it return no frontmatter at all.
   const { data, content } = matter(raw.trimStart());
   return {

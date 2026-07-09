@@ -11,8 +11,8 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: {
-    default: 'blog.ayuslh.in — Ayush Arora',
-    template: '%s — blog.ayuslh.in',
+    default: 'Blog | Ayush Arora',
+    template: '%s | Ayush Arora',
   },
   description: "Ayush Arora's learning notes and write-ups.",
   metadataBase: new URL('https://blog.ayuslh.in'),

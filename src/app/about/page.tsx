@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'About | Ayush Arora',
+  title: 'About',
   description: 'Learn more about Ayush Arora - Developer, writer, and tech enthusiast.',
 };
 
@@ -40,7 +40,7 @@ export default function AboutPage() {
               When I'm not writing code or architecting solutions, you'll find me reading about data-intensive applications, experimenting with new frameworks, and figuring out how complex systems scale under pressure. 
             </p>
             <p>
-              I believe the best way to learn is to teach, which is why I started this blog. Every article here is a distillation of hours of reading, building, and debugging—served in an easy-to-digest format.
+              I believe the best way to learn is to teach, which is why I started this blog. Every article here is a distillation of hours of reading, building, and debugging - served in an easy-to-digest format.
             </p>
           </div>
 

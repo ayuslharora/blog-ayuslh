@@ -175,7 +175,7 @@ export default function Home() {
               <h3 className="font-bold text-lg">Stay in the loop</h3>
             </div>
             <p className="text-sm text-white/90 mb-6">
-              Follow the RSS feed to get every new post the moment it's published — works with any feed reader.
+              Follow the RSS feed to get every new post the moment it's published - works with any feed reader.
             </p>
             <a
               href="/feed.xml"

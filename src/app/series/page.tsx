@@ -4,7 +4,7 @@ import { getAllSeries } from '../../lib/posts';
 import { getSeriesTitle, hasCover } from '../../lib/covers';
 
 export const metadata = {
-  title: 'Series Catalog | Ayush Arora',
+  title: 'Series Catalog',
   description: 'Explore all specialized series and book notes by Ayush Arora.',
 };
 
