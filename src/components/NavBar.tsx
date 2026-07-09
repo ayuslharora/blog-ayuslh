@@ -6,13 +6,7 @@ import Image from 'next/image';
 import ThemeToggle from './ThemeToggle';
 import SearchModal from './SearchModal';
 import { Github, Linkedin } from './icons/SocialIcons';
-
-function formatTagLabel(tag: string): string {
-  return tag
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
+import { formatTagLabel } from '../lib/format';
 
 const STATIC_LINKS = [
   { href: '/', label: 'Home' },

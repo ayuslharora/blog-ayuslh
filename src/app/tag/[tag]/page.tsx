@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getAllTags, getPostsByTag } from '../../../lib/posts';
+import { formatTagLabel } from '../../../lib/format';
 
 export const dynamicParams = false;
 
@@ -18,9 +19,11 @@ export async function generateMetadata({
   const posts = getPostsByTag(tag);
   if (posts.length === 0) return {};
 
+  const label = formatTagLabel(tag);
+
   return {
-    title: `#${tag}`,
-    description: `All posts tagged "${tag}".`,
+    title: `${label} Articles`,
+    description: `${posts.length} article${posts.length === 1 ? '' : 's'} on ${label}: notes and write-ups from Ayush Arora's system design and networking series.`,
     alternates: { canonical: `/tag/${tag}` },
   };
 }
@@ -34,9 +37,14 @@ export default async function TagPage({
   const posts = getPostsByTag(tag);
   if (posts.length === 0) notFound();
 
+  const label = formatTagLabel(tag);
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold mb-8">#{tag}</h1>
+      <h1 className="text-3xl font-bold mb-2">{label}</h1>
+      <p className="text-[var(--text-secondary)] mb-8">
+        {posts.length} article{posts.length === 1 ? '' : 's'} tagged {label}.
+      </p>
       <ul className="space-y-4">
         {posts.map((post) => (
           <li key={`${post.series}/${post.slug}`}>

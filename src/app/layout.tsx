@@ -11,10 +11,11 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: {
-    default: 'Blog | Ayush Arora',
+    default: 'Ayush Arora | System Design, Backend, and Networking Notes',
     template: '%s | Ayush Arora',
   },
-  description: "Ayush Arora's learning notes and write-ups.",
+  description:
+    'In-depth notes and write-ups on system design, backend engineering, and computer networking, from Designing Data-Intensive Applications to how an HTTP request actually works.',
   metadataBase: new URL('https://blog.ayuslh.in'),
   alternates: { canonical: '/' },
 };

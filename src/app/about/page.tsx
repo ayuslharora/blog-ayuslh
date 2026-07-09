@@ -1,6 +1,7 @@
 export const metadata = {
   title: 'About',
-  description: 'Learn more about Ayush Arora - Developer, writer, and tech enthusiast.',
+  description:
+    'Ayush Arora is a developer writing hands-on notes on system design, backend engineering, and computer networking, distilled from real building and reading.',
 };
 
 export default function AboutPage() {

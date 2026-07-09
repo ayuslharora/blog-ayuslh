@@ -10,6 +10,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     { url: BASE_URL, changeFrequency: 'weekly', priority: 1.0 },
+    { url: `${BASE_URL}/series`, changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${BASE_URL}/about`, changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${BASE_URL}/tools/ip-converter`, changeFrequency: 'monthly', priority: 0.6 },
     ...series.map((s) => ({
       url: `${BASE_URL}/${s}`,
       changeFrequency: 'weekly' as const,

@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { getAllSeries } from '../../lib/posts';
-import { getSeriesTitle, hasCover } from '../../lib/covers';
+import { getSeriesTitle, getSeriesDescription, hasCover } from '../../lib/covers';
 
 export const metadata = {
   title: 'Series Catalog',
-  description: 'Explore all specialized series and book notes by Ayush Arora.',
+  description:
+    'Browse every series on the blog, from Designing Data-Intensive Applications notes to a Networking Fundamentals series covering HTTP, DNS, and IP addressing.',
 };
 
 export default function SeriesPage() {
@@ -68,7 +69,7 @@ export default function SeriesPage() {
                 
                 {/* Description */}
                 <p className="text-xs sm:text-sm text-white/70 leading-relaxed line-clamp-2">
-                  An in-depth collection exploring <span className="text-amber-500 font-semibold">{getSeriesTitle(s)}</span> concepts and patterns.
+                  {getSeriesDescription(s)}
                 </p>
               </div>
             </div>

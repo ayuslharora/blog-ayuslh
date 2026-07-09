@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { getAllSeries, getPostsBySeries } from '../../lib/posts';
-import { getSeriesTitle, hasCover } from '../../lib/covers';
+import { getSeriesTitle, getSeriesDescription, hasCover } from '../../lib/covers';
 
 export const dynamicParams = false;
 
@@ -24,7 +24,7 @@ export async function generateMetadata({
 
   return {
     title: seriesTitle,
-    description: `All posts in the "${seriesTitle}" series.`,
+    description: getSeriesDescription(series),
     alternates: { canonical: `/${series}` },
   };
 }
@@ -65,7 +65,7 @@ export default async function SeriesPage({
             <h1 className="text-4xl md:text-6xl font-extrabold mb-2 text-white drop-shadow-md tracking-tight">
               {seriesTitle}
             </h1>
-            <p className="text-lg md:text-xl text-white/80 font-medium drop-shadow-sm">All posts in this series.</p>
+            <p className="text-lg md:text-xl text-white/80 font-medium drop-shadow-sm max-w-2xl">{getSeriesDescription(series)}</p>
           </div>
         </div>
       ) : (
@@ -80,7 +80,7 @@ export default async function SeriesPage({
           <h1 className="text-5xl md:text-6xl font-extrabold mb-4 text-gradient-gold tracking-tight">
             {seriesTitle}
           </h1>
-          <p className="text-lg md:text-xl text-[var(--text-secondary)] font-medium">All posts in this series.</p>
+          <p className="text-lg md:text-xl text-[var(--text-secondary)] font-medium max-w-2xl">{getSeriesDescription(series)}</p>
         </div>
       )}
 

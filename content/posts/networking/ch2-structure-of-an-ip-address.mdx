@@ -1,0 +1,69 @@
+---
+title: "Ch.2: Understanding the Structure of an IP Address"
+description: "A beginner-friendly guide to the structure of an IPv4 address, octets, dotted quad notation, and binary representation."
+date: "2026-07-09"
+tags: ["networking", "ip", "ipv4", "ipv6"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=mM9-9KAP0E8&t=12s)
+
+In this post, we are going to talk about the structure of an IP address. We will cover what an octet is, what dotted quad notation means, how you represent your IP in binary format, and why an IPv4 address is exactly 32 bits long.
+
+This will be a short, fundamental introduction. We are starting with the absolute basics, and we will gradually move to advanced topics like subnet masks, default gateways, MAC addresses, why we need an IP address, and how routing works. But for now, let us focus on understanding the structure of an IP.
+
+## What is an IP Address?
+
+IP stands for Internet Protocol, and it is one of the most important protocols of the internet. As a software developer, you might have already worked with an IP address without even realizing it. 
+
+Whenever you run a frontend or backend application on your local machine, it typically runs on `localhost`. What is `localhost`? It translates to `127.0.0.1`. This `127.0.0.1` is nothing but an IP address pointing to your own laptop.
+
+## The Structure of an IP Address
+
+So, how are IP addresses structured? A standard IPv4 address looks something like this:
+
+`a.b.c.d`
+
+Here, `a`, `b`, `c`, and `d` are non-negative integers. These integers are separated by dots. That is it. This is how your IP looks. This specific format is known as **dotted quad notation**.
+
+Let us take a real-world example of an IP address: `192.168.1.4`.
+
+If you look closely, the address is broken down into four distinct parts separated by dots. Each of these individual parts is called an **octet**. 
+
+For example, if we refer to the "first three octets" of `192.168.1.4`, we are talking about `192.168.1`. If we say the "last octet", we are referring to the `.4`. While you do not need to memorize the term, understanding what an octet is will be incredibly useful when we dive into more advanced networking concepts.
+
+## Binary Representation and the "Weight" of an IP
+
+The `a.b.c.d` format is the decimal representation of an IP address, and it is what we use most of the time. However, computers understand binary, and you can actually represent your IP address in a binary format. 
+
+Understanding the binary format is crucial because it will help you understand concepts like subnets later on. Let us use this binary format to understand the "weight" or size of an IP address.
+
+To give you an idea of what this looks like, if we take our earlier example of `192.168.1.4` and convert each number to binary, it looks like this:
+
+`11000000.10101000.00000001.00000100`
+
+Notice how each of the four octets is made up of exactly 8 bits (1s and 0s).
+
+Since we have 4 octets in an IP address, and each octet is exactly 8 bits, we can calculate the total size:
+
+`8 bits * 4 octets = 32 bits`
+
+This is why an IPv4 address is exactly 32 bits long (which is equivalent to 4 bytes). 
+
+<IpConverter />
+
+## A Quick Note on IPv4 and IPv6
+
+You might be wondering about the different versions of IP. Here is a quick breakdown:
+
+**IPv4:** This is the fourth version of the Internet Protocol and is still widely used today. It uses a **32-bit address space**, allowing for approximately **4.3 billion unique addresses**.
+Example: `192.168.1.4`
+
+**IPv6:** As the internet grew rapidly, the available supply of IPv4 addresses became increasingly exhausted. IPv6 was introduced to address this limitation. It uses a **128-bit address space**, providing an extremely large number of possible addresses. IPv6 addresses are typically represented as **eight groups of up to four hexadecimal digits**, separated by colons.
+Example: `2001:0db8:85a3:0000:0000:8a2e:0370:7334`
+
+## Conclusion
+
+To summarize, this is the core structure of an IPv4 address. It is represented in dotted quad notation, it is made up of four octets, and it is 32 bits or 4 bytes long. Whenever you are dealing with development or networking, this is the standard structure you will see for IPv4 addresses.
+
+That was a quick refresher on the structure of an IP address. We will explore more networking concepts in the upcoming posts.

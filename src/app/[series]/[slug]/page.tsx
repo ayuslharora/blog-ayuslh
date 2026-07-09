@@ -7,6 +7,7 @@ import { getSeriesTitle } from '../../../lib/covers';
 import { getReadingTimeMinutes } from '../../../lib/readingTime';
 import { buildBlogPostingJsonLd, buildBreadcrumbJsonLd, serializeJsonLd } from '../../../lib/jsonLd';
 import ChatWidget from '../../../components/ChatWidget';
+import IpConverter from '../../../components/IpConverter';
 
 export const dynamicParams = false;
 
@@ -87,7 +88,7 @@ export default async function PostPage({
           </div>
         </header>
 
-        <MDXRemote source={post.content} />
+        <MDXRemote source={post.content} components={{ IpConverter }} />
 
         <nav className="not-prose mt-16 pt-8 border-t border-black/10 dark:border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {prevPost ? (

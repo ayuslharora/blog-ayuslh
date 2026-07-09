@@ -1,15 +1,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { getAllPosts, getAllSeries, getPostBySlug, getPostsBySeries } from '../lib/posts';
-import { getSeriesTitle, hasCover } from '../lib/covers';
+import { getSeriesTitle, getSeriesDescription, hasCover } from '../lib/covers';
 import { getReadingTimeMinutes } from '../lib/readingTime';
-
-function formatTagLabel(tag: string): string {
-  return tag
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
+import { formatTagLabel } from '../lib/format';
 
 export default function Home() {
   const series = getAllSeries();
@@ -126,7 +120,7 @@ export default function Home() {
 
                        {/* Description */}
                        <p className="text-sm md:text-base text-white/70 leading-relaxed max-w-2xl line-clamp-2">
-                         {seriesPosts[0]?.description}
+                         {getSeriesDescription(s)}
                        </p>
                      </div>
                    </div>
