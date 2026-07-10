@@ -82,8 +82,8 @@ export default function IpConverter() {
                 </div>
 
                 {/* Full String and Copy */}
-                <div className="flex flex-col sm:flex-row items-stretch gap-3">
-                  <div className="flex-1 flex items-center justify-center sm:justify-start bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-5 py-4 text-center sm:text-left font-mono overflow-x-auto text-sm sm:text-base whitespace-nowrap">
+                <div className="flex flex-col sm:flex-row items-stretch gap-3 w-full">
+                  <div className="flex-1 min-w-0 flex items-center justify-center sm:justify-start bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-5 py-4 text-center sm:text-left font-mono overflow-x-auto text-sm sm:text-base whitespace-nowrap">
                     {binaryIpStr}
                   </div>
                   <button

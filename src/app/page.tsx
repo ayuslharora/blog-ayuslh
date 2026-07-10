@@ -21,12 +21,10 @@ export default function Home() {
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         
-        {/* Left Column: Hero & Series Catalog */}
-        <div className="lg:col-span-2">
-          
-          {/* Hero Banner (Latest Post) */}
-          {latestPost && (
-            <div className="relative w-full rounded-3xl overflow-hidden glass-panel border border-black/10 dark:border-white/10 mb-12 shadow-2xl group min-h-[300px] md:min-h-[350px] flex items-end">
+        {/* Hero Banner (Latest Post) */}
+        {latestPost && (
+          <div className="lg:col-span-2">
+            <div className="relative w-full rounded-3xl overflow-hidden glass-panel border border-black/10 dark:border-white/10 shadow-2xl group min-h-[300px] md:min-h-[350px] flex items-end">
               {/* Background Image using Series Cover */}
               {hasCover(latestPost.series) && (
                 <Image
@@ -64,8 +62,41 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
+        {/* Right Column (Sidebar) - Stacked middle on mobile */}
+        <div className="lg:col-span-1 lg:row-span-2 space-y-8">
+          {/* Latest Posts */}
+          <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-zinc-900 p-6 shadow-sm">
+            <h3 className="font-bold text-lg mb-6 border-b border-black/5 dark:border-white/10 pb-3 flex items-center gap-2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-amber-500" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+              Latest Posts
+            </h3>
+            <div className="flex flex-col gap-6">
+              {recentPosts.map((post) => (
+                <Link
+                  key={`${post.series}/${post.slug}`}
+                  href={`/${post.series}/${post.slug}`}
+                  className="flex flex-col overflow-hidden group"
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500 mb-1.5 block">
+                    {getSeriesTitle(post.series)}
+                  </span>
+                  <h4 className="text-base font-bold mb-1.5 group-hover:text-amber-500 transition-colors line-clamp-2 leading-snug">
+                    {post.title}
+                  </h4>
+                  <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                    {post.date}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Series Catalog */}
+        <div className="lg:col-span-2">
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-amber-500" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
             Series Catalog
@@ -130,39 +161,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Right Column (Sidebar) */}
-        <div className="space-y-8">
-          
 
-          {/* Latest Posts */}
-          <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-zinc-900 p-6 shadow-sm">
-            <h3 className="font-bold text-lg mb-6 border-b border-black/5 dark:border-white/10 pb-3 flex items-center gap-2">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-amber-500" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
-              Latest Posts
-            </h3>
-            <div className="flex flex-col gap-6">
-              {recentPosts.map((post) => (
-                <Link
-                  key={`${post.series}/${post.slug}`}
-                  href={`/${post.series}/${post.slug}`}
-                  className="flex flex-col overflow-hidden group"
-                >
-
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500 mb-1.5 block">
-                    {getSeriesTitle(post.series)}
-                  </span>
-                  <h4 className="text-base font-bold mb-1.5 group-hover:text-amber-500 transition-colors line-clamp-2 leading-snug">
-                    {post.title}
-                  </h4>
-                  <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                    {post.date}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-        </div>
       </div>
     </div>
   );

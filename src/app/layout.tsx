@@ -45,9 +45,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildWebsiteJsonLd()) }}
         />
       </head>
-      <body className={`${inter.className} min-h-screen flex flex-col antialiased`}>
+      <body className={`${inter.className} min-h-screen flex flex-col antialiased overflow-x-hidden`}>
         <NavBar tags={tags} />
-        <main className="w-full relative z-10 pt-28 flex-1">{children}</main>
+        <main className="w-full relative z-10 pt-28 flex-1 overflow-x-hidden">{children}</main>
         <Footer />
         <Analytics />
       </body>
