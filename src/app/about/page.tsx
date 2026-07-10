@@ -1,3 +1,5 @@
+import { buildProfilePageJsonLd, serializeJsonLd } from '../../lib/jsonLd';
+
 export const metadata = {
   title: 'About',
   description:
@@ -7,6 +9,10 @@ export const metadata = {
 export default function AboutPage() {
   return (
     <div className="max-w-4xl mx-auto px-6 pb-24 pt-12 md:pt-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildProfilePageJsonLd()) }}
+      />
       {/* Ambient Glow */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[120px] -z-10 pointer-events-none" />
       <div className="absolute top-1/2 left-0 w-[400px] h-[400px] bg-orange-500/5 rounded-full blur-[120px] -z-10 pointer-events-none" />

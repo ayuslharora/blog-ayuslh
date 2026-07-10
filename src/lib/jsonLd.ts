@@ -24,6 +24,16 @@ export function buildPersonJsonLd() {
   };
 }
 
+export function buildProfilePageJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ProfilePage',
+    '@id': `${SITE_URL}/about/#profilepage`,
+    url: `${SITE_URL}/about`,
+    mainEntity: { '@id': AUTHOR_ID },
+  };
+}
+
 export function buildBlogPostingJsonLd(post: Post | PostMeta) {
   return {
     '@context': 'https://schema.org',
