@@ -162,22 +162,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Follow via RSS */}
-          <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 p-6 text-white shadow-xl shadow-amber-500/20">
-            <div className="flex items-center gap-3 mb-4">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
-              <h3 className="font-bold text-lg">Stay in the loop</h3>
-            </div>
-            <p className="text-sm text-white/90 mb-6">
-              Follow the RSS feed to get every new post the moment it's published - works with any feed reader.
-            </p>
-            <a
-              href="/feed.xml"
-              className="block text-center bg-white text-amber-600 px-4 py-2.5 rounded-lg text-sm font-bold shadow-md hover:bg-zinc-50 transition-colors"
-            >
-              Follow the feed
-            </a>
-          </div>
         </div>
       </div>
     </div>
