@@ -1,22 +1,54 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import ThemeToggle from './ThemeToggle';
 import SearchModal from './SearchModal';
 import { Github, Linkedin } from './icons/SocialIcons';
-import { formatTagLabel } from '../lib/format';
+import { CATEGORIES } from '../data/categories';
 
 const STATIC_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/series', label: 'Series' },
 ];
 
-export default function NavBar({ tags }: { tags: string[] }) {
+function categoryLabel(slug: string): string {
+  return CATEGORIES[slug]?.title ?? slug;
+}
+
+export default function NavBar({ categories }: { categories: string[] }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const categoriesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Only the desktop floating dropdown needs outside-click/Escape handling.
+    // The mobile overlay reuses `isCategoriesOpen` for its own back-button-driven
+    // view, and isn't wrapped by `categoriesRef` — attaching this listener while
+    // the mobile menu is open would treat every tap on a mobile category link as
+    // an "outside click" (mousedown fires before click) and close the list before
+    // the tap can navigate.
+    if (!isCategoriesOpen || isMobileMenuOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (categoriesRef.current && !categoriesRef.current.contains(event.target as Node)) {
+        setIsCategoriesOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsCategoriesOpen(false);
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isCategoriesOpen, isMobileMenuOpen]);
 
   return (
     <>
@@ -38,44 +70,40 @@ export default function NavBar({ tags }: { tags: string[] }) {
 
             {/* Center: Navigation Links (Hidden on small screens) */}
             <nav className="hidden lg:flex items-center justify-center gap-6 xl:gap-8 text-sm font-medium text-[var(--text-secondary)]">
-              {isCategoriesOpen ? (
-                <>
-                  <button
-                    onClick={() => setIsCategoriesOpen(false)}
-                    className="flex items-center gap-1.5 font-bold text-amber-500"
-                  >
-                    Categories
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="rotate-180"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                  </button>
-                  {tags.length === 0 ? (
-                    <span>No categories yet</span>
-                  ) : (
-                    tags.map((tag) => (
-                      <Link
-                        key={tag}
-                        href={`/tag/${tag}`}
-                        onClick={() => setIsCategoriesOpen(false)}
-                        className="hover:text-black dark:hover:text-white transition-colors"
-                      >
-                        {formatTagLabel(tag)}
-                      </Link>
-                    ))
-                  )}
-                </>
-              ) : (
-                <>
-                  <Link href="/" className="hover:text-black dark:hover:text-white transition-colors">Home</Link>
-                  <Link href="/series" className="hover:text-black dark:hover:text-white transition-colors">Series</Link>
-                  <button
-                    onClick={() => setIsCategoriesOpen(true)}
-                    className="flex items-center gap-1 hover:text-black dark:hover:text-white transition-colors outline-none cursor-pointer"
-                  >
-                    Categories
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="opacity-50"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                  </button>
-                  <Link href="/about" className="hover:text-black dark:hover:text-white transition-colors">About</Link>
-                </>
-              )}
+              <Link href="/" className="hover:text-black dark:hover:text-white transition-colors">Home</Link>
+              <Link href="/series" className="hover:text-black dark:hover:text-white transition-colors">Series</Link>
+
+              <div ref={categoriesRef} className="relative">
+                <button
+                  onClick={() => setIsCategoriesOpen((open) => !open)}
+                  className="flex items-center gap-1 hover:text-black dark:hover:text-white transition-colors outline-none cursor-pointer"
+                  aria-expanded={isCategoriesOpen}
+                >
+                  Categories
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${isCategoriesOpen ? 'rotate-180' : 'opacity-50'}`}><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+
+                {isCategoriesOpen && (
+                  <div className="navbar-frost absolute left-1/2 top-full mt-3 -translate-x-1/2 flex flex-col gap-1 rounded-2xl p-2 min-w-[180px] shadow-xl">
+                    {categories.length === 0 ? (
+                      <span className="px-3 py-2 text-sm">No categories yet</span>
+                    ) : (
+                      categories.map((slug) => (
+                        <Link
+                          key={slug}
+                          href={`/category/${slug}`}
+                          onClick={() => setIsCategoriesOpen(false)}
+                          className="px-3 py-2 rounded-xl text-sm hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                        >
+                          {categoryLabel(slug)}
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <Link href="/about" className="hover:text-black dark:hover:text-white transition-colors">About</Link>
             </nav>
 
             {/* Right: Actions */}
@@ -148,20 +176,20 @@ export default function NavBar({ tags }: { tags: string[] }) {
                   Categories
                 </button>
                 <div className="animate-fade-in-up flex flex-col items-center gap-5 mt-2" style={{ animationDelay: '0.18s' }}>
-                  {tags.length === 0 ? (
+                  {categories.length === 0 ? (
                     <span className="text-lg text-zinc-400">No categories yet</span>
                   ) : (
-                    tags.map((tag) => (
+                    categories.map((slug) => (
                       <Link
-                        key={tag}
-                        href={`/tag/${tag}`}
+                        key={slug}
+                        href={`/category/${slug}`}
                         onClick={() => {
                           setIsMobileMenuOpen(false);
                           setIsCategoriesOpen(false);
                         }}
                         className="text-2xl sm:text-3xl font-semibold text-zinc-100 hover:text-amber-500 transition-colors"
                       >
-                        {formatTagLabel(tag)}
+                        {categoryLabel(slug)}
                       </Link>
                     ))
                   )}
