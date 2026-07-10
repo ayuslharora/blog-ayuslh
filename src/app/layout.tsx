@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import NavBar from '../components/NavBar';
 import Footer from '../components/Footer';
-import { serializeJsonLd, buildWebsiteJsonLd } from '../lib/jsonLd';
+import { serializeJsonLd, buildWebsiteJsonLd, buildPersonJsonLd } from '../lib/jsonLd';
 import { getAllTags } from '../lib/posts';
 import { Analytics } from "@vercel/analytics/next";
 
@@ -18,6 +18,14 @@ export const metadata: Metadata = {
     'In-depth notes and write-ups on system design, backend engineering, and computer networking, from Designing Data-Intensive Applications to how an HTTP request actually works.',
   metadataBase: new URL('https://blog.ayuslh.in'),
   alternates: { canonical: '/' },
+  openGraph: {
+    siteName: 'Ayush Arora',
+    type: 'website',
+    locale: 'en_IN',
+  },
+  twitter: {
+    card: 'summary_large_image',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -43,6 +51,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildWebsiteJsonLd()) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildPersonJsonLd()) }}
         />
       </head>
       <body className={`${inter.className} min-h-screen flex flex-col antialiased overflow-x-hidden`}>
