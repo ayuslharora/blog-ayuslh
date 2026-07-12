@@ -61,7 +61,9 @@ But what if the destination IP was `10.0.0.1`?
 Applying the `255.255.255.0` subnet mask to `10.0.0.1` results in `10.0.0.0`. 
 `10.0.0.0` does **not** match `192.168.1.0`. The laptop knows this destination is outside its network, and it forwards the data to the router (the Default Gateway) to be sent out to the internet.
 
-> **📝 Fact Check: "I don't need a router for local data"**
+> **Fact Check:**
+> 
+> "I don't need a router for local data"
 > In networking theory, it is true that you don't need a "router" to communicate within a LAN - you only need a Layer 2 Switch. However, in a standard home setup, the physical plastic box you call a "Wi-Fi Router" is actually a Router, a Switch, and an Access Point combined into one. So while local traffic doesn't get *routed* to the internet, it still physically travels through the internal switch of your Wi-Fi box!
 > 
 > Furthermore, when your computer realizes the destination is local, it uses **ARP (Address Resolution Protocol)** to broadcast a message to the local network asking, *"Who has this IP address?"* Once the target device replies with its physical **MAC Address**, your computer uses that MAC address to send the data directly to it through the switch.
