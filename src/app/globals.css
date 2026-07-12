@@ -110,3 +110,11 @@ body {
 .animate-marquee {
   animation: marquee 20s linear infinite;
 }
+
+/* Disable quotes in Tailwind Typography blockquotes */
+.prose blockquote p:first-of-type::before {
+  content: none !important;
+}
+.prose blockquote p:last-of-type::after {
+  content: none !important;
+}

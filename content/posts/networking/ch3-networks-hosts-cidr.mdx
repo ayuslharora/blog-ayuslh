@@ -19,7 +19,7 @@ The easiest way to understand how IP addresses are structured is to think of a r
 Imagine you live on **Maple Street**. Every house on that street shares the same street name, but each house has a unique house number (e.g., 101 Maple St, 102 Maple St).
 
 *   **The Network (The Street Name):** In networking, a "Network" is a bounded environment where devices can directly communicate with each other. All the devices connected to your home Wi-Fi router share the same "Network" portion of their IP address. Because they are on the same local network (LAN), your laptop can send files directly to your phone without ever needing the public internet.
-*   **The Host (The House Number):** A "Host" is simply any individual device (laptop, server, printer) that lives on that network. To prevent chaos, every host must have a unique identifier—its own unique house number.
+*   **The Host (The House Number):** A "Host" is simply any individual device (laptop, server, printer) that lives on that network. To prevent chaos, every host must have a unique identifier - its own unique house number.
 
 When a device joins your network, you don't have to manually assign it an IP address. A service running on your router called **DHCP** *(Dynamic Host Configuration Protocol)* acts like the neighborhood postmaster. It checks which "house numbers" are currently available and automatically hands one out to the new device.
 
@@ -29,7 +29,7 @@ If you look at an IP address like `192.168.1.15`, it’s not immediately obvious
 
 Is the network just `192.168`? Or is it `192.168.1`?
 
-To define that boundary, network engineers use **CIDR (Classless Inter-Domain Routing) Notation**. CIDR notation takes an IP address and appends a slash followed by a number—for example, `192.168.1.0/24`.
+To define that boundary, network engineers use **CIDR (Classless Inter-Domain Routing) Notation**. CIDR notation takes an IP address and appends a slash followed by a number - for example, `192.168.1.0/24`.
 
 Here is how to read it:
 An IPv4 address is exactly 32 bits long, divided into 4 chunks of 8 bits (octets). The number after the slash tells you **exactly how many bits are reserved for the Network**.
@@ -44,8 +44,7 @@ If we have 8 bits left for our hosts in a `/24` network, simple binary math tell
 
 Does that mean your router can handle exactly 256 devices? **Actually, no. You can only connect 254 devices.**
 
-> [!WARNING]
-> **The Reserved IP Rule**  
+> **⚠️ The Reserved IP Rule**  
 > It is a common misconception that a `/24` subnet gives you 256 usable IP addresses. In reality, two IP addresses in *every* network are strictly reserved for administrative purposes:
 > 
 > 1. **The Network Address (The first IP):** For example, `192.168.1.0`. This address is used by routers to represent the entire network block. It cannot be assigned to a device.
