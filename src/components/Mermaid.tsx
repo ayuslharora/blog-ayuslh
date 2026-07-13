@@ -13,13 +13,18 @@ export default function Mermaid({ chart }: { chart: string }) {
       startOnLoad: true,
       theme: 'base',
       themeVariables: {
-        fontFamily: 'inherit',
+        fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+        fontSize: '16px',
         primaryColor: '#fef3c7',
         primaryTextColor: '#050505',
         primaryBorderColor: '#fbbf24',
         lineColor: '#fbbf24',
         secondaryColor: '#f59e0b',
         tertiaryColor: '#d97706',
+      },
+      flowchart: {
+        htmlLabels: true,
+        padding: 20
       },
       securityLevel: 'loose',
     });
@@ -38,7 +43,7 @@ export default function Mermaid({ chart }: { chart: string }) {
 
   return (
     <div 
-      className="mermaid-wrapper flex justify-center my-8 p-6 bg-white dark:bg-black/20 rounded-2xl border border-black/5 dark:border-white/5 overflow-x-auto [&_svg]:max-w-full"
+      className="mermaid-wrapper flex justify-center w-full my-8 p-6 bg-white dark:bg-black/20 rounded-2xl border border-black/5 dark:border-white/5 overflow-x-auto [&_svg]:w-full [&_svg]:h-auto [&_svg]:min-w-[800px] md:[&_svg]:min-w-[600px]"
       dangerouslySetInnerHTML={{ __html: svg }} 
     />
   );
