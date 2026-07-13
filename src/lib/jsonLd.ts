@@ -16,6 +16,16 @@ export function buildPersonJsonLd() {
     name: 'Ayush Arora',
     url: AUTHOR_URL,
     jobTitle: 'Software Developer',
+    alumniOf: {
+      '@type': 'CollegeOrUniversity',
+      name: 'BITS Pilani',
+    },
+    knowsAbout: [
+      'System Design',
+      'Backend Engineering',
+      'Computer Networking',
+      'Distributed Systems',
+    ],
     sameAs: [
       SITE_URL,
       'https://github.com/ayuslharora',

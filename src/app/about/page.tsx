@@ -26,10 +26,10 @@ export default function AboutPage() {
         
         <div className="text-center md:text-left flex flex-col justify-center h-full pt-4 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
           <h1 className="text-5xl md:text-6xl font-extrabold mb-6 tracking-tight">
-            Hey! I'm <span className="text-amber-500">Ayush 👋</span>
+            Hey! I&apos;m <span className="text-amber-500">Ayush 👋</span>
           </h1>
           <p className="text-xl md:text-2xl text-[var(--text-secondary)] font-medium leading-relaxed max-w-2xl">
-            I'm a Developer and tech enthusiast. I love building things, breaking things, and sharing what I learn along the way.
+            I&apos;m a Computer Science undergrad at BITS Pilani, working as an AI Engineer &amp; Full Stack Developer. This blog is where I write up what I&apos;m learning about backend systems, networking, and distributed data, one chapter at a time.
           </p>
         </div>
       </div>
@@ -42,13 +42,20 @@ export default function AboutPage() {
           
           <div className="relative z-10 space-y-8 text-lg text-[var(--text-secondary)] leading-relaxed">
             <p>
-              Welcome to my digital garden! This is where I document my journey through software engineering, system design, and the ever-evolving world of technology.
+              My day-to-day work leans toward real-time AI systems, computer vision, and generative AI applications, but this blog is a separate, deliberate exercise: forcing myself to actually understand the fundamentals underneath the systems I build, instead of treating them as black boxes. The Networking Fundamentals series starts from &quot;what happens when you hit enter on a URL&quot; and builds up to routing decisions; the DDIA series is my chapter-by-chapter notes working through Martin Kleppmann&apos;s <em>Designing Data-Intensive Applications</em>.
             </p>
             <p>
-              When I'm not writing code or architecting solutions, you'll find me reading about data-intensive applications, experimenting with new frameworks, and figuring out how complex systems scale under pressure. 
+              I believe the best way to learn something well enough to use it is to explain it clearly enough that someone else could too. Every article here is the output of that: hours of reading and building, distilled into something I wish I&apos;d had when I started.
             </p>
             <p>
-              I believe the best way to learn is to teach, which is why I started this blog. Every article here is a distillation of hours of reading, building, and debugging - served in an easy-to-digest format.
+              For the fuller picture (projects, resume, what I&apos;m building day to day), my{' '}
+              <a
+                href="https://ayuslh.in"
+                className="font-semibold text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 underline underline-offset-2 transition-colors"
+              >
+                portfolio
+              </a>{' '}
+              has the complete version. This page is just the &quot;why I write&quot; story.
             </p>
           </div>
 
