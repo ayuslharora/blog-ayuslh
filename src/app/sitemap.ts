@@ -1,12 +1,11 @@
 import type { MetadataRoute } from 'next';
-import { getAllPosts, getAllSeries, getAllTags } from '../lib/posts';
+import { getAllPosts, getAllSeries } from '../lib/posts';
 
 const BASE_URL = 'https://blog.ayuslh.in';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const posts = getAllPosts();
   const series = getAllSeries();
-  const tags = getAllTags();
 
   return [
     { url: BASE_URL, changeFrequency: 'weekly', priority: 1.0 },
@@ -23,11 +22,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: post.date,
       changeFrequency: 'monthly' as const,
       priority: 0.9,
-    })),
-    ...tags.map((tag) => ({
-      url: `${BASE_URL}/tag/${tag}`,
-      changeFrequency: 'weekly' as const,
-      priority: 0.5,
     })),
   ];
 }

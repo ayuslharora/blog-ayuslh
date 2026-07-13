@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
-import {
-  getAllPosts,
-  getAllSeries,
-  getAllTags,
-  getPostBySlug,
-  getPostsBySeries,
-  getPostsByTag,
-} from '../../src/lib/posts';
+import { getAllPosts, getAllSeries, getPostBySlug, getPostsBySeries } from '../../src/lib/posts';
 
 const FIXTURES = path.join(__dirname, '../fixtures/content/posts');
 
@@ -72,20 +65,3 @@ describe('getAllSeries', () => {
   });
 });
 
-describe('getAllTags', () => {
-  it('returns unique tags from non-draft posts only, sorted alphabetically', () => {
-    expect(getAllTags(FIXTURES)).toEqual(['series-a', 'series-b', 'testing']);
-  });
-});
-
-describe('getPostsByTag', () => {
-  it('returns matching posts sorted by date descending', () => {
-    const posts = getPostsByTag('testing', FIXTURES);
-    expect(posts.map((p) => p.slug)).toEqual([
-      'ch4-leading-blank-line',
-      'ch1-only-post',
-      'ch2-second-post',
-      'ch1-first-post',
-    ]);
-  });
-});

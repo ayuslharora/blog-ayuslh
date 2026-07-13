@@ -86,11 +86,3 @@ export function getAllSeries(baseDir: string = DEFAULT_CONTENT_DIR): string[] {
   return Array.from(series).sort();
 }
 
-export function getAllTags(baseDir: string = DEFAULT_CONTENT_DIR): string[] {
-  const tags = new Set(getAllPosts(baseDir).flatMap((post) => post.tags));
-  return Array.from(tags).sort();
-}
-
-export function getPostsByTag(tag: string, baseDir: string = DEFAULT_CONTENT_DIR): PostMeta[] {
-  return getAllPosts(baseDir).filter((post) => post.tags.includes(tag));
-}
