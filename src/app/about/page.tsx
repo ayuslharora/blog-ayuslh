@@ -4,6 +4,7 @@ export const metadata = {
   title: 'About',
   description:
     'Ayush Arora is a developer writing hands-on notes on system design, backend engineering, and computer networking, distilled from real building and reading.',
+  alternates: { canonical: '/about' },
 };
 
 export default function AboutPage() {

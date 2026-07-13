@@ -5,6 +5,7 @@ export const metadata = {
   title: 'Series Catalog',
   description:
     'Browse every series on the blog, from Designing Data-Intensive Applications notes to a Networking Fundamentals series covering HTTP, DNS, and IP addressing.',
+  alternates: { canonical: '/series' },
 };
 
 export default function SeriesPage() {
