@@ -12,7 +12,7 @@ When you connect a new smart TV, laptop, or phone to your Wi-Fi, it instantly ge
 
 To understand how routing and the internet fundamentally work, you first need to understand three core concepts: the **Network**, the **Host**, and **CIDR Notation**.
 
-### The Street and the Houses: Network vs. Host
+### Network vs. Host: What's the Difference? (The Street and the Houses)
 
 The easiest way to understand how IP addresses are structured is to think of a residential neighborhood. 
 
@@ -23,7 +23,7 @@ Imagine you live on **Maple Street**. Every house on that street shares the same
 
 When a device joins your network, you don't have to manually assign it an IP address. A service running on your router called **DHCP** *(Dynamic Host Configuration Protocol)* acts like the neighborhood postmaster. It checks which "house numbers" are currently available and automatically hands one out to the new device.
 
-### Drawing the Boundary: What is CIDR?
+### What Is CIDR Notation? (Drawing the Boundary)
 
 If you look at an IP address like `192.168.1.15`, it’s not immediately obvious which part is the "Street Name" (Network) and which part is the "House Number" (Host). 
 
@@ -52,7 +52,7 @@ flowchart TD
     H -.-> F[Host Portion <br> Last 8 bits]
 ```
 
-### The "Gotcha" of IP Allocation
+### How Many Usable IPs Are in a /24? (The Reserved Address Gotcha)
 
 If we have 8 bits left for our hosts in a `/24` network, simple binary math tells us that 2^8 = 256. 
 
@@ -66,7 +66,7 @@ Does that mean your router can handle exactly 256 devices? **Actually, no. You c
 > 
 > **Total Usable Hosts:** 256 - 2 = **254**.
 
-### Scaling Up and Scaling Down
+### CIDR Notation Examples: Scaling Networks Up and Down
 
 CIDR notation is incredibly flexible, allowing us to size networks perfectly for their intended use. You will frequently encounter these two extremes in cloud computing (like AWS) and DevOps:
 

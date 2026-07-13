@@ -26,7 +26,7 @@ While CIDR (like `/24`) is the human-readable shorthand for defining a network, 
 
 A Subnet Mask has one singular job: **To act as a filter that helps a device figure out its own Network ID, and compare it against the Network ID of its destination.**
 
-### The Magic Test: The Bitwise AND Operation
+### How Subnet Masks Use the Bitwise AND Operation
 
 Computers don't read dotted numbers; they read binary (1s and 0s). 
 The number `255` in binary is literally eight `1`s: `11111111`. 
@@ -85,7 +85,7 @@ Applying the `255.255.255.0` subnet mask to `10.0.0.1` results in `10.0.0.0`.
 > 
 > Furthermore, when your computer realizes the destination is local, it uses **ARP (Address Resolution Protocol)** to broadcast a message to the local network asking, *"Who has this IP address?"* Once the target device replies with its physical **MAC Address**, your computer uses that MAC address to send the data directly to it through the switch.
 
-### Why Should Developers Care?
+### Why Subnet Masks Matter for Application Performance
 
 You might be thinking, *"I write code, I don't configure enterprise routers. Why does this matter to me?"*
 
@@ -97,5 +97,5 @@ Imagine you have a Node.js backend server and a PostgreSQL database hosted in th
 
 By understanding subnet masks, you understand exactly how data flows - and when you know how data flows, you can design vastly faster and more secure applications.
 
-### What's Next?
+### Next Up: The Default Gateway
 Now that we know how a computer realizes it needs to send data out to the internet, how does it actually know *where* the exit door is? In the next chapter, we will tackle the **Default Gateway**.
