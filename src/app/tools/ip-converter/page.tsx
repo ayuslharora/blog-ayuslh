@@ -165,6 +165,13 @@ export default function IpConverterPage() {
             Ch.2: Understanding the Structure of an IP Address
           </Link>.
         </p>
+        <p>
+          This binary view is also exactly what you need to follow the bitwise AND walkthrough
+          in{" "}
+          <Link href="/networking/ch4-subnet-masks" className="text-amber-600 dark:text-amber-400 hover:text-amber-500 font-semibold">
+            Ch.4: Subnet Masks and the &quot;Same Network&quot; Test
+          </Link>.
+        </p>
       </div>
 
       {/* FAQ */}
