@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "mermaid:manifest": "node scripts/build-mermaid-manifest.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "puppeteer": "^25.3.0",
     "tailwindcss": "^4",
     "typescript": "^6.0.2",
     "vitest": "^3.0.0"

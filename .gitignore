@@ -5,3 +5,4 @@ docs/
 .vercel
 next-env.d.ts
 .env*
+*.tsbuildinfo
