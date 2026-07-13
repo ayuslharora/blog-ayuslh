@@ -1,6 +1,30 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+
+const FAQS = [
+  {
+    question: "What is an IPv4 address in binary?",
+    answer:
+      "An IPv4 address like 192.168.1.4 is really four 8-bit numbers (octets) joined by dots. Written in binary, each octet becomes 8 bits, so the full address is 32 bits long: 11000000.10101000.00000001.00000100.",
+  },
+  {
+    question: "Why convert an IP address to binary?",
+    answer:
+      "Binary is how computers and routers actually store and compare IP addresses. Seeing the binary form makes concepts like subnet masks, CIDR notation, and network/host boundaries far easier to reason about than the decimal form alone.",
+  },
+  {
+    question: "What is dotted quad notation?",
+    answer:
+      'Dotted quad notation is the a.b.c.d format most people know as "an IP address" - four decimal numbers from 0-255, separated by dots. It exists purely for human readability; the underlying address is always 32 bits of binary.',
+  },
+  {
+    question: "How many bits are in an IPv4 address?",
+    answer:
+      "Exactly 32 bits, split into four 8-bit octets (4 x 8 = 32). That fixed length is why IPv4 tops out at about 4.3 billion unique addresses, which is also why IPv6 exists.",
+  },
+];
 
 export default function IpConverterPage() {
   const [ip, setIp] = useState("");
@@ -123,6 +147,38 @@ export default function IpConverterPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* About This Tool */}
+      <div className="max-w-2xl mx-auto mt-16 space-y-4 text-[var(--text-secondary)] leading-relaxed">
+        <h2 className="text-2xl font-bold text-[var(--text-primary)]">About this tool</h2>
+        <p>
+          This converter takes a standard IPv4 address in decimal (dotted quad) notation and
+          converts each of its four octets into 8-bit binary, giving you the full 32-bit binary
+          representation of the address. It runs entirely in your browser - nothing is sent to a
+          server.
+        </p>
+        <p>
+          Want the full explanation of octets, dotted quad notation, and why IPv4 addresses are
+          32 bits long? Read{" "}
+          <Link href="/networking/ch2-structure-of-an-ip-address" className="text-amber-600 dark:text-amber-400 hover:text-amber-500 font-semibold">
+            Ch.2: Understanding the Structure of an IP Address
+          </Link>.
+        </p>
+      </div>
+
+      {/* FAQ */}
+      <div className="max-w-2xl mx-auto mt-12 space-y-4">
+        <h2 className="text-2xl font-bold mb-2">Frequently asked questions</h2>
+        {FAQS.map((faq) => (
+          <div
+            key={faq.question}
+            className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-6"
+          >
+            <h3 className="font-bold mb-2">{faq.question}</h3>
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{faq.answer}</p>
+          </div>
+        ))}
       </div>
     </div>
   );

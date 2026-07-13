@@ -83,6 +83,10 @@ export default async function PostPage({
             {post.title}
           </h1>
           <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)] font-medium">
+            <Link href="/about" className="hover:text-amber-500 transition-colors">
+              By Ayush Arora
+            </Link>
+            <span>•</span>
             <time dateTime={post.date}>{post.date}</time>
             <span>•</span>
             <span>{getReadingTimeMinutes(post.content)} min read</span>
