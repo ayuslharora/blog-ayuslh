@@ -32,6 +32,18 @@ It essentially hands the packet to the router and says: *"Hey, I have no idea wh
 
 Once the router receives the packet, it takes over. It looks at the destination IP and forwards the packet to another router at your Internet Service Provider (ISP). That router forwards it to another router, and another, hopping across the world until the data finally reaches the destination device.
 
+```mermaid
+flowchart LR
+    L[Your Laptop<br>192.168.1.15] -- Local Network --> R[Default Gateway<br>Router: 192.168.1.1]
+    R -- Public Internet --> I1((ISP Router))
+    I1 --> I2((Internet Router))
+    I2 --> S[Destination Server<br>e.g. AWS/Google]
+    
+    style L fill:#4F46E5,color:#fff
+    style R fill:#10B981,color:#fff
+    style S fill:#F59E0B,color:#fff
+```
+
 ### How Does Your Computer Know Where the Gateway Is?
 
 You might be wondering: If your computer doesn't know how the internet works, how does it know the IP address of its Default Gateway?
