@@ -38,6 +38,20 @@ In a **`/24`** network:
 *   The first **24 bits** (the first three chunks: `192.168.1`) are locked in. This is the network identifier. Every device on this network *must* start with these exact numbers.
 *   The remaining **8 bits** (the final chunk) are left open for the **hosts**.
 
+```mermaid
+flowchart TD
+    subgraph IP Address: 192.168.1.15/24
+    direction LR
+    N["192 . 168 . 1"] ~~~ H["15"]
+    end
+    
+    style N fill:#4F46E5,color:#fff
+    style H fill:#10B981,color:#fff
+    
+    N -.-> E[Network Portion <br> First 24 bits]
+    H -.-> F[Host Portion <br> Last 8 bits]
+```
+
 ### The "Gotcha" of IP Allocation
 
 If we have 8 bits left for our hosts in a `/24` network, simple binary math tells us that 2^8 = 256. 
