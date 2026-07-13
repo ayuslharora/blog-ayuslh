@@ -16,13 +16,13 @@ Your computer is incredibly smart, but it has no idea how the global internet is
 
 So, how does the data get there? This is where the **Default Gateway** steps in.
 
-### What is a Default Gateway?
+## What is a Default Gateway?
 
 Simply put, the **Default Gateway** is the exit door of your local network. 
 
 In a standard home or office setup, your Default Gateway is your **Router**. It is the one designated device in your entire network that actually knows how to talk to the outside world (the public internet).
 
-### How the Default Gateway Routes Your Data (Passing the Parcel)
+## How the Default Gateway Routes Your Data (Passing the Parcel)
 
 When your laptop wants to load a website, it asks a DNS server for the IP address (as we discussed in Chapter 1). Once it has the IP, it checks its Subnet Mask and realizes, *"This IP is not on my local network."*
 
@@ -44,7 +44,7 @@ flowchart LR
     style S fill:#F59E0B,color:#fff
 ```
 
-### How Does Your Computer Know Where the Gateway Is?
+## How Does Your Computer Know Where the Gateway Is?
 
 You might be wondering: If your computer doesn't know how the internet works, how does it know the IP address of its Default Gateway?
 
@@ -52,6 +52,6 @@ It doesn't have to guess! When you connect your laptop or phone to a Wi-Fi netwo
 
 That IP address is your router's local IP (often something like `192.168.1.1`). 
 
-### Summary
+## Summary
 
 There is no need to overthink it. **The Default Gateway is simply the device that knows how to connect to outside networks.** If you want to communicate with a machine that is not on your local network, you must go through the Default Gateway.

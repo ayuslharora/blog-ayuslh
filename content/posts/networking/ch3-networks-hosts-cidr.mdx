@@ -12,7 +12,7 @@ When you connect a new smart TV, laptop, or phone to your Wi-Fi, it instantly ge
 
 To understand how routing and the internet fundamentally work, you first need to understand three core concepts: the **Network**, the **Host**, and **CIDR Notation**.
 
-### Network vs. Host: What's the Difference? (The Street and the Houses)
+## Network vs. Host: What's the Difference? (The Street and the Houses)
 
 The easiest way to understand how IP addresses are structured is to think of a residential neighborhood. 
 
@@ -23,7 +23,7 @@ Imagine you live on **Maple Street**. Every house on that street shares the same
 
 When a device joins your network, you don't have to manually assign it an IP address. A service running on your router called **DHCP** *(Dynamic Host Configuration Protocol)* acts like the neighborhood postmaster. It checks which "house numbers" are currently available and automatically hands one out to the new device.
 
-### What Is CIDR Notation? (Drawing the Boundary)
+## What Is CIDR Notation? (Drawing the Boundary)
 
 If you look at an IP address like `192.168.1.15`, it’s not immediately obvious which part is the "Street Name" (Network) and which part is the "House Number" (Host). 
 
@@ -54,7 +54,7 @@ flowchart TD
 
 > **💡 Try it yourself:** Plug an IP into the [IP to Binary Converter](/tools/ip-converter) and you'll see this Network/Host split as actual bits, not just theory.
 
-### How Many Usable IPs Are in a /24? (The Reserved Address Gotcha)
+## How Many Usable IPs Are in a /24? (The Reserved Address Gotcha)
 
 If we have 8 bits left for our hosts in a `/24` network, simple binary math tells us that 2^8 = 256. 
 
@@ -68,16 +68,16 @@ Does that mean your router can handle exactly 256 devices? **Actually, no. You c
 > 
 > **Total Usable Hosts:** 256 - 2 = **254**.
 
-### CIDR Notation Examples: Scaling Networks Up and Down
+## CIDR Notation Examples: Scaling Networks Up and Down
 
 CIDR notation is incredibly flexible, allowing us to size networks perfectly for their intended use. You will frequently encounter these two extremes in cloud computing (like AWS) and DevOps:
 
-#### The Enterprise Network: `/16`
+### The Enterprise Network: `/16`
 If a massive corporate campus needs thousands of devices on the same network, a `/24` won't cut it. Instead, they might use a `/16` network (e.g., `10.0.0.0/16`). 
 Here, only the first 16 bits are locked for the network, leaving a massive 16 bits for hosts. 
 * 2^16 = 65,536. 
 * Subtract our 2 reserved IPs, and you get **65,534 usable hosts**.
 
-#### The Ultimate Wildcard: `0.0.0.0/0`
+### The Ultimate Wildcard: `0.0.0.0/0`
 This is arguably the most famous CIDR block in the world. The `/0` means that **zero bits** are locked to a specific network. Because nothing is required to match, this notation literally translates to "absolutely any IP address on the internet." If you are configuring a cloud firewall and want to allow web traffic from the general public, you will open port 80/443 to `0.0.0.0/0`.
 
