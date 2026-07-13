@@ -57,6 +57,23 @@ The laptop compares the two results.
 
 **They match!** The laptop instantly knows the mobile phone is on the exact same local network. It can send the data locally.
 
+```mermaid
+flowchart TD
+    A[Laptop IP<br>192.168.1.4] --> C(Bitwise AND)
+    B[Subnet Mask<br>255.255.255.0] --> C
+    C --> D[My Network ID<br>192.168.1.0]
+
+    E[Destination IP<br>192.168.1.5] --> F(Bitwise AND)
+    B --> F
+    F --> G[Dest Network ID<br>192.168.1.0]
+
+    D --> H{Match?}
+    G --> H
+
+    H -- Yes --> I[Send Locally via Switch]
+    H -- No --> J[Send to Default Gateway]
+```
+
 But what if the destination IP was `10.0.0.1`?
 Applying the `255.255.255.0` subnet mask to `10.0.0.1` results in `10.0.0.0`. 
 `10.0.0.0` does **not** match `192.168.1.0`. The laptop knows this destination is outside its network, and it forwards the data to the router (the Default Gateway) to be sent out to the internet.
