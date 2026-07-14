@@ -1,4 +1,6 @@
 import { getAllSeries } from '../../lib/posts';
+import { getSeriesTitle } from '../../lib/covers';
+import { buildSeriesIndexItemListJsonLd, serializeJsonLd } from '../../lib/jsonLd';
 import SeriesCard from '../../components/SeriesCard';
 
 export const metadata = {
@@ -13,6 +15,14 @@ export default function SeriesPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-6 pb-24 pt-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd(
+            buildSeriesIndexItemListJsonLd(series.map((slug) => ({ slug, title: getSeriesTitle(slug) })))
+          ),
+        }}
+      />
       {/* Ambient Glow */}
       <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-amber-500/10 rounded-full blur-[100px] -z-10 pointer-events-none" />
 

@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { getAllSeries, getPostsBySeries } from '../../lib/posts';
 import { getSeriesTitle, getSeriesDescription, hasCover } from '../../lib/covers';
+import { buildSeriesCollectionPageJsonLd, serializeJsonLd } from '../../lib/jsonLd';
 
 export const dynamicParams = false;
 
@@ -42,6 +43,14 @@ export default async function SeriesPage({
 
   return (
     <div className="max-w-3xl mx-auto px-6 pb-24 pt-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd(
+            buildSeriesCollectionPageJsonLd(series, seriesTitle, getSeriesDescription(series), posts)
+          ),
+        }}
+      />
       {/* Ambient Glow */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-[100px] -z-10 pointer-events-none" />
 

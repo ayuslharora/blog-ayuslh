@@ -45,6 +45,7 @@ export function buildProfilePageJsonLd() {
 }
 
 export function buildBlogPostingJsonLd(post: Post | PostMeta) {
+  const url = `${SITE_URL}/${post.series}/${post.slug}`;
   return {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
@@ -52,7 +53,12 @@ export function buildBlogPostingJsonLd(post: Post | PostMeta) {
     description: post.description,
     datePublished: post.date,
     dateModified: post.date,
-    url: `${SITE_URL}/${post.series}/${post.slug}`,
+    url,
+    image: `${url}/opengraph-image`,
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': url,
+    },
     author: { '@id': AUTHOR_ID },
   };
 }
@@ -71,6 +77,87 @@ export function buildBreadcrumbJsonLd(post: PostMeta) {
         item: `${SITE_URL}/${post.series}/${post.slug}`,
       },
     ],
+  };
+}
+
+export function buildSeriesCollectionPageJsonLd(series: string, seriesTitle: string, seriesDescription: string, posts: PostMeta[]) {
+  const url = `${SITE_URL}/${series}`;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    '@id': `${url}/#collectionpage`,
+    url,
+    name: seriesTitle,
+    description: seriesDescription,
+    isPartOf: { '@id': `${SITE_URL}/#website` },
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: posts.map((post, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: `${SITE_URL}/${series}/${post.slug}`,
+        name: post.title,
+      })),
+    },
+  };
+}
+
+export function buildSeriesIndexItemListJsonLd(seriesList: { slug: string; title: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    '@id': `${SITE_URL}/series/#collectionpage`,
+    url: `${SITE_URL}/series`,
+    name: 'Series Catalog',
+    isPartOf: { '@id': `${SITE_URL}/#website` },
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: seriesList.map((s, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: `${SITE_URL}/${s.slug}`,
+        name: s.title,
+      })),
+    },
+  };
+}
+
+export function buildSoftwareApplicationJsonLd(opts: { path: string; name: string; description: string }) {
+  const url = `${SITE_URL}${opts.path}`;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    '@id': `${url}/#softwareapplication`,
+    name: opts.name,
+    url,
+    description: opts.description,
+    applicationCategory: 'UtilitiesApplication',
+    operatingSystem: 'Any (browser-based)',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+    author: { '@id': AUTHOR_ID },
+    isPartOf: { '@id': `${SITE_URL}/#website` },
+  };
+}
+
+// GEO/LLM-citation aid only, not for Google rich results: Google restricted
+// FAQPage rich results to gov/health sites in Aug 2023, but AI systems still
+// use FAQPage markup as a citability signal for direct Q&A content.
+export function buildFaqPageJsonLd(faqs: { question: string; answer: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((faq) => ({
+      '@type': 'Question',
+      name: faq.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.answer,
+      },
+    })),
   };
 }
 
