@@ -2,13 +2,22 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
+import rehypeSlug from 'rehype-slug';
 import { getAllPosts, getPostBySlug, getPostsBySeries } from '../../../lib/posts';
 import { getSeriesTitle } from '../../../lib/covers';
 import { getReadingTimeMinutes } from '../../../lib/readingTime';
+import { extractH2Headings } from '../../../lib/extractHeadings';
 import { buildBlogPostingJsonLd, buildBreadcrumbJsonLd, serializeJsonLd } from '../../../lib/jsonLd';
 import ChatWidget from '../../../components/ChatWidget';
 import IpConverter from '../../../components/IpConverter';
 import Mermaid from '../../../components/Mermaid';
+import TableOfContents from '../../../components/TableOfContents';
+
+// Chapters with this many H2 sections or more get an in-page table of
+// contents (currently: ddia-ch1 at 10, ch1-http-request at 6). A count
+// threshold rather than hardcoded slugs so future long chapters get one
+// automatically.
+const TOC_MIN_HEADINGS = 6;
 
 export const dynamicParams = false;
 
@@ -58,6 +67,8 @@ export default async function PostPage({
   const prevPost = currentIndex > 0 ? seriesPosts[currentIndex - 1] : null;
   const nextPost = currentIndex < seriesPosts.length - 1 ? seriesPosts[currentIndex + 1] : null;
 
+  const headings = extractH2Headings(post.content);
+
   return (
     <>
       <article className="w-[90%] md:w-[80%] max-w-none mx-auto px-6 pb-24 pt-8 prose dark:prose-invert prose-headings:font-bold prose-a:text-amber-600 dark:prose-a:text-amber-400 hover:prose-a:text-amber-500 prose-blockquote:border-amber-500 prose-blockquote:bg-amber-500/5 prose-blockquote:px-5 prose-blockquote:py-2 prose-blockquote:rounded-r-xl prose-blockquote:shadow-sm prose-img:rounded-2xl prose-img:shadow-xl mt-8 relative">
@@ -93,9 +104,12 @@ export default async function PostPage({
           </div>
         </header>
 
-        <MDXRemote 
-          source={post.content} 
-          components={{ 
+        {headings.length >= TOC_MIN_HEADINGS && <TableOfContents headings={headings} />}
+
+        <MDXRemote
+          source={post.content}
+          options={{ mdxOptions: { rehypePlugins: [rehypeSlug] } }}
+          components={{
             IpConverter,
             pre: (props: any) => {
               const child = props.children;
@@ -104,7 +118,7 @@ export default async function PostPage({
               }
               return <pre {...props} />;
             }
-          }} 
+          }}
         />
 
         <nav className="not-prose mt-16 pt-8 border-t border-black/10 dark:border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-4">
