@@ -111,8 +111,9 @@ export default function NavBar({ categories }: { categories: string[] }) {
               <button
                 onClick={() => setIsSearchOpen(true)}
                 aria-label="Search posts"
-                className="text-[var(--text-secondary)] hover:text-black dark:hover:text-white transition-colors p-1"
+                className="relative text-[var(--text-secondary)] hover:text-black dark:hover:text-white transition-colors p-1"
               >
+                <span className="absolute -inset-2" aria-hidden="true" />
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
               </button>
 
@@ -129,11 +130,12 @@ export default function NavBar({ categories }: { categories: string[] }) {
               {/* Mobile Menu Toggle */}
               {!isMobileMenuOpen && (
                 <button
-                  className="lg:hidden p-1.5 -mr-1.5 text-[var(--text-secondary)] hover:text-black dark:hover:text-white transition-colors rounded-lg bg-black/5 dark:bg-white/10"
+                  className="relative lg:hidden p-1.5 -mr-1.5 text-[var(--text-secondary)] hover:text-black dark:hover:text-white transition-colors rounded-lg bg-black/5 dark:bg-white/10"
                   onClick={() => setIsMobileMenuOpen(true)}
                   aria-label="Open menu"
                   aria-expanded={isMobileMenuOpen}
                 >
+                  <span className="absolute -inset-1.5" aria-hidden="true" />
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="3" y1="12" x2="21" y2="12"></line>
                     <line x1="3" y1="6" x2="21" y2="6"></line>
