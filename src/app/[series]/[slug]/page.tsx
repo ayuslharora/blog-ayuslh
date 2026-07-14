@@ -7,11 +7,13 @@ import { getAllPosts, getPostBySlug, getPostsBySeries } from '../../../lib/posts
 import { getSeriesTitle } from '../../../lib/covers';
 import { getReadingTimeMinutes } from '../../../lib/readingTime';
 import { extractH2Headings } from '../../../lib/extractHeadings';
+import { getRelatedPosts } from '../../../lib/getRelatedPosts';
 import { buildBlogPostingJsonLd, buildBreadcrumbJsonLd, serializeJsonLd } from '../../../lib/jsonLd';
 import ChatWidget from '../../../components/ChatWidget';
 import IpConverter from '../../../components/IpConverter';
 import Mermaid from '../../../components/Mermaid';
 import TableOfContents from '../../../components/TableOfContents';
+import RelatedPosts from '../../../components/RelatedPosts';
 
 // Chapters with this many H2 sections or more get an in-page table of
 // contents (currently: ddia-ch1 at 10, ch1-http-request at 6). A count
@@ -68,6 +70,7 @@ export default async function PostPage({
   const nextPost = currentIndex < seriesPosts.length - 1 ? seriesPosts[currentIndex + 1] : null;
 
   const headings = extractH2Headings(post.content);
+  const relatedPosts = getRelatedPosts(post, getAllPosts());
 
   return (
     <>
@@ -143,6 +146,8 @@ export default async function PostPage({
             </Link>
           )}
         </nav>
+
+        <RelatedPosts posts={relatedPosts} />
 
         <div className="not-prose mt-6 text-center">
           <Link
