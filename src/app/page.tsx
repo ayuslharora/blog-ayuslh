@@ -31,6 +31,7 @@ export default function Home() {
                   src={`/covers/${latestPost.series}.jpg`}
                   alt={latestPost.title}
                   fill
+                  priority
                   className="object-cover object-top opacity-80 dark:opacity-60 transition-transform duration-700 group-hover:scale-105"
                 />
               )}
