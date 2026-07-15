@@ -1,0 +1,74 @@
+---
+title: "Ch.8: IP Address vs. MAC Address"
+description: "Understanding the key differences between an IP Address and a MAC Address, and why a network requires both to successfully route data."
+date: "2026-07-16"
+tags: ["networking", "ip-address", "mac-address", "routing"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=sMDYh-II22Q)
+
+Over the past few chapters, we've explored both **IP Addresses** and **MAC Addresses**. We know what they look like and how they are structured. 
+
+But this raises an incredibly common networking question: *Why do we need two different addressing schemes?* If every device on the internet has an IP address, why do we even care about the MAC address? 
+
+In this chapter, we are going to compare them head-to-head to understand why a network absolutely requires **both** to function.
+
+## Head-to-Head Comparison
+
+Let's break down the differences between an IP Address and a MAC Address across four key areas:
+
+### 1. Appearance and Size
+- **IP Address:** A **32-bit** address typically represented as four decimal numbers separated by dots (e.g., `192.168.1.4`).
+- **MAC Address:** A **48-bit** address represented as six hexadecimal pairs separated by colons or hyphens (e.g., `FA:34:F3:AF:09:00`).
+
+### 2. Permanence (Virtual vs. Physical)
+- **IP Address (Virtual):** IP addresses are dynamic. If you connect your laptop to your home Wi-Fi router, you might be assigned one IP address. If you disconnect and take your laptop to a coffee shop, you will be assigned a completely different IP address.
+- **MAC Address (Physical):** MAC addresses are constant. They are hardcoded into your device's Network Interface Card (NIC) by the manufacturer. Wherever you go, your physical MAC address stays exactly the same.
+
+### 3. Uniqueness
+- **IP Address (Local Duplication):** IP addresses are not always universally unique. For example, my home router might assign my laptop the IP `192.168.1.5`. Your home router might assign *your* laptop the exact same IP `192.168.1.5`. Because we are on completely different private networks, this isn't an issue!
+- **MAC Address (Universally Unique):** No two physical devices in the entire world have the same MAC address. It is universally unique to your specific piece of hardware.
+
+### 4. Structural Halves
+Both addresses are logically split into two parts:
+- **IP Address:** Uses a Subnet Mask to divide the address into a **Network ID** and a **Host ID**.
+- **MAC Address:** Split directly down the middle. The first 3 bytes represent the **Manufacturer (OUI)**, and the last 3 bytes represent the **Specific Device (Host)**.
+
+## The Big Picture: Why Do We Need Both?
+
+To understand why we need both, let's look at a real-world scenario. 
+
+Imagine you are trying to send a request from your laptop at home to a server hosted in an **AWS Data Center** (like an EC2 instance).
+
+### The Role of the IP Address (Global Navigation)
+You know the public IP address of the AWS server. Because it's a public IP, your home router realizes it's not on your local network. Your router forwards the packet out to your ISP (Internet Service Provider).
+
+Your data packet now has to make several "hops" across various routers on the internet. At every single hop, the routers look at the **IP Address**. They perform logical calculations (using subnet masks) to say: *"I don't know exactly where this machine is, but I know it's located in the AWS US-East network. I'll forward it closer."*
+
+The IP address provides the **logical significance** required to navigate the massive, global internet. 
+
+### The Role of the MAC Address (Local Delivery)
+Eventually, your packet arrives at the final AWS router inside the correct data center. The packet has successfully reached the destination network!
+
+However, the AWS router is connected to thousands of physical server racks. How does the router know exactly which physical wire or hardware chip to send the electrical signals down? 
+
+This is where the **MAC Address** takes over. 
+
+Once the data reaches the correct local network, the IP address has done its job. The AWS router looks at the destination IP address and uses a protocol called **ARP (Address Resolution Protocol)** to broadcast a message to the local network: *"Who has this IP address, and what is your physical MAC address?"* 
+
+Once the specific EC2 server responds with its MAC address, the router uses that physical address to finalize the data delivery. Without the MAC address, the physical electrical signals have nowhere to go!
+
+### The Summary
+
+> **IP Addresses** help your data travel globally across the internet to find the correct local network. 
+> 
+> **MAC Addresses** take over once you arrive at the local network to find the exact physical hardware device.
+
+## Next Steps
+
+We now know that in order to send data, a router needs to figure out the destination's physical MAC address. 
+
+But if you only type `google.com` into your browser (which resolves to an IP address), how does your computer figure out the MAC address it needs for the physical delivery?
+
+In the next chapter, we will introduce the missing puzzle piece that bridges the gap between IP Addresses and MAC Addresses: the **Address Resolution Protocol (ARP)**!
