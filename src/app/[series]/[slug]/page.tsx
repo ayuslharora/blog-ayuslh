@@ -107,7 +107,7 @@ export default async function PostPage({
           </div>
         </header>
 
-        {headings.length >= TOC_MIN_HEADINGS && <TableOfContents headings={headings} />}
+
 
         <MDXRemote
           source={post.content}
