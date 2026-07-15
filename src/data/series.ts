@@ -13,4 +13,10 @@ export const SERIES: Record<string, SeriesInfo> = {
       "A beginner-to-advanced series on how computer networks actually work, from what happens during an HTTP request to DNS, IP addressing, and routing.",
     category: "networking",
   },
+  'machine-learning': {
+    title: "Machine Learning",
+    description:
+      "Exploring the foundations of machine learning, from basic algorithms to advanced neural networks.",
+    category: "machine-learning",
+  },
 };

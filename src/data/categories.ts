@@ -11,4 +11,9 @@ export const CATEGORIES: Record<string, CategoryInfo> = {
     description:
       'Trade-offs behind reliable, scalable, and maintainable systems, from distributed data stores to book notes on Designing Data-Intensive Applications.',
   },
+  'machine-learning': {
+    title: 'Machine Learning',
+    description:
+      'A deep dive into machine learning concepts, algorithms, and practical applications.',
+  },
 };

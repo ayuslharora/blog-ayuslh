@@ -57,7 +57,13 @@ export function getAllPosts(baseDir: string = DEFAULT_CONTENT_DIR): PostMeta[] {
   return readAllPostFiles(baseDir)
     .map(({ series, slug, raw }) => parsePost(series, slug, raw))
     .filter((post) => !post.draft)
-    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+      // If dates are equal, sort alphabetically by series, then slug (descending)
+      const seriesCompare = b.series.localeCompare(a.series);
+      if (seriesCompare !== 0) return seriesCompare;
+      return b.slug.localeCompare(a.slug);
+    })
     .map(({ content: _content, ...meta }) => meta);
 }
 

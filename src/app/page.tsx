@@ -51,7 +51,7 @@ export default function Home() {
                 </p>
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <span className="text-sm text-white/70 font-medium">
-                    {getSeriesTitle(latestPost.series)} · {latestPost.date} · {getReadingTimeMinutes(latestPost.content)} min read
+                    {getSeriesTitle(latestPost.series)} · {latestPost.date.split('T')[0]} · {getReadingTimeMinutes(latestPost.content)} min read
                   </span>
                   <Link
                     href={`/${latestPost.series}/${latestPost.slug}`}
@@ -88,7 +88,7 @@ export default function Home() {
                     {post.title}
                   </h4>
                   <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                    {post.date}
+                    {post.date.split('T')[0]}
                   </span>
                 </Link>
               ))}
@@ -134,7 +134,7 @@ export default function Home() {
                        {/* Floating Frosted Tags */}
                        {seriesTags.length > 0 && (
                          <div className="flex flex-wrap gap-2 mb-4">
-                           {seriesTags.map((tag) => (
+                           {seriesTags.slice(0, 7).map((tag) => (
                              <span
                                key={tag}
                                className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-white text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-lg"

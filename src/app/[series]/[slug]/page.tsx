@@ -101,7 +101,7 @@ export default async function PostPage({
               By Ayush Arora
             </Link>
             <span>•</span>
-            <time dateTime={post.date}>{post.date}</time>
+            <time dateTime={post.date.split('T')[0]}>{post.date.split('T')[0]}</time>
             <span>•</span>
             <span>{getReadingTimeMinutes(post.content)} min read</span>
           </div>

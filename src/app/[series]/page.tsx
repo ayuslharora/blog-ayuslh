@@ -103,7 +103,7 @@ export default async function SeriesPage({
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">Chapter {i + 1}</span>
                 <span className="text-xs text-[var(--text-secondary)]">•</span>
-                <time dateTime={post.date} className="text-xs text-[var(--text-secondary)]">{post.date}</time>
+                <time dateTime={post.date.split('T')[0]} className="text-xs text-[var(--text-secondary)]">{post.date.split('T')[0]}</time>
               </div>
               <h3 className="text-xl font-bold mb-2 group-hover:text-amber-500 transition-colors">
                 {post.title}

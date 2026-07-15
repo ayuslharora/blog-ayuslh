@@ -6,3 +6,6 @@ docs/
 next-env.d.ts
 .env*
 *.tsbuildinfo
+
+# Ignore agent customizations
+.agents/
