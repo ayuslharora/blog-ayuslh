@@ -43,7 +43,7 @@ export default function Mermaid({ chart }: { chart: string }) {
 
   return (
     <div 
-      className="mermaid-wrapper flex justify-center w-full my-8 p-6 bg-white dark:bg-black/20 rounded-2xl border border-black/5 dark:border-white/5 overflow-x-auto [&_svg]:w-full [&_svg]:h-auto [&_svg]:min-w-[800px] md:[&_svg]:min-w-[600px]"
+      className="mermaid-wrapper flex w-full my-8 p-4 md:p-6 bg-white dark:bg-black/20 rounded-2xl border border-black/5 dark:border-white/5 overflow-x-auto [&_svg]:m-auto [&_svg]:w-full [&_svg]:h-auto [&_svg]:min-w-[600px]"
       dangerouslySetInnerHTML={{ __html: svg }} 
     />
   );
