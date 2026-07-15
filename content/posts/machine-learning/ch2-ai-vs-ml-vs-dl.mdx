@@ -1,0 +1,90 @@
+---
+title: "Ch.2: AI vs. ML vs. Deep Learning"
+description: "Unpacking the differences between Artificial Intelligence, Machine Learning, Deep Learning, and Reinforcement Learning using a video game bot analogy."
+date: "2026-07-16T15:00"
+tags: ["machine-learning", "ai", "deep-learning", "reinforcement-learning"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=1v3_AQ26jZ0)
+
+If you have spent any time in the tech industry recently, you have likely heard the terms Artificial Intelligence, Machine Learning, and Deep Learning used interchangeably. While they are related, they are not the same thing. 
+
+To truly understand how to build intelligent systems, you need to know exactly where the boundaries of these technologies lie. Let's break down the classic concentric circle model and apply it to a practical example: building an automated bot to play the video game *Fortnite*.
+
+## The Classic Hierarchy
+
+The easiest way to visualize the relationship between these fields is through concentric circles. Artificial Intelligence is the broadest category, containing Machine Learning, which in turn contains Deep Learning. 
+
+![AI vs ML vs DL Diagram](/images/diagram.png)
+
+Notice the addition of **Reinforcement Learning**. It primarily sits inside the Machine Learning circle and heavily overlaps with Deep Learning (creating Deep Reinforcement Learning), but it represents a distinct approach to how a system learns.
+
+Let's dive into each layer by attempting to build a bot that can win a match of *Fortnite*.
+
+---
+
+## 1. Artificial Intelligence (The Outer Circle)
+
+**Artificial Intelligence (AI)** is the overarching concept of creating machines capable of mimicking human intelligence and behavior. It does not dictate *how* the machine becomes intelligent. 
+
+In the early days of computer science (from the 1950s onwards), the dominant approach to AI was **Symbolic AI** or **Expert Systems**. This involved extracting knowledge from human experts and writing massive logic trees.
+
+### The Fortnite Example (Symbolic AI)
+If we build our Fortnite bot using traditional AI, we sit down with professional gamers and write explicit rules for every scenario:
+
+* If health is below 30, use a medkit.
+* If an enemy is within 50 meters, equip a shotgun.
+* If being shot at, build a wall.
+
+**The Problem:** The game environment is too complex. What if the enemy has a sniper? What if you are out of wood to build a wall? What if the storm is closing in? Writing `if-else` statements for millions of potential game states is impossible. The bot becomes highly predictable and easy to defeat.
+
+## 2. Machine Learning (The Inner Circle)
+
+Because Expert Systems hit a wall when dealing with fuzzy, highly variable environments, scientists shifted to **Machine Learning (ML)**. As we discussed in Chapter 1, ML is the practice of feeding data into an algorithm so it can learn the rules on its own.
+
+### The Fortnite Example (Traditional ML)
+Instead of writing rules, we feed our algorithm data from thousands of recorded Fortnite matches played by real humans. 
+
+However, for traditional machine learning to work effectively, we have to perform **Feature Engineering**. This means humans must explicitly tell the algorithm *what to look at*. We might extract specific variables (features) from the game data: the player's current health, the distance to the nearest enemy, and the current weapon equipped.
+
+The ML model analyzes this structured data and learns statistical patterns. It realizes: *"When health is 30 and distance to enemy is 100 meters, human players usually run away."* 
+
+**The Problem:** Traditional ML relies heavily on humans to pick the right features. If we forget to include "ammo count" as a feature in our dataset, the bot might confidently charge into battle with an empty gun.
+
+## 3. Deep Learning (The Innermost Circle)
+
+**Deep Learning (DL)** is a specialized subset of Machine Learning inspired by the structure of the human brain. It uses Artificial Neural Networks with multiple layers (hence "deep") to process data. 
+
+The biggest advantage of Deep Learning is that it performs **automatic feature extraction**. You do not need to tell the model what variables are important. Furthermore, while traditional ML models eventually plateau in performance regardless of how much data you feed them, Deep Learning models continue to scale and improve as you give them more data and compute power.
+
+### The Fortnite Example (Deep Learning)
+We no longer extract structured features like "health" or "distance." Instead, we feed the deep learning model the raw pixels of the game screen, exactly as a human sees it, along with the keyboard and mouse inputs.
+
+The first layer of the neural network might detect edges on the screen. The next layer might detect shapes. The deeper layers combine these shapes to recognize an enemy player, a sniper rifle, or a building structure. The network figures out entirely on its own that the green bar at the bottom of the screen (health) is important for survival.
+
+## 4. Reinforcement Learning (The Interactive Learner)
+
+While Deep Learning is incredible at recognizing patterns, playing a dynamic game requires long-term planning and decision making. This brings us to **Reinforcement Learning (RL)**.
+
+Reinforcement Learning is about training an agent through trial and error in an environment, using a system of rewards and punishments.
+
+### The Fortnite Example (Reinforcement Learning)
+We drop our bot into a live Fortnite match knowing absolutely nothing about the game. We give it a simple reward system:
+* Taking damage: **-10 points**
+* Eliminating an enemy: **+100 points**
+* Winning the match (Victory Royale): **+10,000 points**
+
+Initially, the bot will run into walls, spin in circles, and get eliminated instantly. But over time, by playing millions of matches against itself at lightning speed, it learns which sequences of actions lead to maximum rewards. It discovers high-level strategies that humans might never even think of. 
+
+This exact combination (Deep Reinforcement Learning) is how OpenAI famously trained bots to defeat world champions in the highly complex game *Dota 2*.
+
+## Summary
+
+To recap the hierarchy:
+* **Artificial Intelligence** is the end goal: creating smart machines.
+* **Machine Learning** is the method of achieving AI by letting algorithms learn from data.
+* **Deep Learning** is a powerful ML technique using neural networks to automatically extract features from massive, unstructured datasets.
+* **Reinforcement Learning** is a specialized learning paradigm where agents learn to make sequential decisions through trial and error.
+
+In the upcoming chapters, we will dive into the practical workflow of a Machine Learning project, starting with how we gather, clean, and prepare data for these algorithms.
