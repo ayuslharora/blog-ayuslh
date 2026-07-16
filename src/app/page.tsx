@@ -7,7 +7,7 @@ import { formatTagLabel } from '../lib/format';
 
 export default function Home() {
   const series = getAllSeries();
-  const recentPosts = getAllPosts().slice(0, 5);
+  const recentPosts = getAllPosts().slice(0, 6);
   const latestPostMeta = recentPosts[0];
   const latestPost = latestPostMeta
     ? getPostBySlug(latestPostMeta.series, latestPostMeta.slug)
@@ -75,7 +75,7 @@ export default function Home() {
               Latest Posts
             </h3>
             <div className="flex flex-col gap-6">
-              {recentPosts.slice(1).map((post) => (
+              {recentPosts.slice(0, 5).map((post) => (
                 <Link
                   key={`${post.series}/${post.slug}`}
                   href={`/${post.series}/${post.slug}`}
