@@ -57,12 +57,18 @@ Every device on the network receives the broadcast request:
 
 Host A3 sends an ARP reply back to Host A1 saying, *"The MAC address for 192.168.1.4 is [A3's MAC Address]."*. 
 
-*(Note: Every device is pre-configured to know its own IP and MAC address, so A3 already has this answer ready).*
+*(Note: Every device's MAC address is hardcoded at the factory, and its IP address is automatically assigned when it joins the network. Because A3 already knows both of its own addresses, it has this answer ready).*
 
 ### Step 5: Caching the Result (ARP Table)
 Host A1 receives the MAC address and can now successfully send the data packet to A3. 
 
 To avoid having to broadcast the same question every time it wants to talk to A3, Host A1 stores this IP-to-MAC mapping in its **ARP Table** (a local cache). The next time A1 needs to send data to A3, it will just check its ARP Table instead of making another broadcast request.
+
+**Wait, what happens if A3 leaves the network?** 
+ARP entries don't stay in the cache forever. Every record in the ARP table has a short lifespan (a "Time To Live" timer, usually ranging from a few seconds to a few minutes). If A3 disconnects and leaves the network, its entry will simply expire and be automatically deleted from A1's cache. If A1 tries to talk to that IP again later, it won't find the MAC in its cache and will broadcast a brand new ARP request.
+
+*But what if A1 tries to send data BEFORE the cache expires?* 
+If A3 disconnects abruptly but its MAC address is still cached in A1's ARP table, A1 will send the data packet to the switch using that "stale" MAC address. The switch will try to forward it to where A3 used to be, but since A3 is gone, the packet hits a dead end and is silently dropped. (If a new device joins and takes A3's old IP while the cache is still stale, the new device will receive the packet, see that the MAC address doesn't match its own, and throw it in the trash). This is exactly why ARP cache timers are kept very short, so the network can quickly flush out these "ghost" records and fix itself!
 
 ## Communicating Outside the Network
 
