@@ -75,7 +75,7 @@ export default function Home() {
               Latest Posts
             </h3>
             <div className="flex flex-col gap-6">
-              {recentPosts.map((post) => (
+              {recentPosts.slice(1).map((post) => (
                 <Link
                   key={`${post.series}/${post.slug}`}
                   href={`/${post.series}/${post.slug}`}
