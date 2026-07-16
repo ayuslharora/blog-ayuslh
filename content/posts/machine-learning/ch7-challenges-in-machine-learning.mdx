@@ -78,17 +78,4 @@ When you build a model on your laptop, it costs nothing. When you deploy a compu
 
 This specific challenge has given rise to a massive new field in the software industry called **MLOps** (Machine Learning Operations). Just like DevOps handles traditional software deployment, MLOps engineers specialize in deploying, optimizing, and monitoring machine learning models cost-effectively.
 
----
 
-## Edge Cases and Questions to Consider
-
-As you dive deeper into these challenges, consider the following real-world edge cases:
-
-**1. The Cost of MLOps:** If cloud hosting for heavy models is so expensive, how do tiny startups afford advanced Machine Learning?
-Startups often rely on highly optimized lightweight models or use managed APIs (like OpenAI's models) rather than hosting their own massive infrastructure. Additionally, there is a massive industry shift towards **Edge Computing**—compressing models and deploying them directly onto the user's mobile phone (using tools like TensorFlow Lite or Apple's Core ML). This completely eliminates server costs and reduces latency because the heavy computation happens on the user's local hardware.
-
-**2. Intentional Overfitting:** Is there ever a real-world scenario where we actually *want* a model to overfit?
-Yes, but it is extremely rare. If you are building a system that requires 100% strict adherence to known facts (like a rigid lookup table or ultra-secure access control), you might want pure memorization. However, if that is your goal, Machine Learning is simply the wrong tool for the job. You should use a traditional SQL database or a hash map instead. Machine learning exists explicitly to generalize unknown data.
-
-**3. Data Quality vs. Quantity:** The "Unreasonable Effectiveness of Data" states that huge data beats a great algorithm. But what if that massive dataset is 40% garbage/noise? Does sheer quantity still win?
-No. The "Unreasonable Effectiveness of Data" assumes the data is at least reasonably representative. If a massive dataset is completely riddled with errors, mislabels, and noise, the sheer volume will simply teach the model the *wrong* patterns at a massive scale. A smaller, highly curated, high-quality dataset will always beat a massive dataset filled with garbage.
