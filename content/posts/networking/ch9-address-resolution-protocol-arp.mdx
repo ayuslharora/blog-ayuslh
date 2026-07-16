@@ -1,0 +1,87 @@
+---
+title: "Ch.9: Address Resolution Protocol (ARP)"
+description: "Understanding the Address Resolution Protocol (ARP), how it acts as a link between IP addresses and MAC addresses, and how devices use it to communicate."
+date: "2026-07-17T11:00"
+tags: ["networking", "arp", "ip-address", "mac-address"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=kDAnEyg9nCg)
+
+In the previous posts, we have explored several core networking concepts: what an IP address is, how subnets and default gateways work, and the structure and necessity of a MAC address. We also looked at the differences between IP addresses and MAC addresses.
+
+Now, we are going to look at the **Address Resolution Protocol (ARP)**. ARP acts as the crucial link between an IP address and a MAC address. In this post, we will explore what ARP is and walk through an example of how devices use it to discover the MAC address of other devices when they only know their IP address.
+
+## What is ARP?
+
+ARP stands for **Address Resolution Protocol**. 
+
+It is a simple protocol that takes an IP address as an input and returns the corresponding MAC address. You can think of it similarly to how DNS works: DNS takes a domain name and returns its public IP address. ARP takes an IP address and returns the hardware MAC address of the device holding that IP.
+
+It really is that simple: provide an IP, get a MAC.
+
+## How ARP Works: An Example
+
+Let's imagine a network setup, **Network A**, consisting of three hosts (A1, A2, and A3) and a Router that serves as our default gateway.
+
+**The Problem:** Host A1 wants to send a data packet to Host A3. 
+
+Host A1 already knows Host A3's IP address. (In real life, this might happen because a front-end application makes an HTTP request to a back-end domain, and DNS resolves that domain to an IP address).
+
+### Step 1: Same Network Check
+Before sending anything, Host A1 needs to determine if A3 is in the same local network. 
+
+Host A1 applies its subnet mask (e.g., `255.255.255.0`) to its own IP address to find its network ID. It then applies that same subnet mask to Host A3's IP address. If the resulting network IDs match, Host A1 knows that Host A3 is in the same local network.
+
+### Step 2: The Missing MAC Address
+Since A3 is in the same network, A1 knows it can deliver the data packet directly. However, to actually transmit the data across the local network, A1 needs A3's **MAC address**, which it currently does not have.
+
+This is where ARP comes into the picture.
+
+### Step 3: The ARP Request (Broadcast)
+To find the MAC address, Host A1 makes an **ARP Request** inside the network. 
+
+Just like a DNS request asks, *"What is the IP of api.example.com?"*, an ARP request asks, *"What is the MAC address of the device with IP 192.168.1.4?"*
+
+Crucially, an ARP request is a **broadcast request**. 
+
+> **How does a Broadcast actually work?** 
+>
+> When Host A1 makes a broadcast request, it sends the message to the central switch in your network (which is often built directly into your home WiFi router box). When the switch receives a message marked for "broadcast", its job is to physically copy that message and forward it out to every single device connected to the network. This is how the message successfully reaches A2, A3, and the Default Gateway.
+
+### Step 4: The Response
+Every device on the network receives the broadcast request:
+* **Host A2** looks at the requested IP, realizes it doesn't match its own, and ignores it.
+* **The Default Gateway (Router)** looks at the IP, realizes it doesn't match, and ignores it.
+* **Host A3** sees the requested IP, recognizes it as its own, and responds!
+
+Host A3 sends an ARP reply back to Host A1 saying, *"The MAC address for 192.168.1.4 is [A3's MAC Address]."*. 
+
+*(Note: Every device is pre-configured to know its own IP and MAC address, so A3 already has this answer ready).*
+
+### Step 5: Caching the Result (ARP Table)
+Host A1 receives the MAC address and can now successfully send the data packet to A3. 
+
+To avoid having to broadcast the same question every time it wants to talk to A3, Host A1 stores this IP-to-MAC mapping in its **ARP Table** (a local cache). The next time A1 needs to send data to A3, it will just check its ARP Table instead of making another broadcast request.
+
+## Communicating Outside the Network
+
+What happens if Host A1 wants to send data to an IP outside of its network (e.g., `10.0.0.1`)?
+
+1. **Subnet Check:** A1 applies its subnet mask and realizes the destination IP is outside its local network.
+2. **Forward to Gateway:** Because the destination is outside the local network, A1 has no idea how to reach it directly. Instead, it knows it must hand the packet off to the Default Gateway (the router), which acts as the "door" to the outside world. A1 knows exactly who this is because the IP address of the Default Gateway is automatically assigned to the device the moment it connects to the network.
+3. **ARP for the Gateway:** A1 needs the Router's MAC address to send the packet to it. It broadcasts an ARP request asking, *"What is the MAC address of the Default Gateway's IP?"*
+4. **Router Responds:** A2 and A3 ignore the broadcast. The Router responds with its MAC address. 
+5. **Data Sent:** A1 uses the Router's MAC address to forward the packet, and caches the Router's MAC in its ARP table for future use.
+
+## Viewing Your ARP Table
+
+You can easily view the ARP table on your own device to see these cached IP-to-MAC mappings!
+
+If you are on a Mac or Windows machine, simply open your terminal or command prompt and run:
+
+```bash
+arp -a
+```
+
+This will output a list of IP addresses and their corresponding MAC addresses that your device currently has cached, including the MAC address of your default gateway router.
