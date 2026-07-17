@@ -59,10 +59,10 @@ export function getAllPosts(baseDir: string = DEFAULT_CONTENT_DIR): PostMeta[] {
     .filter((post) => !post.draft)
     .sort((a, b) => {
       if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-      // If dates are equal, sort alphabetically by series, then slug (descending)
+      // If dates are equal, sort alphabetically by series, then slug (descending natural sort)
       const seriesCompare = b.series.localeCompare(a.series);
       if (seriesCompare !== 0) return seriesCompare;
-      return b.slug.localeCompare(a.slug);
+      return b.slug.localeCompare(a.slug, undefined, { numeric: true, sensitivity: 'base' });
     })
     .map(({ content: _content, ...meta }) => meta);
 }
@@ -72,7 +72,7 @@ export function getPostsBySeries(series: string, baseDir: string = DEFAULT_CONTE
     .filter((file) => file.series === series)
     .map(({ series: s, slug, raw }) => parsePost(s, slug, raw))
     .filter((post) => !post.draft)
-    .sort((a, b) => (a.slug < b.slug ? -1 : 1))
+    .sort((a, b) => a.slug.localeCompare(b.slug, undefined, { numeric: true, sensitivity: 'base' }))
     .map(({ content: _content, ...meta }) => meta);
 }
 

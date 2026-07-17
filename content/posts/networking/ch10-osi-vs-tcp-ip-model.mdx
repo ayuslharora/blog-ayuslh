@@ -1,0 +1,210 @@
+---
+title: "Ch.10: OSI Model vs TCP/IP Model"
+description: "Understanding the 7 layers of the OSI model, how they compare to the TCP/IP model, and how a request travels through these layers over the network."
+date: "2026-07-18"
+tags: ["networking", "osi", "tcp-ip", "protocols"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=ZOLkWBVMcwU)
+
+In this post, we are going to explore the differences between the **OSI Model** and the **TCP/IP Model**. We will look at the different layers in the OSI model, the significance of each layer, why we have different layers in the first place, and what protocols exist within them. Finally, we will trace how a request travels from a source to a destination through these layers over the network.
+
+## What is the OSI Model?
+
+OSI stands for **Open Systems Interconnection**. 
+- **Open Systems:** Systems that are open to communicate. You have a frontend and a backend. Technically, you can send a request to your backend from any device. Your backend might deny it (returning a 401 Unauthorized or 403 Forbidden), but it will still accept that request and attempt to process it. It is an open system.
+- **Interconnection:** How these open systems connect over the network.
+
+The OSI model differentiates this interconnection process into **seven distinct layers**. Let's break down each layer, starting from the top (Layer 7) down to the bottom (Layer 1).
+
+<div className="flex flex-col gap-2 my-6 font-sans overflow-x-auto">
+  <div className="flex items-center gap-4 min-w-[600px]">
+    <div className="bg-[#1f395c] text-white px-4 py-2 border border-white rounded w-[200px] text-center text-sm font-medium shrink-0">Application layer</div>
+    <div className="w-16 text-sm font-medium shrink-0">Layer 7</div>
+    <div className="text-sm">HTTP/SMTP/IMAP/POP3/FTP/SSH</div>
+  </div>
+  <div className="flex items-center gap-4 min-w-[600px]">
+    <div className="bg-[#295c34] text-white px-4 py-2 border border-white rounded w-[200px] text-center text-sm font-medium shrink-0">Presentation Layer</div>
+    <div className="w-16 text-sm font-medium shrink-0">Layer 6</div>
+    <div className="text-sm">Encoding/Encryption/Serialization/JSON</div>
+  </div>
+  <div className="flex items-center gap-4 min-w-[600px]">
+    <div className="bg-[#5e5a2f] text-white px-4 py-2 border border-white rounded w-[200px] text-center text-sm font-medium shrink-0">Session Layer</div>
+    <div className="w-16 text-sm font-medium shrink-0">Layer 5</div>
+    <div className="text-sm">RPC/NETBIOS/Session Management</div>
+  </div>
+  <div className="flex items-center gap-4 min-w-[600px]">
+    <div className="bg-[#5e3521] text-white px-4 py-2 border border-white rounded w-[200px] text-center text-sm font-medium shrink-0">Transport Layer</div>
+    <div className="w-16 text-sm font-medium shrink-0">Layer 4</div>
+    <div className="text-sm">TCP/UDP/QUIC</div>
+  </div>
+  <div className="flex items-center gap-4 min-w-[600px]">
+    <div className="bg-[#5c2222] text-white px-4 py-2 border border-white rounded w-[200px] text-center text-sm font-medium shrink-0">Network Layer</div>
+    <div className="w-16 text-sm font-medium shrink-0">Layer 3</div>
+    <div className="text-sm">IP/ICMP</div>
+  </div>
+  <div className="flex items-center gap-4 min-w-[600px]">
+    <div className="bg-[#502663] text-white px-4 py-2 border border-white rounded w-[200px] text-center text-sm font-medium shrink-0">Data Link Layer</div>
+    <div className="w-16 text-sm font-medium shrink-0">Layer 2</div>
+    <div className="text-sm">MAC/Ethernet</div>
+  </div>
+  <div className="flex items-center gap-4 min-w-[600px]">
+    <div className="bg-[#4a4a4a] text-white px-4 py-2 border border-white rounded w-[200px] text-center text-sm font-medium shrink-0">Physical Layer</div>
+    <div className="w-16 text-sm font-medium shrink-0">Layer 1</div>
+    <div className="text-sm">Electrical Signals/Radio Waves/Fiber Optics</div>
+  </div>
+</div>
+
+### Layer 7: Application Layer
+
+This is the layer where your application sits. The web browsers you use (Chrome, Edge), desktop applications, web servers, and mobile applications are all part of the Application Layer. It is essentially where the end-user interacts with the network through the software you build. 
+
+There is no need to overthink this layer: any software you build that runs on a browser, mobile, or desktop operates here. It serves as the window for applications to access network services.
+
+**Key Protocols in Layer 7:**
+- **HTTP/HTTPS (Hypertext Transfer Protocol):** The foundation of data communication on the web. It's used by your frontend or mobile app to talk to a backend server.
+- **SMTP (Simple Mail Transfer Protocol), IMAP, & POP3:** The standard protocols used by email clients for sending and receiving emails over the internet.
+- **FTP (File Transfer Protocol):** Used for transferring computer files between a client and a server on a computer network.
+- **SSH (Secure Shell):** A cryptographic network protocol for operating network services securely over an unsecured network (like logging into a remote EC2 instance).
+
+### Layer 6: Presentation Layer
+
+Just below the Application Layer is the Presentation Layer. This is where data transformation happens, including operations like **encoding, encryption, serialization, and compression**.
+
+When you send an HTTPS request, such as a plain text `GET /profile`, it does not travel over the internet as plain text. If an attacker intercepts it, they will only see gibberish. This is because the request is encrypted (e.g., using TLS). 
+
+Operations happening here:
+- **Encoding and Serialization:** Converting plain text (like an HTTP request) into a binary form or bytes using encoding types like ASCII or UTF-8, or converting it to JSON.
+- **Encryption:** Securing the data before it leaves the machine.
+- **Compression:** If you have a large payload, you might compress it using a library like Zlib. 
+
+Any operation where you transform plain data from the Application Layer into a transmittable format is part of the Presentation Layer.
+
+### Layer 5: Session Layer
+
+The Session Layer manages the **session**: initiating it, maintaining it, and terminating it when the work is done. It creates a connection between two applications to perform certain tasks.
+
+**Example 1: User Sessions**
+When you authenticate with a server using a username and password, the server creates a session and returns a session ID. You store this in an HTTP cookie or local storage and send it with each subsequent request so the server knows you are authorized. The server uses this session ID to identify the user (e.g., User A is connected to Server A). 
+
+**Example 2: Checkpointing File Transfers**
+Imagine transferring a 10 GB file from one device to another. You create a session between the two devices and transfer the file in chunks. If the connection fails after 8 GB has been transferred, you don't want to start over. When the connection restarts, the Session Layer acts as a checkpoint. It tells the application, "We already transferred 8 GB in the previous session, please send the remaining chunks."
+
+This layer is often misunderstood because, in modern applications, session responsibilities (like managing HTTP cookies) are handled at the application level. 
+
+### Layer 4: Transport Layer
+
+As software developers, we mostly deal with the Application and Transport layers (DevOps engineers or cloud engineers often deal with the Network layer too). 
+
+The Transport Layer is crucial because almost every protocol in the higher layers (HTTP, SMTP, SSH, etc.) uses either **TCP or UDP** underneath. Even QUIC (a newer transport layer protocol) uses UDP under the hood.
+
+**Key Concepts:**
+- **Ports:** This layer introduces the concept of ports. If your React application is running on port 3000, and your backend is on port 8000, the port number helps direct the received packets to the correct application on a machine.
+
+### Layer 3: Network Layer
+
+While the Transport Layer uses ports to find the right application on a machine, the Network Layer is responsible for global routing. It uses **IP Addresses** (a virtual address concept) to navigate data across the vast public internet to reach the correct destination machine in the first place.
+
+Without the Network Layer, your computer wouldn't know how to reach a server sitting in a completely different country. 
+
+**Key Protocols in Layer 3:**
+- **IP (Internet Protocol):** The primary protocol for routing packets across network boundaries.
+- **ICMP (Internet Control Message Protocol):** Used mainly for network diagnostics. When you use tools like `ping` or `traceroute` to check if a server is online or to trace the path a packet takes, you are using ICMP under the hood.
+
+### Layer 2: Data Link Layer
+
+The Network Layer deals with virtual IP addresses, but the Data Link Layer deals directly with the local, physical medium using **MAC Addresses**. 
+
+Because the Network Layer is technically "above" the Data Link layer, this layer doesn't actually care about IP addresses. Its only job is local delivery. Once the data reaches your local network (like your home Wi-Fi or office Ethernet), the Data Link Layer uses the physical MAC address burnt into the network card to locate the specific device (like your mobile phone or laptop) and physically send the data frame to it over the local hop.
+
+### Layer 1: Physical Layer
+
+This is the very bottom layer and the true end point of the software process. There is no need to overthink it: this layer handles the raw physical transmission.
+
+Once it receives data from the Data Link Layer, the Physical Layer converts it into raw bits (zeros and ones). It then transmits these bits over the actual physical medium in various forms:
+- **Electric signals** (over copper Ethernet cables)
+- **Radio waves** (over Wi-Fi)
+- **Light pulses** (over Fiber Optics)
+
+This completes the journey. You initiate something at the Application Layer (Layer 7), it transforms layer by layer down the stack, and finally, the Physical Layer blasts it across the wire to its destination.
+
+---
+
+## Why Does Every Layer Have Its Own Data Unit?
+
+You might notice that data is called different things depending on which layer it resides in. As data moves down the layers, it is **encapsulated** with new headers specific to that layer's responsibilities. Every layer has its own Protocol Data Unit (PDU) because each layer needs to track completely different metadata:
+
+1. **Transport Layer Data Units (Segments / Datagrams):** At this layer, the payload is wrapped with a header containing **Source and Destination Ports**, as well as sequence numbers (for TCP). This encapsulated unit is called a **Segment** in TCP and a **Datagram** in UDP.
+2. **Network Layer Data Units (IP Packets):** The Network Layer takes that Segment and wraps it in a new header containing **Source and Destination IP Addresses** to route it across the global internet. This new unit is called an **IP Packet**.
+3. **Data Link Layer Data Units (Frames):** The Data Link Layer takes the IP Packet and wraps it with a header containing **Source and Destination MAC Addresses** for local hardware routing. This is called a **Frame**.
+4. **Physical Layer (Bits):** Finally, the frame is converted into raw **zeros and ones (bits)** for physical transmission over the wire or air.
+
+This separation of data units ensures that each layer only interacts with the metadata it actually cares about, treating the rest of the data as a simple, untouched payload.
+
+---
+
+## Why Do We Have Separation of Layers?
+
+You might wonder why we need seven separate layers. The primary reason is **independence**. 
+
+Because each layer operates independently, a change in one layer does not break the others. For example, if you build a Node.js application, you write your code in JavaScript. You do not have to write separate versions of your application for Wi-Fi, Ethernet, or Fiber Optics. Your application (Layer 7) works perfectly regardless of the physical medium (Layer 1) being used. The lower layers handle their specific jobs so the upper layers don't have to care about them.
+
+## The TCP/IP Model
+
+The OSI model is a conceptual model introduced in 1983. However, in the real world, modern systems practically use the **TCP/IP Model**. 
+
+If you look closely at modern applications, the Application Layer, Presentation Layer, and Session Layer are often handled by the same software:
+- Your application code lives in the Application Layer.
+- You use libraries like OpenSSL for encryption and Zlib for compression directly in your code (Presentation Layer responsibilities).
+- You implement login, logout, and token management directly in your server logic using middlewares (Session Layer responsibilities).
+
+The TCP/IP model recognizes that these three layers act together at the application level. Therefore, it **merges the top three OSI layers (Application, Presentation, and Session) into a single Application Layer**.
+
+This reduces the 7-layer OSI model to a **5-layer model** (Note: Some TCP/IP definitions also merge Data Link and Physical layers into one "Network Access" layer, making it 4 layers, but it is often better to keep them separate for clarity):
+
+<div className="flex flex-col gap-2 my-6 font-sans overflow-x-auto">
+  <div className="flex items-center gap-4 min-w-[300px]">
+    <div className="bg-[#1f395c] text-white px-4 py-2 border border-white rounded w-[200px] text-center text-sm font-medium shrink-0">Application layer</div>
+    <div className="w-16 text-sm font-medium shrink-0">Layer 5</div>
+  </div>
+  <div className="flex items-center gap-4 min-w-[300px]">
+    <div className="bg-[#5e3521] text-white px-4 py-2 border border-white rounded w-[200px] text-center text-sm font-medium shrink-0">Transport Layer</div>
+    <div className="w-16 text-sm font-medium shrink-0">Layer 4</div>
+  </div>
+  <div className="flex items-center gap-4 min-w-[300px]">
+    <div className="bg-[#5c2222] text-white px-4 py-2 border border-white rounded w-[200px] text-center text-sm font-medium shrink-0">Network Layer</div>
+    <div className="w-16 text-sm font-medium shrink-0">Layer 3</div>
+  </div>
+  <div className="flex items-center gap-4 min-w-[300px]">
+    <div className="bg-[#502663] text-white px-4 py-2 border border-white rounded w-[200px] text-center text-sm font-medium shrink-0">Data Link Layer</div>
+    <div className="w-16 text-sm font-medium shrink-0">Layer 2</div>
+  </div>
+  <div className="flex items-center gap-4 min-w-[300px]">
+    <div className="bg-[#4a4a4a] text-white px-4 py-2 border border-white rounded w-[200px] text-center text-sm font-medium shrink-0">Physical Layer</div>
+    <div className="w-16 text-sm font-medium shrink-0">Layer 1</div>
+  </div>
+</div>
+
+Going forward, whenever we refer to networking models in practical scenarios, we will refer to the TCP/IP model.
+
+## Tracing a Request Through the TCP/IP Model
+
+In a previous post, we looked closely at what happens when an HTTP fetch request is made. Let's map that exact process to the TCP/IP model. This journey illustrates the concept of **Encapsulation** (as data goes down the layers on the sender side) and **Decapsulation** (as it goes back up the layers on the receiver side).
+
+### The Sender's Journey (Top to Bottom)
+
+1. **Application Layer (The Code):** You initiate a `fetch` request in your React app. At this layer, your code (or the libraries you use) handles encoding the plain text HTTP request, encrypting it via TLS for HTTPS, compressing it (e.g., using Gzip or Zlib), and attaching any authentication session cookies. All of these OSI Layer 5, 6, and 7 responsibilities are bundled here as a single payload.
+2. **Transport Layer (The Segment):** The application payload is passed down to the operating system's networking stack. Here, the Transport Layer attaches the **Source Port** (e.g., a random ephemeral port for your browser) and the **Destination Port** (e.g., 443 for HTTPS). If using TCP, sequence numbers are added to ensure reliable ordering. This encapsulated unit is now a **TCP Segment**.
+3. **Network Layer (The Packet):** The TCP Segment is passed down again. The Network Layer encapsulates it by adding a header containing the **Source IP Address** and **Destination IP Address**. This allows the internet routers to figure out where in the world this data needs to go. The unit is now an **IP Packet**.
+4. **Data Link Layer (The Frame):** The IP Packet is passed down to your Network Interface Card (NIC). It is encapsulated one last time with the **Source MAC Address** (your laptop's Wi-Fi card) and the **Destination MAC Address** (your default gateway/router). The unit is now a **Frame**.
+5. **Physical Layer (The Bits):** The Frame is converted into raw binary zeros and ones. Your Wi-Fi antenna transmits these bits as radio waves over the air to your home router.
+
+### The Receiver's Journey (Bottom to Top)
+
+When the data hops across the internet and finally reaches the destination server, the exact reverse process happens:
+- The server's **Physical Layer** receives the electrical signals or fiber light pulses and turns them back into bits.
+- The **Data Link Layer** reads the MAC address. If it matches, it strips the MAC header off (Decapsulation) and passes the IP Packet up.
+- The **Network Layer** verifies the IP address, strips the IP header off, and passes the TCP Segment up.
+- The **Transport Layer** checks the destination port number (443), strips the TCP header off, and passes the raw payload to the application listening on that port (like your Node.js backend).
+- Finally, the server's **Application Layer** decrypts, decompresses, and decodes the payload, revealing the original HTTP `GET` request so your code can process it.
