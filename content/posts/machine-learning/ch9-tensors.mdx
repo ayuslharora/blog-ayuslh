@@ -1,0 +1,181 @@
+---
+title: "Ch.9: Tensors in Machine Learning"
+description: "An introduction to Tensors, the fundamental data structure of Machine Learning and Deep Learning, covering 0D to 5D tensors with practical examples."
+date: "2026-07-17T23:55:00"
+tags: ["machine-learning", "tensors", "numpy", "deep-learning", "data-structures"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=vVhD2EyS41Y)
+
+In our previous posts, we spent a lot of time discussing the *what* and the *why* of Machine Learning. We covered algorithms, why we use them, and the development life cycle. From this post onwards, we are shifting our focus to the **how**. We will dive into the practical side of Machine Learning, and there is no better place to start than the most fundamental concept: **Tensors**.
+
+If you want to build Machine Learning or Deep Learning models, you cannot avoid Tensors. Let us explore what they are, why they are important, and how they work.
+
+### Why Study Tensors?
+
+You might wonder why we are starting with Tensors instead of something else. The short answer is that Tensors are the fundamental data structure of Machine Learning.
+
+A data structure is simply a way to store data. Today, every leading Machine Learning and Deep Learning library (Scikit-learn, TensorFlow, PyTorch) uses Tensors as their basic data structure. You cannot solve an ML problem without dealing with Tensors. In fact, Tensors are so crucial that Google's premier Deep Learning library, TensorFlow, is named after them!
+
+If you want to be effective in both Machine Learning and Deep Learning, understanding Tensors is a non-negotiable prerequisite.
+
+### What is a Tensor?
+
+At its simplest, a **Tensor is a container for numbers**.
+
+Occasionally, you might store characters or strings in them, but 99.99% of the time, Tensors are used to hold numeric data. If you have a Computer Science background, you might already know them as an `n-dimensional array` (like NumPy arrays in Python). If you have studied mathematics or physics, you might know them as scalars, vectors, and matrices.
+
+Computer scientists, mathematicians, and physicists needed a general, unifying term for all these containers of numbers. That general term is a **Tensor**.
+
+Let us break down the different types of Tensors, from 0D all the way to 5D.
+
+### 0D Tensors (Scalars)
+
+A tensor that contains only a single number is called a **0D Tensor** or a **Scalar**.
+
+In a 0D Tensor, there are zero dimensions (or zero axes). It is just a standalone point of data.
+
+**Visual Representation:**
+```text
+[ 4 ]
+```
+
+If you were to create this in Python using NumPy:
+```python
+import numpy as np
+x = np.array(4)
+print(x.ndim) # Output: 0
+```
+The `.ndim` property tells us the number of axes (dimensions) the tensor has. For a scalar, it is exactly 0.
+
+### 1D Tensors (Vectors)
+
+An array of numbers is called a **1D Tensor**, which is also known as a **Vector**. It has exactly one axis.
+
+**Visual Representation:**
+```text
+[ 1, 2, 3, 4 ]
+```
+
+```python
+x = np.array([1, 2, 3, 4])
+print(x.ndim) # Output: 1
+```
+
+> **The 1D Tensor vs. N-Dimensional Vector Confusion**
+> 
+> A common point of confusion arises when we talk about the "dimensions" of a vector. If you have a vector like `[1, 2, 3, 4]`, mathematically, it is a **4-dimensional vector** because it has 4 elements (it represents a point in 4D space). 
+> 
+> However, from a computer science perspective, it is a **1D Tensor** because the numbers are arranged along a single axis (a single list). 
+> 
+> Remember this distinction carefully: A 1D Tensor can contain an N-dimensional vector. The "1D" refers to the data structure having one axis, while the "N-dimensional" refers to the number of elements inside that vector.
+
+Notice a pattern? If you collect multiple 0D Tensors (Scalars) and group them together, you get a 1D Tensor (Vector). This additive logic applies as we scale up!
+
+### 2D Tensors (Matrices)
+
+If you take multiple 1D Tensors (Vectors) and group them together, you get a **2D Tensor**, commonly known as a **Matrix**. A 2D Tensor has two axes (rows and columns).
+
+**Visual Representation:**
+```text
+[
+  [ 1, 2, 3 ],
+  [ 4, 5, 6 ],
+  [ 7, 8, 9 ]
+]
+```
+
+```python
+x = np.array([[1, 2, 3], 
+              [4, 5, 6], 
+              [7, 8, 9]])
+print(x.ndim) # Output: 2
+```
+
+### 3D Tensors and Beyond
+
+Following the same logic, if you pack multiple 2D Tensors (Matrices) together, you get a **3D Tensor**. It has three axes (layers, rows, and columns). 
+
+**Visual Representation (3D Tensor):**
+```text
+[
+  [ # Matrix 1
+    [1, 2, 3],
+    [4, 5, 6]
+  ],
+  [ # Matrix 2
+    [7, 8, 9],
+    [10, 11, 12]
+  ],
+  [ # Matrix 3
+    [13, 14, 15],
+    [16, 17, 18]
+  ]
+]
+```
+
+If you group multiple 3D Tensors together, you get a **4D Tensor**, and multiple 4D Tensors make a **5D Tensor**. In most practical Machine Learning and Deep Learning applications, you will generally operate between 0D and 5D Tensors.
+
+### Key Tensor Attributes
+
+Every Tensor has three crucial attributes you must understand:
+
+1. **Rank (or Axes/Dimensions):** This is the number of axes the tensor has. A matrix has a rank of 2. A 3D tensor has a rank of 3. In NumPy, this is accessed via `.ndim`.
+2. **Shape:** This defines how many items exist along each axis. For example, a matrix with 2 rows and 3 columns has a shape of `(2, 3)`. For a 1D tensor like `[1, 2, 3]`, the shape conceptually is `3` (represented in Python/NumPy as the tuple `(3,)`).
+3. **Size:** This is the total number of items inside the tensor. You calculate it by multiplying the numbers in the shape together. A tensor with shape `(2, 3)` has a size of 6. A scalar has a size of 1.
+
+### Practical Examples in Machine Learning
+
+Let us look at how you will actually encounter Tensors when dealing with data in Machine Learning. 
+
+Imagine you have a tabular dataset of students with the following columns: CGPA, IQ, State (encoded as 0 or 1), and a target column Placement (whether they got placed or not).
+
+#### 1D Tensors in Practice
+If you look at the input data (features) of just **one single student** (ignoring the target column), you might see numbers like `[8.0, 90, 0]`. 
+
+This is a **1D Tensor** (a Vector). The vector has 3 dimensions (because it has 3 features), but it is a 1D Tensor because it has only one axis. If your dataset had 50 input columns, the data for one student would be a 50-dimensional vector, but it would *still* be a 1D Tensor!
+
+Similarly, if you isolate the target column ("Placement") for all 10,000 students in your dataset, you will get an array of 10,000 numbers like `[1, 0, 1, 1, ...]`. This target array is also a **1D Tensor**.
+
+#### 2D Tensors in Practice
+Now, what happens if you group the input features of all 10,000 students together?
+
+You take 10,000 1D Tensors and stack them. As we learned earlier, a collection of 1D Tensors creates a 2D Tensor. 
+
+Your entire input dataset becomes a massive matrix with 10,000 rows and 3 columns. This is a **2D Tensor**, and it is the most common format you will see when working with tabular data in Machine Learning.
+
+While tabular data usually tops out at 2D tensors, you will encounter higher-dimensional tensors frequently in Deep Learning, especially when working with images and videos.
+
+#### 3D Tensors in Practice
+To understand 3D tensors, it helps to visualize them as a stack of 2D matrices. There are two very common places you will see this in Machine Learning:
+
+1.  **Colored Images:** A grayscale image is just a 2D matrix of pixels. However, a colored image requires three separate color channels (Red, Green, and Blue) to represent every pixel. You can visualize this as three 2D matrices stacked on top of each other. This creates a 3D Tensor with three axes: Height, Width, and Color Channels. The shape is typically `(Height, Width, 3)`.
+2.  **Time-Series Data:** Imagine tracking stock prices. You might have 100 different companies (Samples). For each company, you track data over the last 30 days (Timesteps). On each day, you record 5 data points like Open, High, Low, Close, and Volume (Features). This forms a 3D block of data with the shape `(100, 30, 5)`.
+3.  **Natural Language Processing (Text Data):** Let's say you have a batch of two sentences: "hi ayush" and "hi ankush". Models cannot read text directly, so we convert each word into a numerical vector.
+    *   First, we list all unique words in our sequence: `["hi", "ayush", "ankush"]`.
+    *   Next, we give each word a unique numerical vector (One-Hot Encoding): 
+        *   `hi` = `[1, 0, 0]`
+        *   `ayush` = `[0, 1, 0]`
+        *   `ankush` = `[0, 0, 1]`
+    *   The single sentence "hi ayush" becomes a 2D matrix (2 words × 3 numbers): `[[1, 0, 0], [0, 1, 0]]`.
+    *   When we stack our batch of two sentences together, we get a 3D Tensor! 
+    *   The final shape is `(2, 2, 3)` representing `(Batch Size, Sequence Length, Word Vector Size)`.
+
+#### 4D Tensors in Practice
+When training an image classification model, you rarely pass one image at a time. You pass a "batch" of images for better efficiency. A batch of 32 colored images becomes a 4D Tensor with the shape `(32, height, width, 3)`.
+
+#### 5D Tensors in Practice
+A video is essentially a sequence of images (frames). A single video is a 4D Tensor (frames, height, width, channels). Therefore, a *batch* of videos passed into a Deep Learning model forms a 5D Tensor with the shape `(batch_size, frames, height, width, channels)`.
+
+> **The Massive Size of 5D Tensors**
+> 
+> To put into perspective how large these tensors get, imagine storing an uncompressed 5D tensor for just a 60-second video batch. If every single item (pixel color value) is stored in a standard 32-bit slot, the math scales incredibly fast: 
+>
+> Bits -> Bytes (÷8) -> Kilobytes (÷1024) -> Megabytes (÷1024) -> Gigabytes (÷1024).
+> 
+> You could easily end up needing **27 GB of storage** just to process 60 seconds of raw video! This is exactly why video encoding formats like **MP4** or **MKV** exist they compress the data heavily so you can process it efficiently. 
+
+Generally, you will almost never encounter a use case in Machine Learning that requires going beyond 5D Tensors.
+
+By understanding how scalars build vectors, vectors build matrices, and matrices build higher-level tensors, you now have the foundational knowledge required to manipulate data for any Machine Learning or Deep Learning algorithm.
