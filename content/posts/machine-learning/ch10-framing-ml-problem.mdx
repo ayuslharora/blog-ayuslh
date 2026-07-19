@@ -1,0 +1,86 @@
+---
+title: "Ch.10: Framing a Machine Learning Problem"
+description: "A comprehensive guide on how to translate a business problem into a machine learning problem, using a Netflix churn rate case study."
+date: "2026-07-20T04:06"
+tags: ["machine-learning", "problem-framing", "data-science", "case-study"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=A9SezQlvakw)
+
+In the previous posts, we covered various foundational concepts of Machine Learning. Now, we are shifting our focus to the practical steps involved in a complete machine learning lifecycle. When you join a company as a Junior Data Scientist, you might be handed a clean dataset and a specific task (like data processing or model training). However, as you grow into leadership roles, your job shifts from merely solving predefined tasks to actually planning *how* to solve a problem from scratch. 
+
+The most critical skill for career progression in data science is problem-solving: the ability to take a vague business problem and convert it into a well-defined mathematical and machine learning problem.
+
+To understand this process, let us walk through a hypothetical case study at Netflix.
+
+## The Business Problem
+
+Imagine you are a Lead Data Scientist at Netflix. You are sitting in a high-stakes meeting with the CEO, CTO, and other executives. The core agenda of the meeting is: **How can we increase Netflix's revenue?**
+
+There are generally three ways to increase revenue:
+1. Acquire more new customers (which is difficult and expensive).
+2. Charge existing customers more (which can lead to backlash).
+3. Retain the customers who are leaving the platform.
+
+The easiest path to profitability is the third option. The rate at which customers leave a platform is called the **Churn Rate**. For instance, if Netflix has 100 users and a monthly churn rate of 4%, it means 4 users will cancel their subscriptions this month. While new users constantly join to replace them, reducing the churn rate directly increases revenue because the subscription model generates recurring income.
+
+The business problem is now defined: **Reduce the churn rate from 4% to 3.75%.**
+
+Your job as a Data Scientist is to translate this business problem into a Machine Learning problem. Here are the steps to do exactly that.
+
+## Step 1: Define the Machine Learning Problem
+
+The first step is to figure out the exact type of machine learning problem you are solving. You need to identify the customers who are going to leave so you can stop them.
+
+Your immediate thought might be to offer a discount for the next month to any customer who is about to cancel. This requires predicting whether a user will leave the platform next month. 
+
+At first glance, this looks like a **Supervised Classification Problem**: 
+* Will the user leave? (Yes / No).
+
+However, not all customers have the same intent to leave. Some might be 100% sure they are cancelling, while others might just be slightly frustrated. Giving everyone the exact same flat discount would be highly inefficient and expensive for the company. Instead, you want to identify *how likely* someone is to leave.
+
+This shifts the task to a **Supervised Regression Problem**. The output of your model will be a score (a probability from 0 to 100) indicating the likelihood of a customer leaving. Based on this specific percentage, the company can dynamically offer varying discounts (a higher discount for someone with a 90% probability of leaving, and a lower discount for someone with a 60% probability).
+
+## Step 2: Look for Existing Solutions
+
+Before writing any code or building pipelines, you should always check if someone has already solved a similar problem within the organization. 
+
+Talk to the CTO or senior engineers. You might discover that the company already has a model predicting the overall future churn rate (e.g., predicting that next month's churn will be 5%). While this is not the exact tool you need, you can look at the factors (features) they used to build their model. Drawing inspiration from past work prevents you from reinventing the wheel and gives you a massive head start.
+
+## Step 3: Identify the Data Required (Feature Engineering)
+
+This is a crucial phase where you sit down and brainstorm what data points (features) could indicate that a user is losing interest in the platform. You might come up with factors like:
+* **Total Watch Time:** How many hours did they spend watching content this month?
+* **Browsing vs. Watching Time:** Are they spending more time scrolling through the catalog than actually watching? This indicates they cannot find content they like.
+* **Failed Searches:** How many times did they search for a specific movie, get zero results, and leave?
+* **Incomplete Content:** How many times did they start a movie or series and abandon it halfway? This suggests the content was not engaging enough to retain them.
+* **Click-Through Rate on Recommendations:** Are they clicking on the shows Netflix recommends to them?
+
+Once you have identified these potential features, you realize you cannot pull all this complex data on your own. You must collaborate with a **Data Engineer**. You will give the Data Engineer your requirements, and they will extract this data from the actual databases and provide you with a clean Data Warehouse or dataset to train your model on.
+
+## Step 4: Define Metrics for Success
+
+How will you know if your model is actually working? You need to define clear metrics. 
+
+You must compare the predictions against reality. If your model predicted that a specific set of users would churn, you need to track whether those exact users actually left (or if someone completely unexpected left). Defining these metrics early on gives you a "North Star" to guide your progress and ensures you can confidently prove the success of your model to the leadership team.
+
+## Step 5: Choose Between Online and Batch Learning
+
+Next, you need to decide how your model will learn. The environment is highly volatile. For example, during a lockdown or the holiday season, watch times will spike, and churn rates might temporarily drop. 
+
+An **Online Learning** model, which continuously updates itself with streaming data, sounds ideal for such a dynamic environment. However, at Netflix's scale, managing a continuous pipeline of live data into the model can be incredibly complex and resource-intensive. 
+
+Because of these constraints, you might settle on **Batch Learning** (Offline Learning). You can train the model offline on historical data, deploy it, and then retrain it every single week with the newly accumulated data to keep it relatively updated with current trends.
+
+## Step 6: Validate Assumptions and Biases
+
+Before finalizing the plan, you must question your assumptions:
+* **Data Availability:** You brainstormed great features in Step 3, but you must ask the Data Engineers if that data is actually being recorded and is available.
+* **Geographical Bias:** You are building one overarching model. Will a model trained on global data work just as effectively for users in the US as it does for users in India? You need to verify if you require separate models for different regions based on geographic behavior differences.
+
+## Conclusion
+
+Coding should never be the first step in a data science project. If you start building a model without a solid plan, you risk going down the wrong path, wasting time, and costing the company money. Taking a step back to thoroughly plan the approach, define the exact problem type, coordinate with other teams, and validate assumptions is what separates a junior data scientist from a data science leader. 
+
+In the next post, we will take a closer look at the exact steps involved in setting up the data for these algorithms.
