@@ -155,29 +155,43 @@ Why does such a critical internet service use an "unreliable" protocol like UDP?
 If DNS relied on TCP, resolving a single domain name would require a full TCP connection handshake, request transmission, acknowledgment, and a 4-way teardown sequence:
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Client as Client Host
-    participant DNS as DNS Server (Port 53)
+flowchart TD
+    subgraph Phase1 ["Phase 1: TCP 3-Way Handshake (3 Trips)"]
+        direction LR
+        C1["<b>Client Host</b>"] -- "1. SYN" --> D1["<b>DNS Server (Port 53)</b>"]
+        D1 -- "2. SYN-ACK" --> C1
+        C1 -- "3. ACK" --> D1
+    end
 
-    Note over Client,DNS: --- TCP 3-Way Handshake ---
-    Client->>DNS: 1. SYN
-    DNS-->>Client: 2. SYN-ACK
-    Client->>DNS: 3. ACK
+    subgraph Phase2 ["Phase 2: DNS Query & Data Exchange (4 Trips)"]
+        direction LR
+        C2["<b>Client Host</b>"] -- "4. DNS Query: example.com" --> D2["<b>DNS Server (Port 53)</b>"]
+        D2 -- "5. ACK (Query Received)" --> C2
+        D2 -- "6. Response: 10.0.0.1" --> C2
+        C2 -- "7. ACK (Response Received)" --> D2
+    end
 
-    Note over Client,DNS: --- DNS Query & Data Exchange ---
-    Client->>DNS: 4. DNS Query ("What is IP of example.com?")
-    DNS-->>Client: 5. ACK (Query Received)
-    DNS-->>Client: 6. DNS Response ("IP is 10.0.0.1")
-    Client->>DNS: 7. ACK (Response Received)
+    subgraph Phase3 ["Phase 3: TCP 4-Way Connection Teardown (4 Trips)"]
+        direction LR
+        C3["<b>Client Host</b>"] -- "8. FIN (Close Connection)" --> D3["<b>DNS Server (Port 53)</b>"]
+        D3 -- "9. ACK" --> C3
+        D3 -- "10. FIN" --> C3
+        C3 -- "11. ACK" --> D3
+    end
 
-    Note over Client,DNS: --- TCP 4-Way Connection Teardown ---
-    Client->>DNS: 8. FIN (Close Connection)
-    DNS-->>Client: 9. ACK
-    DNS-->>Client: 10. FIN
-    Client->>DNS: 11. ACK
+    Phase1 --> Phase2 --> Phase3
 
-    Note over Client,DNS: Total: 11 Network Hops for 1 DNS Lookup!
+    style Phase1 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style C1 fill:#78350f,stroke:#fbbf24,color:#fff
+    style D1 fill:#581c87,stroke:#c084fc,color:#fff
+
+    style Phase2 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style C2 fill:#78350f,stroke:#fbbf24,color:#fff
+    style D2 fill:#581c87,stroke:#c084fc,color:#fff
+
+    style Phase3 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style C3 fill:#78350f,stroke:#fbbf24,color:#fff
+    style D3 fill:#581c87,stroke:#c084fc,color:#fff
 ```
 
 ### Scenario B: DNS Built on UDP (Only 2 Network Trips!)
@@ -185,15 +199,16 @@ sequenceDiagram
 With UDP, DNS eliminates handshakes and connection teardowns entirely:
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Client as Client Host
-    participant DNS as DNS Server (Port 53)
+flowchart TD
+    subgraph DirectUDP ["UDP Query & Response (No Handshake or Teardown)"]
+        direction LR
+        C_UDP["<b>Client Host</b>"] -- "1. Query: IP of example.com? (Query ID: 1)" --> D_UDP["<b>DNS Server (Port 53)</b>"]
+        D_UDP -- "2. Response: 10.0.0.1 (Query ID: 1)" --> C_UDP
+    end
 
-    Client->>DNS: 1. UDP Datagram: DNS Query (Query ID: 1, "IP of example.com?")
-    DNS-->>Client: 2. UDP Datagram: DNS Response (Query ID: 1, "IP is 10.0.0.1")
-
-    Note over Client,DNS: Total: Only 2 Network Trips!
+    style DirectUDP fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style C_UDP fill:#78350f,stroke:#fbbf24,color:#fff
+    style D_UDP fill:#14532d,stroke:#86efac,stroke-width:2px,color:#fff
 ```
 
 ### How DNS Handles Reliability at the Application Layer
