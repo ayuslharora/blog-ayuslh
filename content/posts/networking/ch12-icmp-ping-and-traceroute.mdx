@@ -229,12 +229,20 @@ flowchart TD
 
 ## Summary and Key Takeaways
 
-| Concept / Protocol | Operating Layer | Primary Function / Purpose |
-| :--- | :--- | :--- |
-| **ICMP** | Layer 3 (Network Layer) | Communicates diagnostic status, control notifications, and network error reports across IP networks without using port numbers. |
-| **Ping** | Utility (uses ICMP) | Sends ICMP Echo Requests to check if a remote host is online and measures Round Trip Time (RTT) latency. |
-| **TTL (Time-To-Live)** | IP Header Field | Decrements by 1 at each router hop to prevent infinite routing loops; triggers ICMP Time Exceeded when reaching 0. |
-| **Traceroute** | Utility (uses ICMP/TTL) | Incrementally increases TTL from 1 to map every router hop along the path to a destination host. |
-| **`* * *` Output** | Diagnostic Phenomenon | Indicates that intermediate routers or firewalls intentionally blocked, rate-limited, or dropped ICMP responses for probes at that hop. |
+* **ICMP Protocol (Layer 3)**  
+  Communicates diagnostic status, control notifications, and network error reports across IP networks without using port numbers.
+
+* **Ping Utility**  
+  Sends ICMP Echo Requests to check if a remote host is online and measures Round Trip Time (RTT) latency.
+
+* **Time-To-Live (TTL)**  
+  Decrements by 1 at each router hop to prevent infinite routing loops; triggers an `ICMP Time Exceeded` message when reaching 0.
+
+* **Traceroute Utility**  
+  Incrementally increases TTL starting from 1 to map every router hop along the network path to a destination host.
+
+* **Asterisks (`* * *`) Output**  
+  Indicates that intermediate routers or security firewalls intentionally blocked, rate-limited, or dropped ICMP responses for probes at that specific hop.
 
 In the next post, we will explore Transport Layer concepts, examining how TCP and UDP establish reliable and fast socket connections across applications!
+
