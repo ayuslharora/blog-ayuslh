@@ -290,53 +290,55 @@ Traceroute does not rely on routers voluntarily reporting their paths. Instead, 
 
 ```mermaid
 flowchart TD
-    subgraph Probe1 ["Step 1: Probe with TTL = 1"]
+    subgraph Step1 ["Step 1: Probe with TTL = 1"]
         direction LR
-        P1_Source["<b>My Machine</b><br>10.0.0.1"] -- "Send: TTL=1" --> P1_Hop1["<b>Home Router</b><br>10.0.0.4<br>(TTL: 1 -> 0 Expired)"]
-        P1_Hop1 -- "ICMP Time Exceeded (Source: 10.0.0.4)" --> P1_Source
+        S1["<b>My Machine</b><br>10.0.0.1"] -- "1. Request (TTL=1)" --> R1["<b>Home Router</b><br>10.0.0.4<br>(TTL drops 1 -> 0)" ]
+        R1 -- "2. ICMP Time Exceeded (Source: 10.0.0.4)" --> S1
     end
 
-    subgraph Probe2 ["Step 2: Probe with TTL = 2"]
+    subgraph Step2 ["Step 2: Probe with TTL = 2"]
         direction LR
-        P2_Source["<b>My Machine</b><br>10.0.0.1"] -- "Send: TTL=2" --> P2_Hop1["<b>Home Router</b><br>10.0.0.4<br>(TTL: 2 -> 1)"]
-        P2_Hop1 --> P2_Hop2["<b>Router 20.0.0.1</b><br>(TTL: 1 -> 0 Expired)"]
-        P2_Hop2 -- "ICMP Time Exceeded (Source: 20.0.0.1)" --> P2_Source
+        S2["<b>My Machine</b><br>10.0.0.1"] -- "1. Request (TTL=2)" --> H2["<b>Home Router</b><br>10.0.0.4<br>(TTL: 2 -> 1)" ]
+        H2 --> R2["<b>Router 20.0.0.1</b><br>(TTL drops 1 -> 0)" ]
+        R2 -- "2. ICMP Time Exceeded (Source: 20.0.0.1)" --> S2
     end
 
-    subgraph Probe3 ["Step 3: Probe with TTL = 3"]
+    subgraph Step3 ["Step 3: Probe with TTL = 3"]
         direction LR
-        P3_Source["<b>My Machine</b><br>10.0.0.1"] -- "Send: TTL=3" --> P3_Hop1["<b>Home Router</b><br>10.0.0.4"]
-        P3_Hop1 --> P3_Hop2["<b>Router 20.0.0.1</b><br>(TTL: 2 -> 1)"]
-        P3_Hop2 --> P3_Hop3["<b>Router 30.0.0.1</b><br>(TTL: 1 -> 0 Expired)"]
-        P3_Hop3 -- "ICMP Time Exceeded (Source: 30.0.0.1)" --> P3_Source
+        S3["<b>My Machine</b><br>10.0.0.1"] -- "1. Request (TTL=3)" --> H3["<b>Home Router</b><br>10.0.0.4" ]
+        H3 --> R3_1["<b>Router 20.0.0.1</b><br>(TTL: 2 -> 1)" ]
+        R3_1 --> R3_2["<b>Router 30.0.0.1</b><br>(TTL drops 1 -> 0)" ]
+        R3_2 -- "2. ICMP Time Exceeded (Source: 30.0.0.1)" --> S3
     end
 
-    subgraph Probe4 ["Final Step: Probe with TTL = N (Target Reached)"]
+    subgraph Step4 ["Final Step: Probe reaches Destination (TTL = N)"]
         direction LR
-        P4_Source["<b>My Machine</b><br>10.0.0.1"] -- "Send: TTL=N" --> P4_Hops["<b>Intermediate Routers</b><br>(Passed successfully)"]
-        P4_Hops --> P4_Dest["<b>google.com</b><br>60.0.0.1"]
-        P4_Dest -- "ICMP Echo Reply (Route Complete!)" --> P4_Source
+        S4["<b>My Machine</b><br>10.0.0.1"] -- "1. Request (TTL=N)" --> H4["<b>Intermediate Routers</b><br>(Passed successfully)" ]
+        H4 --> D4["<b>google.com</b><br>60.0.0.1" ]
+        D4 -- "2. ICMP Echo Reply (Route Complete!)" --> S4
     end
 
-    style Probe1 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
-    style P1_Source fill:#78350f,stroke:#fbbf24,color:#fff
-    style P1_Hop1 fill:#991b1b,stroke:#f87171,stroke-width:2px,color:#fff
+    Step1 --> Step2 --> Step3 --> Step4
 
-    style Probe2 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
-    style P2_Source fill:#78350f,stroke:#fbbf24,color:#fff
-    style P2_Hop1 fill:#334155,stroke:#94a3b8,color:#fff
-    style P2_Hop2 fill:#991b1b,stroke:#f87171,stroke-width:2px,color:#fff
+    style Step1 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style S1 fill:#78350f,stroke:#fbbf24,color:#fff
+    style R1 fill:#991b1b,stroke:#f87171,stroke-width:2px,color:#fff
 
-    style Probe3 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
-    style P3_Source fill:#78350f,stroke:#fbbf24,color:#fff
-    style P3_Hop1 fill:#334155,stroke:#94a3b8,color:#fff
-    style P3_Hop2 fill:#581c87,stroke:#c084fc,color:#fff
-    style P3_Hop3 fill:#991b1b,stroke:#f87171,stroke-width:2px,color:#fff
+    style Step2 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style S2 fill:#78350f,stroke:#fbbf24,color:#fff
+    style H2 fill:#334155,stroke:#94a3b8,color:#fff
+    style R2 fill:#991b1b,stroke:#f87171,stroke-width:2px,color:#fff
 
-    style Probe4 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
-    style P4_Source fill:#78350f,stroke:#fbbf24,color:#fff
-    style P4_Hops fill:#581c87,stroke:#c084fc,color:#fff
-    style P4_Dest fill:#14532d,stroke:#86efac,stroke-width:2px,color:#fff
+    style Step3 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style S3 fill:#78350f,stroke:#fbbf24,color:#fff
+    style H3 fill:#334155,stroke:#94a3b8,color:#fff
+    style R3_1 fill:#581c87,stroke:#c084fc,color:#fff
+    style R3_2 fill:#991b1b,stroke:#f87171,stroke-width:2px,color:#fff
+
+    style Step4 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style S4 fill:#78350f,stroke:#fbbf24,color:#fff
+    style H4 fill:#581c87,stroke:#c084fc,color:#fff
+    style D4 fill:#14532d,stroke:#86efac,stroke-width:2px,color:#fff
 ```
 
 ### Step-by-Step Traceroute Execution
