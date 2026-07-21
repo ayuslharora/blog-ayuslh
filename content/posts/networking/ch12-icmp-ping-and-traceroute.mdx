@@ -1,0 +1,240 @@
+---
+title: "Ch.12: ICMP, Ping, and Traceroute"
+description: "A comprehensive guide to Internet Control Message Protocol (ICMP), how Ping measures RTT, how Traceroute cleverly uses TTL to discover intermediate routers, and why asterisks (***) appear in traceroute output."
+date: "2026-07-22T02:46:07+05:30"
+tags: ["networking", "icmp", "ping", "traceroute", "ttl", "ip"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=VzPFY40qAhQ)
+
+In the previous post, we explored routing in detail, examining how data packets jump across switches, local subnets, and internet routers to reach external services. However, when sending data over complex networks, things do not always go smoothly. Packets can get stuck in infinite routing loops, targets might be offline, or targeted ports might not have active services listening.
+
+To diagnose network issues and communicate errors across devices, networks rely on **ICMP (Internet Control Message Protocol)** and its utility tools: **Ping** and **Traceroute**. In this post, we will break down how ICMP operates at Layer 3, examine how Ping and Traceroute function under the hood, analyze Time-To-Live (TTL) mechanics, and explain why `* * *` (star star star) appears in traceroute outputs.
+
+---
+
+## What is ICMP (Internet Control Message Protocol)?
+
+**ICMP (Internet Control Message Protocol)** is a core protocol in the Internet Protocol Suite used by network devices (such as routers, switches, and host machines) to send operational messages, diagnostic status, and error notifications back to the source device.
+
+```mermaid
+flowchart TD
+    subgraph Layer4["Layer 4: Transport Layer"]
+        TCP["TCP"]
+        UDP["UDP"]
+        QUIC["QUIC"]
+    end
+
+    subgraph Layer3["Layer 3: Network Layer"]
+        IP["IP Protocol"]
+        ICMP["ICMP Protocol"]
+    end
+
+    Layer4 --> Layer3
+```
+
+### Key Characteristics of ICMP
+
+1. **Operates at Layer 3 (Network Layer)**: ICMP sits directly at Layer 3 alongside IP. It does not carry application data or user payloads.
+2. **No Port Numbers**: Unlike Layer 4 protocols (TCP and UDP) which use port numbers (such as port 80 for HTTP or port 443 for HTTPS) to direct traffic to specific applications, ICMP does not have ports. It relies purely on IP addresses to deliver diagnostic messages.
+3. **Control and Error Reporting**: ICMP notifies the sender when network anomalies occur rather than guaranteeing data delivery.
+
+### Common ICMP Messages and Use Cases
+
+* **Host Unreachable**: Sent by an intermediate router when it cannot locate or route traffic to the requested destination IP address.
+* **Port Unreachable**: Sent by the destination host when an IP packet arrives, but no process or application is listening on the targeted destination port.
+* **Time Exceeded (TTL Expired)**: Sent by a router when an IP packet's Time-To-Live counter reaches zero before reaching its final destination.
+
+---
+
+## What is Ping and How Does It Work Under the Hood?
+
+**Ping** is a command-line network utility used to test whether a remote server or host machine is reachable over an IP network, while also measuring the **Round Trip Time (RTT)** (latency) for messages sent from the source host to the destination.
+
+### Ping Step-by-Step Flow
+
+When you execute a ping command, such as `ping google.com`, the following sequence takes place under the hood:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Laptop as Source Laptop (10.0.0.1)
+    participant DNS as DNS Server
+    participant Router as Intermediate Routers
+    participant Google as Target Server (60.0.0.1)
+
+    Laptop->>DNS: Resolves google.com to IP
+    DNS-->>Laptop: Returns IP address 60.0.0.1
+    Laptop->>Google: Sends ICMP Echo Request (Source: 10.0.0.1, Dest: 60.0.0.1)
+    Note over Laptop,Google: Packet traverses intermediate network routers
+    Google->>Laptop: Responds with ICMP Echo Reply (Source: 60.0.0.1, Dest: 10.0.0.1)
+    Note over Laptop: Calculates RTT = (Time Received - Time Sent)
+```
+
+1. **DNS Lookup**: Ping performs a DNS resolution for `google.com` to discover its IP address (e.g., `60.0.0.1`).
+2. **ICMP Echo Request**: The local operating system constructs an **ICMP Echo Request** message. It wraps this inside an IP packet with:
+   * **Source IP**: `10.0.0.1` (Laptop IP)
+   * **Destination IP**: `60.0.0.1` (Google Server IP)
+3. **Network Traversal**: The packet is forwarded across local switches and internet routers until it reaches the destination host.
+4. **ICMP Echo Reply**: Upon receiving the Echo Request, the target host generates an **ICMP Echo Reply** packet with:
+   * **Source IP**: `60.0.0.1` (Google Server IP)
+   * **Destination IP**: `10.0.0.1` (Laptop IP)
+5. **RTT Latency Calculation**: When the laptop receives the ICMP Echo Reply, it calculates the time difference between sending the request and receiving the response. This duration is reported in milliseconds (ms) as the Round Trip Time (RTT).
+
+### Handling Host Unreachability
+
+What happens if you attempt to ping a server IP that does not exist or is offline?
+
+```mermaid
+flowchart LR
+    A["Laptop (10.0.0.1)"] -->|"ICMP Echo Request (Dest: 60.0.0.1)"| B["Home Router"]
+    B --> C["ISP Router (40.0.0.1)"]
+    C -.-x|"Host 60.0.0.1 Not Found (Packet Dropped)"| D["Destination"]
+    C -->|"ICMP Error: Host Unreachable (Source: 40.0.0.1, Dest: 10.0.0.1)"| A
+```
+
+When an intermediate router (such as `40.0.0.1`) determines that the destination network or host `60.0.0.1` does not exist:
+1. The router drops the incoming ICMP Echo Request packet.
+2. The router generates an **ICMP Host Unreachable** error message.
+3. It sets the **Source IP** to its own IP (`40.0.0.1`) and the **Destination IP** to your laptop (`10.0.0.1`).
+4. Upon receiving this ICMP packet, your terminal displays `Destination Host Unreachable`.
+
+---
+
+## Understanding TTL (Time-To-Live) Mechanics
+
+Without safeguards, a misconfigured router routing table could cause an IP packet to loop endlessly between routers, consuming network bandwidth indefinitely.
+
+To prevent infinite loops, every IP packet header includes a field called **TTL (Time-To-Live)**.
+
+### How TTL Functions During Hop Traversal
+
+```mermaid
+flowchart LR
+    Laptop["Laptop (TTL = 64)"] -->|"Forward (TTL = 64)"| R1["Home Router (10.0.0.4)"]
+    R1 -->|"Decrement TTL to 63"| R2["ISP Router A (20.0.0.1)"]
+    R2 -->|"Decrement TTL to 62"| R3["ISP Router B (30.0.0.1)"]
+    R3 -->|"Decrement TTL to 61"| Target["Google Server (60.0.0.1)"]
+```
+
+1. **Initial TTL Value**: The originating OS sets an initial TTL value on outgoing IP packets (commonly 64 on macOS/Linux or 128 on Windows).
+2. **Hop Decrement**: Every router that forwards the packet decrements the TTL field by exactly 1.
+3. **TTL Expiration at Zero**: If a packet's TTL reaches 0 before reaching the destination:
+   * The router holding the packet drops it immediately.
+   * The router constructs an **ICMP Time Exceeded** (Type 11) error message.
+   * The router sets the **Source IP** of the message to its own IP address and sends it back to the originating machine.
+
+### Observing TTL Expiration Manually
+
+You can test TTL behavior by setting a custom maximum TTL of 1 using ping (for example, `ping google.com -m 1` on macOS):
+
+```text
+PING google.com (142.250.190.46): 56 data bytes
+36 bytes from 192.168.1.1: Time to live exceeded
+```
+
+Because TTL was limited to 1, the packet reached your home router (`192.168.1.1`), which decremented TTL from 1 to 0, dropped the packet, and returned an `ICMP Time Exceeded` message back to your computer.
+
+---
+
+## Traceroute: How It Works Under the Hood
+
+**Traceroute** (invoked as `traceroute` on macOS/Linux or `tracert` on Windows) is a diagnostic tool that maps the entire route (every router hop) taken by packets to reach a destination host.
+
+### The Clever Mechanics of Traceroute
+
+Traceroute does not rely on routers voluntarily reporting their paths. Instead, it cleverly manipulates the **TTL field** in successive ICMP (or UDP) probe requests to discover routers one by one.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Laptop as Laptop (10.0.0.1)
+    participant Hop1 as Home Router (10.0.0.4)
+    participant Hop2 as Router 2 (20.0.0.1)
+    participant Hop3 as Router 3 (30.0.0.1)
+    participant Dest as Google (60.0.0.1)
+
+    Note over Laptop: --- Probe 1: Send Packet with TTL = 1 ---
+    Laptop->>Hop1: Probe (TTL = 1)
+    Note over Hop1: TTL decrements 1 -> 0 (Expired!)
+    Hop1-->>Laptop: ICMP Time Exceeded (Source: 10.0.0.4) -> Records Hop 1!
+
+    Note over Laptop: --- Probe 2: Send Packet with TTL = 2 ---
+    Laptop->>Hop1: Probe (TTL = 2)
+    Hop1->>Hop2: Forwards (TTL = 1)
+    Note over Hop2: TTL decrements 1 -> 0 (Expired!)
+    Hop2-->>Laptop: ICMP Time Exceeded (Source: 20.0.0.1) -> Records Hop 2!
+
+    Note over Laptop: --- Probe 3: Send Packet with TTL = 3 ---
+    Laptop->>Hop1: Probe (TTL = 3)
+    Hop1->>Hop2: Forwards (TTL = 2)
+    Hop2->>Hop3: Forwards (TTL = 1)
+    Note over Hop3: TTL decrements 1 -> 0 (Expired!)
+    Hop3-->>Laptop: ICMP Time Exceeded (Source: 30.0.0.1) -> Records Hop 3!
+
+    Note over Laptop: --- Probe 4: Send Packet with TTL = 4 ---
+    Laptop->>Dest: Probe reaches Target Server!
+    Dest-->>Laptop: ICMP Echo Reply (Source: 60.0.0.1) -> Route Completed!
+```
+
+### Step-by-Step Traceroute Execution
+
+1. **Hop 1 (TTL = 1)**: Traceroute sends a packet with `TTL = 1`. The first router (Home Router `10.0.0.4`) receives it, decrements TTL to 0, drops the packet, and returns an `ICMP Time Exceeded` message. Traceroute reads the source IP of the error message (`10.0.0.4`) and records it as Hop 1.
+2. **Hop 2 (TTL = 2)**: Traceroute sends a packet with `TTL = 2`. The packet passes the home router (TTL becomes 1) and reaches the second router (`20.0.0.1`), where TTL decrements to 0. The second router drops the packet and returns `ICMP Time Exceeded`. Traceroute records `20.0.0.1` as Hop 2.
+3. **Incremental Hops (TTL = 3, 4, ...)**: Traceroute increments TTL by 1 on each step, peeling back intermediate routers sequentially like layers of an onion.
+4. **Reaching the Destination**: Eventually, TTL is large enough for the packet to reach the destination server (`60.0.0.1`). The target server does not expire the TTL, but responds with an **ICMP Echo Reply** (or Port Unreachable message if UDP probes are used). Traceroute recognizes the final response, logs the destination, and finishes execution.
+
+---
+
+## Deep Dive: Explaining `* * *` (Star Star Star) in Traceroute Output
+
+When running `traceroute`, you will often see lines where router IP addresses are replaced by asterisks (`* * *`):
+
+```text
+traceroute to google.com (142.250.190.46), 64 hops max, 52 byte packets
+ 1  192.168.1.1 (192.168.1.1)  2.412 ms  1.854 ms  1.611 ms
+ 2  10.240.0.1 (10.240.0.1)  11.201 ms  10.844 ms  12.110 ms
+ 3  * * *
+ 4  142.250.238.15 (142.250.238.15)  18.450 ms  17.912 ms  18.102 ms
+ 5  142.250.190.46 (142.250.190.46)  19.120 ms  18.733 ms  18.910 ms
+```
+
+### Why Are There Three Asterisks?
+
+By default, traceroute sends **3 probe packets** for each TTL value to calculate latency accurately across multiple attempts. 
+
+Each asterisk (`*`) represents **one probe packet that timed out** without receiving a corresponding ICMP response. Therefore, `* * *` indicates that all three probe packets for that specific hop failed to receive an ICMP reply within the timeout period.
+
+```mermaid
+flowchart TD
+    Probe["Traceroute Sends Probe (TTL = N)"] --> Router["Intermediate Router (Hop N)"]
+    Router -->|Decrements TTL to 0 & Drops Packet| Check["Does Router Send ICMP Time Exceeded?"]
+    Check -- Yes --> Log["Traceroute logs Router IP & RTT"]
+    Check -- No (ICMP Disabled / Firewalled) --> Timeout["Probe Times Out after Wait Period"]
+    Timeout --> Asterisk["Traceroute displays * for that probe"]
+```
+
+### Primary Causes of `* * *` in Traceroute
+
+1. **ICMP Responses Disabled on the Router**: Many ISP core routers are configured to process and forward data packets normally, but explicitly disable ICMP error message generation. The router decrements TTL to 0 and drops the probe packet, but sends nothing back. Because no ICMP response is generated, traceroute cannot discover the router's IP address.
+2. **Firewall and Security Filtering**: Security appliances, enterprise firewalls, and cloud network security groups frequently block inbound ICMP traffic or drop TTL-expired ICMP responses to prevent external network mapping and topology discovery.
+3. **ICMP Rate Limiting**: High-performance core routers prioritize transit user data and rate-limit low-priority ICMP error responses. If a router receives too many TTL-expired packets, it silently drops subsequent probes without replying.
+4. **Asymmetric Routing and Packet Loss**: Return paths on the internet are not always symmetric. The ICMP response packet generated by a router may take a different path back to your laptop and get dropped due to network congestion or link degradation.
+
+> [!NOTE]
+> Seeing `* * *` on an intermediate hop does **not** necessarily mean network failure! If subsequent hops (e.g., Hop 4 and Hop 5 above) respond successfully, data is flowing through Hop 3 normally. The router at Hop 3 is simply refusing to respond to ICMP probes.
+
+---
+
+## Summary and Key Takeaways
+
+| Concept / Protocol | Operating Layer | Primary Function / Purpose |
+| :--- | :--- | :--- |
+| **ICMP** | Layer 3 (Network Layer) | Communicates diagnostic status, control notifications, and network error reports across IP networks without using port numbers. |
+| **Ping** | Utility (uses ICMP) | Sends ICMP Echo Requests to check if a remote host is online and measures Round Trip Time (RTT) latency. |
+| **TTL (Time-To-Live)** | IP Header Field | Decrements by 1 at each router hop to prevent infinite routing loops; triggers ICMP Time Exceeded when reaching 0. |
+| **Traceroute** | Utility (uses ICMP/TTL) | Incrementally increases TTL from 1 to map every router hop along the path to a destination host. |
+| **`* * *` Output** | Diagnostic Phenomenon | Indicates that intermediate routers or firewalls intentionally blocked, rate-limited, or dropped ICMP responses for probes at that hop. |
+
+In the next post, we will explore Transport Layer concepts, examining how TCP and UDP establish reliable and fast socket connections across applications!
