@@ -20,18 +20,26 @@ To diagnose network issues and communicate errors across devices, networks rely 
 
 ```mermaid
 flowchart TD
-    subgraph Layer4["Layer 4: Transport Layer"]
-        TCP["TCP"]
-        UDP["UDP"]
-        QUIC["QUIC"]
+    subgraph Layer4 ["Layer 4: Transport Layer (Uses Ports)"]
+        TCP["<b>TCP</b><br>Port 80/443"]
+        UDP["<b>UDP</b><br>Port 53/5060"]
+        QUIC["<b>QUIC</b><br>Port 443"]
     end
 
-    subgraph Layer3["Layer 3: Network Layer"]
-        IP["IP Protocol"]
-        ICMP["ICMP Protocol"]
+    subgraph Layer3 ["Layer 3: Network Layer (IP Addresses Only)"]
+        IP["<b>IP Protocol</b><br>Addressing & Routing"]
+        ICMP["<b>ICMP Protocol</b><br>Diagnostics & Errors"]
     end
 
     Layer4 --> Layer3
+
+    style Layer4 fill:#1e1b4b,stroke:#6366f1,stroke-width:2px,color:#fff
+    style Layer3 fill:#31103f,stroke:#c084fc,stroke-width:2px,color:#fff
+    style TCP fill:#3730a3,stroke:#818cf8,color:#fff
+    style UDP fill:#3730a3,stroke:#818cf8,color:#fff
+    style QUIC fill:#3730a3,stroke:#818cf8,color:#fff
+    style IP fill:#6b21a8,stroke:#d8b4fe,color:#fff
+    style ICMP fill:#166534,stroke:#4ade80,color:#fff
 ```
 
 ### Key Characteristics of ICMP
@@ -52,25 +60,77 @@ flowchart TD
 
 **Ping** is a command-line network utility used to test whether a remote server or host machine is reachable over an IP network, while also measuring the **Round Trip Time (RTT)** (latency) for messages sent from the source host to the destination.
 
-### Ping Step-by-Step Flow
-
-When you execute a ping command, such as `ping google.com`, the following sequence takes place under the hood:
+### Network Setup & Ping Flow
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Laptop as Source Laptop (10.0.0.1)
-    participant DNS as DNS Server
-    participant Router as Intermediate Routers
-    participant Google as Target Server (60.0.0.1)
+flowchart LR
+    subgraph Client ["Source Host"]
+        Laptop["<b>My Machine</b><br>10.0.0.1"]
+    end
 
-    Laptop->>DNS: Resolves google.com to IP
-    DNS-->>Laptop: Returns IP address 60.0.0.1
-    Laptop->>Google: Sends ICMP Echo Request (Source: 10.0.0.1, Dest: 60.0.0.1)
-    Note over Laptop,Google: Packet traverses intermediate network routers
-    Google->>Laptop: Responds with ICMP Echo Reply (Source: 60.0.0.1, Dest: 10.0.0.1)
-    Note over Laptop: Calculates RTT = (Time Received - Time Sent)
+    subgraph Local ["Local Gateway"]
+        HomeRouter["<b>Home Router</b><br>10.0.0.4"]
+    end
+
+    subgraph Internet ["INTERNET"]
+        R20["<b>Router</b><br>20.0.0.1"]
+        R30["<b>Router</b><br>30.0.0.1"]
+        R40["<b>Router</b><br>40.0.0.1"]
+        R50["<b>Router</b><br>50.0.0.1"]
+
+        R20 --> R30 --> R40 --> R50
+    end
+
+    subgraph Target ["Destination Host"]
+        Google["<b>google.com</b><br>60.0.0.1"]
+    end
+
+    Laptop --> HomeRouter
+    HomeRouter --> R20
+    R50 --> Google
+
+    style Client fill:#451a03,stroke:#f97316,stroke-width:2px,color:#fff
+    style Laptop fill:#78350f,stroke:#fbbf24,color:#fff
+
+    style Local fill:#1e293b,stroke:#64748b,stroke-width:2px,color:#fff
+    style HomeRouter fill:#334155,stroke:#94a3b8,color:#fff
+
+    style Internet fill:#3b0764,stroke:#a855f7,stroke-width:2px,color:#fff
+    style R20 fill:#581c87,stroke:#c084fc,color:#fff
+    style R30 fill:#581c87,stroke:#c084fc,color:#fff
+    style R40 fill:#581c87,stroke:#c084fc,color:#fff
+    style R50 fill:#581c87,stroke:#c084fc,color:#fff
+
+    style Target fill:#451a03,stroke:#f97316,stroke-width:2px,color:#fff
+    style Google fill:#78350f,stroke:#fbbf24,color:#fff
 ```
+
+### IP Packet Header Structure During Request & Reply
+
+```mermaid
+flowchart TD
+    subgraph RequestPacket ["Outgoing IP Packet Header (ICMP Echo Request)"]
+        direction LR
+        SrcReq["<b>10.0.0.1</b><br>Source IP"] --- PayloadReq["<b>ICMP echo request</b><br>Sequence: 1 | TTL: 64"] --- DstReq["<b>60.0.0.1</b><br>Destination IP"]
+    end
+
+    subgraph ReplyPacket ["Incoming IP Packet Header (ICMP Echo Reply)"]
+        direction LR
+        SrcRep["<b>60.0.0.1</b><br>Source IP"] --- PayloadRep["<b>ICMP echo reply</b><br>Sequence: 1 | RTT: 18ms"] --- DstRep["<b>10.0.0.1</b><br>Destination IP"]
+    end
+
+    style RequestPacket fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style SrcReq fill:#7f1d1d,stroke:#fca5a5,color:#fff
+    style PayloadReq fill:#14532d,stroke:#86efac,color:#fff
+    style DstReq fill:#7f1d1d,stroke:#fca5a5,color:#fff
+
+    style ReplyPacket fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style SrcRep fill:#7f1d1d,stroke:#fca5a5,color:#fff
+    style PayloadRep fill:#14532d,stroke:#86efac,color:#fff
+    style DstRep fill:#7f1d1d,stroke:#fca5a5,color:#fff
+```
+
+### Ping Step-by-Step Execution
 
 1. **DNS Lookup**: Ping performs a DNS resolution for `google.com` to discover its IP address (e.g., `60.0.0.1`).
 2. **ICMP Echo Request**: The local operating system constructs an **ICMP Echo Request** message. It wraps this inside an IP packet with:
@@ -88,10 +148,30 @@ What happens if you attempt to ping a server IP that does not exist or is offlin
 
 ```mermaid
 flowchart LR
-    A["Laptop (10.0.0.1)"] -->|"ICMP Echo Request (Dest: 60.0.0.1)"| B["Home Router"]
-    B --> C["ISP Router (40.0.0.1)"]
-    C -.-x|"Host 60.0.0.1 Not Found (Packet Dropped)"| D["Destination"]
-    C -->|"ICMP Error: Host Unreachable (Source: 40.0.0.1, Dest: 10.0.0.1)"| A
+    subgraph Source ["Source Machine"]
+        Laptop["<b>My Machine</b><br>10.0.0.1"]
+    end
+
+    subgraph ISP ["ISP Network"]
+        Router40["<b>ISP Router</b><br>40.0.0.1"]
+    end
+
+    subgraph DeadTarget ["Unreachable Host"]
+        DeadHost["<b>Dead Host</b><br>60.0.0.1"]
+    end
+
+    Laptop -- "1. ICMP Echo Request" --> Router40
+    Router40 -.-x|"2. Host Not Found (Dropped)"| DeadHost
+    Router40 -- "3. ICMP Error: Host Unreachable" --> Laptop
+
+    style Source fill:#451a03,stroke:#f97316,stroke-width:2px,color:#fff
+    style Laptop fill:#78350f,stroke:#fbbf24,color:#fff
+
+    style ISP fill:#1e293b,stroke:#64748b,stroke-width:2px,color:#fff
+    style Router40 fill:#334155,stroke:#94a3b8,color:#fff
+
+    style DeadTarget fill:#3f3f46,stroke:#71717a,stroke-width:2px,color:#fff
+    style DeadHost fill:#18181b,stroke:#52525b,color:#71717a
 ```
 
 When an intermediate router (such as `40.0.0.1`) determines that the destination network or host `60.0.0.1` does not exist:
@@ -112,10 +192,72 @@ To prevent infinite loops, every IP packet header includes a field called **TTL 
 
 ```mermaid
 flowchart LR
-    Laptop["Laptop (TTL = 64)"] -->|"Forward (TTL = 64)"| R1["Home Router (10.0.0.4)"]
-    R1 -->|"Decrement TTL to 63"| R2["ISP Router A (20.0.0.1)"]
-    R2 -->|"Decrement TTL to 62"| R3["ISP Router B (30.0.0.1)"]
-    R3 -->|"Decrement TTL to 61"| Target["Google Server (60.0.0.1)"]
+    subgraph Client ["Source"]
+        Laptop["<b>My Machine</b><br>10.0.0.1"]
+    end
+
+    subgraph Gateway ["Local Gateway"]
+        HomeRouter["<b>Home router</b><br>10.0.0.4"]
+    end
+
+    subgraph Internet ["INTERNET"]
+        R20["<b>20.0.0.1</b><br>Hop 1 (TTL=3)"]
+        R30["<b>30.0.0.1</b><br>Hop 2 (TTL=2)"]
+        R40["<b>40.0.0.1</b><br>Hop 3 (TTL=1 -> 0)"]
+        R50["<b>50.0.0.1</b><br>Hop 4"]
+
+        R20 --> R30 --> R40
+        R40 -.-x|"Dropped (TTL=0)"| R50
+    end
+
+    subgraph Dest ["Target"]
+        Google["<b>google.com</b><br>60.0.0.1"]
+    end
+
+    Laptop -- "Sent: TTL=4" --> HomeRouter
+    HomeRouter --> R20
+    R50 --> Google
+    R40 -- "ICMP Time Exceeded" --> Laptop
+
+    style Client fill:#451a03,stroke:#f97316,stroke-width:2px,color:#fff
+    style Laptop fill:#78350f,stroke:#fbbf24,color:#fff
+
+    style Gateway fill:#1e293b,stroke:#64748b,stroke-width:2px,color:#fff
+    style HomeRouter fill:#334155,stroke:#94a3b8,color:#fff
+
+    style Internet fill:#3b0764,stroke:#a855f7,stroke-width:2px,color:#fff
+    style R20 fill:#581c87,stroke:#c084fc,color:#fff
+    style R30 fill:#581c87,stroke:#c084fc,color:#fff
+    style R40 fill:#991b1b,stroke:#f87171,stroke-width:3px,color:#fff
+    style R50 fill:#3f3f46,stroke:#71717a,color:#9ca3af
+
+    style Dest fill:#451a03,stroke:#f97316,stroke-width:2px,color:#fff
+    style Google fill:#78350f,stroke:#fbbf24,color:#fff
+```
+
+### IP Header Packets During TTL Expiration
+
+```mermaid
+flowchart TD
+    subgraph SentHeader ["Outgoing Request Packet Header (TTL Expired at 40.0.0.1)"]
+        direction LR
+        SrcS["<b>10.0.0.1</b><br>Source IP"] --- PayS["<b>ICMP echo request, TTL=0</b><br>(TTL decremented to 0 at router)"] --- DstS["<b>60.0.0.1</b><br>Destination IP"]
+    end
+
+    subgraph ExceededHeader ["Returned ICMP Error Packet Header"]
+        direction LR
+        SrcE["<b>40.0.0.1</b><br>Router Source IP"] --- PayE["<b>Time To Live Exceeded (ICMP)</b><br>Type 11 Code 0"] --- DstE["<b>10.0.0.1</b><br>Laptop Destination IP"]
+    end
+
+    style SentHeader fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style SrcS fill:#7f1d1d,stroke:#fca5a5,color:#fff
+    style PayS fill:#14532d,stroke:#86efac,color:#fff
+    style DstS fill:#7f1d1d,stroke:#fca5a5,color:#fff
+
+    style ExceededHeader fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style SrcE fill:#7f1d1d,stroke:#fca5a5,color:#fff
+    style PayE fill:#14532d,stroke:#86efac,color:#fff
+    style DstE fill:#7f1d1d,stroke:#fca5a5,color:#fff
 ```
 
 1. **Initial TTL Value**: The originating OS sets an initial TTL value on outgoing IP packets (commonly 64 on macOS/Linux or 128 on Windows).
@@ -208,11 +350,43 @@ Each asterisk (`*`) represents **one probe packet that timed out** without recei
 
 ```mermaid
 flowchart TD
-    Probe["Traceroute Sends Probe (TTL = N)"] --> Router["Intermediate Router (Hop N)"]
-    Router -->|Decrements TTL to 0 & Drops Packet| Check["Does Router Send ICMP Time Exceeded?"]
-    Check -- Yes --> Log["Traceroute logs Router IP & RTT"]
-    Check -- No (ICMP Disabled / Firewalled) --> Timeout["Probe Times Out after Wait Period"]
-    Timeout --> Asterisk["Traceroute displays * for that probe"]
+    subgraph Laptop ["Traceroute Probe (TTL = 3)"]
+        Send["<b>My Machine</b><br>10.0.0.1"]
+    end
+
+    subgraph Hop ["Hop 3 Router (30.0.0.1)"]
+        R3["<b>ISP Router 3</b><br>Decrements TTL to 0 & Drops Packet"]
+        Decision{"Is ICMP Enabled / Unfiltered?"}
+    end
+
+    subgraph Res1 ["Path A: ICMP Allowed"]
+        ReturnOK["<b>Returns ICMP Time Exceeded</b><br>Source IP: 30.0.0.1"]
+        LogOK["Traceroute records Hop 3: 30.0.0.1"]
+    end
+
+    subgraph Res2 ["Path B: ICMP Disabled / Firewalled"]
+        ReturnDrop["<b>Silent Drop (No Response)</b><br>ICMP Blocked or Rate-Limited"]
+        LogStar["Traceroute prints <b>* * *</b> (Timeout)"]
+    end
+
+    Send --> R3 --> Decision
+    Decision -- "Yes" --> ReturnOK --> LogOK
+    Decision -- "No" --> ReturnDrop --> LogStar
+
+    style Laptop fill:#451a03,stroke:#f97316,color:#fff
+    style Send fill:#78350f,stroke:#fbbf24,color:#fff
+
+    style Hop fill:#1e293b,stroke:#64748b,color:#fff
+    style R3 fill:#334155,stroke:#94a3b8,color:#fff
+    style Decision fill:#1e1b4b,stroke:#6366f1,color:#fff
+
+    style Res1 fill:#064e3b,stroke:#10b981,color:#fff
+    style ReturnOK fill:#047857,stroke:#34d399,color:#fff
+    style LogOK fill:#065f46,stroke:#6ee7b7,color:#fff
+
+    style Res2 fill:#7f1d1d,stroke:#ef4444,color:#fff
+    style ReturnDrop fill:#991b1b,stroke:#f87171,color:#fff
+    style LogStar fill:#b91c1c,stroke:#fca5a5,color:#fff
 ```
 
 ### Primary Causes of `* * *` in Traceroute
@@ -245,4 +419,3 @@ flowchart TD
   Indicates that intermediate routers or security firewalls intentionally blocked, rate-limited, or dropped ICMP responses for probes at that specific hop.
 
 In the next post, we will explore Transport Layer concepts, examining how TCP and UDP establish reliable and fast socket connections across applications!
-
