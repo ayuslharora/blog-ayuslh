@@ -86,14 +86,26 @@ UDP solves this by attaching **Source Port** and **Destination Port** numbers to
 
 ## UDP vs TCP: Core Differences
 
-| Feature / Metric | UDP (User Datagram Protocol) | TCP (Transmission Control Protocol) |
-| :--- | :--- | :--- |
-| **Connection Type** | Connectionless (No Handshake) | Connection-Oriented (3-Way Handshake) |
-| **Reliability** | Unreliable (No Retransmissions) | Reliable (Guaranteed Delivery) |
-| **State** | Stateless (Remembers Nothing) | Stateful (Tracks Sequences & Windows) |
-| **Header Size** | 8 Bytes | 20 to 60 Bytes |
-| **Speed & Overhead** | Ultra-Fast, Low Overhead | Slower, Higher Overhead |
-| **Ordering** | Unordered (Packets can arrive out of order) | Strictly Ordered (Sequenced) |
+* **Connection Type**  
+  * **UDP**: Connectionless (No preliminary handshake)  
+  * **TCP**: Connection-Oriented (3-Way Handshake)
+
+* **Reliability & Delivery**  
+  * **UDP**: Unreliable (No automatic retransmissions or arrival acknowledgments)  
+  * **TCP**: Reliable (Guaranteed delivery with packet acknowledgments)
+
+* **State Tracking**  
+  * **UDP**: Stateless (Does not track sequence numbers or receiver windows)  
+  * **TCP**: Stateful (Tracks sequence numbers, window sizes, and connection state)
+
+* **Header Overhead**  
+  * **UDP**: Fixed 8 Bytes (Ultra-lightweight)  
+  * **TCP**: 20 to 60 Bytes (Higher header overhead)
+
+* **Packet Ordering**  
+  * **UDP**: Unordered (Datagrams can arrive out of order)  
+  * **TCP**: Strictly Ordered (Reassembles packets in exact sequence)
+
 
 ---
 
