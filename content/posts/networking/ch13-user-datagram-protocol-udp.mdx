@@ -155,42 +155,33 @@ Why does such a critical internet service use an "unreliable" protocol like UDP?
 If DNS relied on TCP, resolving a single domain name would require a full TCP connection handshake, request transmission, acknowledgment, and a 4-way teardown sequence:
 
 ```mermaid
-flowchart TD
-    subgraph Phase1 ["Phase 1: TCP 3-Way Handshake (3 Trips)"]
-        S1_1["<b>1. Client Host</b><br>Sends SYN"] --> S1_2["<b>2. DNS Server (Port 53)</b><br>Receives SYN & Responds SYN-ACK"]
-        S1_2 --> S1_3["<b>3. Client Host</b><br>Receives SYN-ACK & Sends ACK (Connection Established!)"]
+sequenceDiagram
+    autonumber
+    participant Client as Client Host
+    participant DNS as DNS Server (Port 53)
+
+    rect rgb(24, 24, 27)
+    Note over Client,DNS: Phase 1: TCP 3-Way Handshake
+    Client->>DNS: SYN
+    DNS-->>Client: SYN-ACK
+    Client->>DNS: ACK
     end
 
-    subgraph Phase2 ["Phase 2: DNS Query & Data Exchange (4 Trips)"]
-        S2_1["<b>4. Client Host</b><br>Sends DNS Query: IP of example.com?"] --> S2_2["<b>5. DNS Server (Port 53)</b><br>Sends ACK (Query Received)"]
-        S2_2 --> S2_3["<b>6. DNS Server (Port 53)</b><br>Sends Response: IP is 10.0.0.1"]
-        S2_3 --> S2_4["<b>7. Client Host</b><br>Sends ACK (Response Received)"]
+    rect rgb(24, 24, 27)
+    Note over Client,DNS: Phase 2: DNS Query & Data Exchange
+    Client->>DNS: DNS Query (IP of example.com?)
+    DNS-->>Client: ACK (Query Received)
+    DNS-->>Client: DNS Response (IP is 10.0.0.1)
+    Client->>DNS: ACK (Response Received)
     end
 
-    subgraph Phase3 ["Phase 3: TCP 4-Way Connection Teardown (4 Trips)"]
-        S3_1["<b>8. Client Host</b><br>Sends FIN (Close Connection Request)"] --> S3_2["<b>9. DNS Server (Port 53)</b><br>Sends ACK"]
-        S3_2 --> S3_3["<b>10. DNS Server (Port 53)</b><br>Sends FIN (Server Close Request)"]
-        S3_3 --> S3_4["<b>11. Client Host</b><br>Sends ACK (Connection Closed!)"]
+    rect rgb(24, 24, 27)
+    Note over Client,DNS: Phase 3: TCP 4-Way Connection Teardown
+    Client->>DNS: FIN (Close Connection)
+    DNS-->>Client: ACK
+    DNS-->>Client: FIN
+    Client->>DNS: ACK
     end
-
-    Phase1 --> Phase2 --> Phase3
-
-    style Phase1 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
-    style S1_1 fill:#78350f,stroke:#fbbf24,color:#fff
-    style S1_2 fill:#581c87,stroke:#c084fc,color:#fff
-    style S1_3 fill:#78350f,stroke:#fbbf24,color:#fff
-
-    style Phase2 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
-    style S2_1 fill:#78350f,stroke:#fbbf24,color:#fff
-    style S2_2 fill:#581c87,stroke:#c084fc,color:#fff
-    style S2_3 fill:#581c87,stroke:#c084fc,color:#fff
-    style S2_4 fill:#78350f,stroke:#fbbf24,color:#fff
-
-    style Phase3 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
-    style S3_1 fill:#78350f,stroke:#fbbf24,color:#fff
-    style S3_2 fill:#581c87,stroke:#c084fc,color:#fff
-    style S3_3 fill:#581c87,stroke:#c084fc,color:#fff
-    style S3_4 fill:#78350f,stroke:#fbbf24,color:#fff
 ```
 
 ### Scenario B: DNS Built on UDP (Only 2 Network Trips!)
@@ -198,14 +189,16 @@ flowchart TD
 With UDP, DNS eliminates handshakes and connection teardowns entirely:
 
 ```mermaid
-flowchart TD
-    subgraph DirectUDP ["UDP Query & Response (Only 2 Network Trips!)"]
-        U1["<b>1. Client Host</b><br>Sends UDP Query (Query ID: 1, IP of example.com?)"] --> U2["<b>2. DNS Server (Port 53)</b><br>Sends UDP Response (Query ID: 1, IP is 10.0.0.1)"]
-    end
+sequenceDiagram
+    autonumber
+    participant Client as Client Host
+    participant DNS as DNS Server (Port 53)
 
-    style DirectUDP fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
-    style U1 fill:#78350f,stroke:#fbbf24,color:#fff
-    style U2 fill:#14532d,stroke:#86efac,stroke-width:2px,color:#fff
+    rect rgb(24, 24, 27)
+    Note over Client,DNS: UDP Direct Query & Response
+    Client->>DNS: DNS Query (Query ID: 1, IP of example.com?)
+    DNS-->>Client: DNS Response (Query ID: 1, IP is 10.0.0.1)
+    end
 ```
 
 ### How DNS Handles Reliability at the Application Layer
