@@ -289,35 +289,54 @@ Because TTL was limited to 1, the packet reached your home router (`192.168.1.1`
 Traceroute does not rely on routers voluntarily reporting their paths. Instead, it cleverly manipulates the **TTL field** in successive ICMP (or UDP) probe requests to discover routers one by one.
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Laptop as Laptop (10.0.0.1)
-    participant Hop1 as Home Router (10.0.0.4)
-    participant Hop2 as Router 2 (20.0.0.1)
-    participant Hop3 as Router 3 (30.0.0.1)
-    participant Dest as Google (60.0.0.1)
+flowchart TD
+    subgraph Probe1 ["Step 1: Probe with TTL = 1"]
+        direction LR
+        P1_Source["<b>My Machine</b><br>10.0.0.1"] -- "Send: TTL=1" --> P1_Hop1["<b>Home Router</b><br>10.0.0.4<br>(TTL: 1 -> 0 Expired)"]
+        P1_Hop1 -- "ICMP Time Exceeded (Source: 10.0.0.4)" --> P1_Source
+    end
 
-    Note over Laptop: --- Probe 1: Send Packet with TTL = 1 ---
-    Laptop->>Hop1: Probe (TTL = 1)
-    Note over Hop1: TTL decrements 1 -> 0 (Expired!)
-    Hop1-->>Laptop: ICMP Time Exceeded (Source: 10.0.0.4) -> Records Hop 1!
+    subgraph Probe2 ["Step 2: Probe with TTL = 2"]
+        direction LR
+        P2_Source["<b>My Machine</b><br>10.0.0.1"] -- "Send: TTL=2" --> P2_Hop1["<b>Home Router</b><br>10.0.0.4<br>(TTL: 2 -> 1)"]
+        P2_Hop1 --> P2_Hop2["<b>Router 20.0.0.1</b><br>(TTL: 1 -> 0 Expired)"]
+        P2_Hop2 -- "ICMP Time Exceeded (Source: 20.0.0.1)" --> P2_Source
+    end
 
-    Note over Laptop: --- Probe 2: Send Packet with TTL = 2 ---
-    Laptop->>Hop1: Probe (TTL = 2)
-    Hop1->>Hop2: Forwards (TTL = 1)
-    Note over Hop2: TTL decrements 1 -> 0 (Expired!)
-    Hop2-->>Laptop: ICMP Time Exceeded (Source: 20.0.0.1) -> Records Hop 2!
+    subgraph Probe3 ["Step 3: Probe with TTL = 3"]
+        direction LR
+        P3_Source["<b>My Machine</b><br>10.0.0.1"] -- "Send: TTL=3" --> P3_Hop1["<b>Home Router</b><br>10.0.0.4"]
+        P3_Hop1 --> P3_Hop2["<b>Router 20.0.0.1</b><br>(TTL: 2 -> 1)"]
+        P3_Hop2 --> P3_Hop3["<b>Router 30.0.0.1</b><br>(TTL: 1 -> 0 Expired)"]
+        P3_Hop3 -- "ICMP Time Exceeded (Source: 30.0.0.1)" --> P3_Source
+    end
 
-    Note over Laptop: --- Probe 3: Send Packet with TTL = 3 ---
-    Laptop->>Hop1: Probe (TTL = 3)
-    Hop1->>Hop2: Forwards (TTL = 2)
-    Hop2->>Hop3: Forwards (TTL = 1)
-    Note over Hop3: TTL decrements 1 -> 0 (Expired!)
-    Hop3-->>Laptop: ICMP Time Exceeded (Source: 30.0.0.1) -> Records Hop 3!
+    subgraph Probe4 ["Final Step: Probe with TTL = N (Target Reached)"]
+        direction LR
+        P4_Source["<b>My Machine</b><br>10.0.0.1"] -- "Send: TTL=N" --> P4_Hops["<b>Intermediate Routers</b><br>(Passed successfully)"]
+        P4_Hops --> P4_Dest["<b>google.com</b><br>60.0.0.1"]
+        P4_Dest -- "ICMP Echo Reply (Route Complete!)" --> P4_Source
+    end
 
-    Note over Laptop: --- Probe 4: Send Packet with TTL = 4 ---
-    Laptop->>Dest: Probe reaches Target Server!
-    Dest-->>Laptop: ICMP Echo Reply (Source: 60.0.0.1) -> Route Completed!
+    style Probe1 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style P1_Source fill:#78350f,stroke:#fbbf24,color:#fff
+    style P1_Hop1 fill:#991b1b,stroke:#f87171,stroke-width:2px,color:#fff
+
+    style Probe2 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style P2_Source fill:#78350f,stroke:#fbbf24,color:#fff
+    style P2_Hop1 fill:#334155,stroke:#94a3b8,color:#fff
+    style P2_Hop2 fill:#991b1b,stroke:#f87171,stroke-width:2px,color:#fff
+
+    style Probe3 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style P3_Source fill:#78350f,stroke:#fbbf24,color:#fff
+    style P3_Hop1 fill:#334155,stroke:#94a3b8,color:#fff
+    style P3_Hop2 fill:#581c87,stroke:#c084fc,color:#fff
+    style P3_Hop3 fill:#991b1b,stroke:#f87171,stroke-width:2px,color:#fff
+
+    style Probe4 fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style P4_Source fill:#78350f,stroke:#fbbf24,color:#fff
+    style P4_Hops fill:#581c87,stroke:#c084fc,color:#fff
+    style P4_Dest fill:#14532d,stroke:#86efac,stroke-width:2px,color:#fff
 ```
 
 ### Step-by-Step Traceroute Execution
