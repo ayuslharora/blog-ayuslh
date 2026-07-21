@@ -220,50 +220,27 @@ Let's walk through how two applications communicate using UDP across different h
 
 ```mermaid
 flowchart TD
-    subgraph HostA ["Host A (IP: 192.168.1.1)"]
-        AppA["<b>App A</b><br>Bound to Port 5555"]
+    subgraph OutgoingFlow ["1. Outgoing Request Datagram (App A -> App X)"]
+        HostA_Req["<b>Host A (192.168.1.1)</b><br>App A (Port 5555)"] -- "Sends Request" --> ReqHeader["<b>UDP Datagram Header</b><br>Src IP: 192.168.1.1 | Dst IP: 10.0.0.1<br>Src Port: 5555 | Dst Port: 53"]
+        ReqHeader -- "Routed via Port 53" --> HostB_Req["<b>Host B (10.0.0.1)</b><br>App X (Port 53)"]
     end
 
-    subgraph HostB ["Host B (IP: 10.0.0.1)"]
-        AppX["<b>App X (DNS Server)</b><br>Bound to Port 53"]
-        AppY["<b>App Y</b><br>Bound to Port 8000"]
+    subgraph ReturnFlow ["2. Return Response Datagram (App X -> App A)"]
+        HostB_Res["<b>Host B (10.0.0.1)</b><br>App X (Port 53)"] -- "Sends Response" --> ResHeader["<b>UDP Datagram Header</b><br>Src IP: 10.0.0.1 | Dst IP: 192.168.1.1<br>Src Port: 53 | Dst Port: 5555"]
+        ResHeader -- "Routed via Port 5555" --> HostA_Res["<b>Host A (192.168.1.1)</b><br>App A (Port 5555)"]
     end
 
-    subgraph ReqPacket ["1. Request Datagram (App A -> App X)"]
-        direction LR
-        R_SrcIP["Src IP: 192.168.1.1"] --- R_DstIP["Dst IP: 10.0.0.1"] --- R_SrcPort["Src Port: 5555"] --- R_DstPort["Dst Port: 53"]
-    end
+    OutgoingFlow --> ReturnFlow
 
-    subgraph ResPacket ["2. Response Datagram (App X -> App A)"]
-        direction LR
-        A_SrcIP["Src IP: 10.0.0.1"] --- A_DstIP["Dst IP: 192.168.1.1"] --- A_SrcPort["Src Port: 53"] --- A_DstPort["Dst Port: 5555"]
-    end
+    style OutgoingFlow fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style HostA_Req fill:#78350f,stroke:#fbbf24,color:#fff
+    style ReqHeader fill:#581c87,stroke:#c084fc,color:#fff
+    style HostB_Req fill:#166534,stroke:#4ade80,color:#fff
 
-    AppA --> ReqPacket
-    ReqPacket --> HostB
-    HostB -- "Delivered via Port 53" --> AppX
-    AppX --> ResPacket
-    ResPacket --> HostA
-    HostA -- "Delivered via Port 5555" --> AppA
-
-    style HostA fill:#451a03,stroke:#f97316,stroke-width:2px,color:#fff
-    style AppA fill:#78350f,stroke:#fbbf24,color:#fff
-
-    style HostB fill:#1e293b,stroke:#64748b,stroke-width:2px,color:#fff
-    style AppX fill:#166534,stroke:#4ade80,stroke-width:2px,color:#fff
-    style AppY fill:#3f3f46,stroke:#71717a,color:#9ca3af
-
-    style ReqPacket fill:#18181b,stroke:#a855f7,stroke-width:2px,color:#fff
-    style R_SrcIP fill:#7f1d1d,stroke:#fca5a5,color:#fff
-    style R_DstIP fill:#7f1d1d,stroke:#fca5a5,color:#fff
-    style R_SrcPort fill:#1e3a5f,stroke:#60a5fa,color:#fff
-    style R_DstPort fill:#1e3a5f,stroke:#60a5fa,color:#fff
-
-    style ResPacket fill:#18181b,stroke:#10b981,stroke-width:2px,color:#fff
-    style A_SrcIP fill:#7f1d1d,stroke:#fca5a5,color:#fff
-    style A_DstIP fill:#7f1d1d,stroke:#fca5a5,color:#fff
-    style A_SrcPort fill:#1e3a5f,stroke:#60a5fa,color:#fff
-    style A_DstPort fill:#1e3a5f,stroke:#60a5fa,color:#fff
+    style ReturnFlow fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style HostB_Res fill:#166534,stroke:#4ade80,color:#fff
+    style ResHeader fill:#065f46,stroke:#34d399,color:#fff
+    style HostA_Res fill:#78350f,stroke:#fbbf24,color:#fff
 ```
 
 ### Step-by-Step Datagram Flow
