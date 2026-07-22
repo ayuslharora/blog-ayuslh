@@ -11,6 +11,7 @@ import { CATEGORIES } from '../data/categories';
 const STATIC_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/series', label: 'Series' },
+  { href: '/til', label: 'TIL' },
 ];
 
 function categoryLabel(slug: string): string {

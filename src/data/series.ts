@@ -19,4 +19,10 @@ export const SERIES: Record<string, SeriesInfo> = {
       "Exploring the foundations of machine learning, from basic algorithms to advanced neural networks.",
     category: "machine-learning",
   },
+  til: {
+    title: "Today I Learned",
+    description:
+      "Unstructured notes, technical takeaways, and lightbulb moments from random technical videos and talks.",
+    category: "misc",
+  },
 };

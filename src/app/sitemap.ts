@@ -27,6 +27,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: BASE_URL, lastModified: gitLastModified('src/app/page.tsx') },
     { url: `${BASE_URL}/series`, lastModified: gitLastModified('src/app/series/page.tsx') },
+    { url: `${BASE_URL}/til`, lastModified: gitLastModified('src/app/til/page.tsx') },
     { url: `${BASE_URL}/about`, lastModified: gitLastModified('src/app/about/page.tsx') },
     {
       url: `${BASE_URL}/tools/ip-converter`,
