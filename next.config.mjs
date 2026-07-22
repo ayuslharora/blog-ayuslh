@@ -6,9 +6,11 @@
 // worth it here). The other directives still do real work: frame-ancestors
 // blocks clickjacking, object-src blocks plugin exploits, connect-src limits
 // exfiltration destinations, form-action prevents form hijacking.
+const isDev = process.env.NODE_ENV !== 'production';
+
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
