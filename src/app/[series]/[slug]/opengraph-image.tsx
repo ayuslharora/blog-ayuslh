@@ -1,5 +1,9 @@
 import { ImageResponse } from 'next/og';
-import { getPostBySlug } from '../../../lib/posts';
+import { getPostBySlug, getAllPosts } from '../../../lib/posts';
+
+export function generateStaticParams() {
+  return getAllPosts().map((post) => ({ series: post.series, slug: post.slug }));
+}
 
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
@@ -28,7 +32,7 @@ export default async function Image({
         }}
       >
         <div style={{ fontSize: 28, color: '#fbbf24', marginBottom: 24 }}>
-          {series} · blog.ayuslh.in
+          {`${series} · blog.ayuslh.in`}
         </div>
         <div style={{ fontSize: 56, fontWeight: 700, lineHeight: 1.2 }}>{title}</div>
       </div>
