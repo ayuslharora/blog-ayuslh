@@ -180,12 +180,16 @@ A box plot visually encodes five key descriptive statistics:
 #### Identifying Outliers
 Any data point that falls **below** $\text{Min}$ or **above** $\text{Max}$ is mathematically identified as an **outlier**. In a box plot, these extreme values are plotted as individual points past the whisker ends.
 
-```
-       Outlier                                                        Outlier
-          o       |-------+-------------+-------|       o
-                  |       |             |       |
-                 Min     Q1   Median(Q2) Q3    Max
-                          <------ IQR ------>
+```text
+ Outlier                                                             Outlier 
+                        +---------------------------+                        
+                        |   Q1 (25%)  |   Q3 (75%)  |                        
+   (o)        |---------+-------------+-------------+---------|        (o)   
+              |         |             |             |         |              
+             Min       Q1        Median (Q2)       Q3        Max             
+         Q1-1.5*IQR  25th %        50th %        75th %  Q3+1.5*IQR          
+                        |                           |                        
+                        |<----------- IQR ----------->|                      
 ```
 
 ### 4. Descriptive Summary Metrics
