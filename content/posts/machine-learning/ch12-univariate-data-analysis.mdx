@@ -11,6 +11,14 @@ draft: false
 In the previous post, we covered the foundational questions you must ask whenever you receive a new dataset to inspect its size, data types, missing values, duplicates, and correlation. Once you have established this high-level baseline, the next logical phase in Exploratory Data Analysis (EDA) is to dive deep into individual variables. This phase is called **Univariate Data Analysis**.
 
 To maintain a structured workflow, recall our four-step data understanding framework:
+
+```mermaid
+flowchart LR
+    Step1["1. Basic Questions<br/>(Shape, Types, Missing)"] --> Step2["2. Univariate Analysis<br/>(Single Feature Distribution)"]
+    Step2 --> Step3["3. Bivariate / Multivariate<br/>(Feature Interactions)"]
+    Step3 --> Step4["4. Automated EDA<br/>(Profiling Reports)"]
+```
+
 1. **Asking Basic Questions**: Inspecting dataset metadata, shape, data types, and initial sample records.
 2. **Univariate Data Analysis** (This post): Analyzing the distribution, central tendency, spread, and frequency of every feature independently.
 3. **Bivariate and Multivariate Data Analysis**: Exploring relationships, dependencies, and interactions across multiple features simultaneously.
@@ -173,32 +181,42 @@ A box plot visually encodes five key descriptive statistics:
 4. **Interquartile Range ($IQR$)**: The distance between the 3rd and 1st quartiles:
    $$IQR = Q_3 - Q_1$$
 5. **Calculated Minimum Whisker Boundary**:
-   $$\text{Min} = Q_1 - 1.5 \times IQR$$
+   $$\text{Min Boundary} = Q_1 - (1.5 \times IQR)$$
 6. **Calculated Maximum Whisker Boundary**:
-   $$\text{Max} = Q_3 + 1.5 \times IQR$$
+   $$\text{Max Boundary} = Q_3 + (1.5 \times IQR)$$
 
-#### Identifying Outliers
-Any data point that falls **below** $\text{Min}$ or **above** $\text{Max}$ is mathematically identified as an **outlier**. In a box plot, these extreme values are plotted as individual points past the whisker ends.
+#### Visualizing Box Plot Anatomy and Outliers
 
 ```mermaid
 flowchart LR
-    O1["Low Outlier<br/>(Value < Min)"] --- Min["Min Whisker<br/>Q1 - 1.5 * IQR"]
-    Min --- Q1["Q1<br/>25th Percentile"]
-    Q1 --- Median["Median / Q2<br/>50th Percentile"]
-    Median --- Q3["Q3<br/>75th Percentile"]
-    Q3 --- Max["Max Whisker<br/>Q3 + 1.5 * IQR"]
-    Max --- O2["High Outlier<br/>(Value > Max)"]
+    subgraph OutliersLeft["Lower Outliers"]
+        O1["Extreme Value<br/>Value < Min Boundary"]
+    end
 
-    classDef outlier fill:#991b1b,stroke:#f87171,stroke-width:2px,color:#fff;
-    classDef whisker fill:#1e293b,stroke:#94a3b8,stroke-width:2px,color:#fff;
-    classDef box fill:#065f46,stroke:#34d399,stroke-width:2px,color:#fff;
-    classDef median fill:#1e40af,stroke:#60a5fa,stroke-width:2px,color:#fff;
+    subgraph WhiskerLower["Whisker Boundary"]
+        Min["Min Boundary<br/>Q1 - 1.5 * IQR"]
+    end
 
-    class O1,O2 outlier;
-    class Min,Max whisker;
-    class Q1,Q3 box;
-    class Median median;
+    subgraph IQRBox["Interquartile Range (IQR): Middle 50%"]
+        direction LR
+        Q1["Q1<br/>25th Percentile"] --> Median["Median (Q2)<br/>50th Percentile"] --> Q3["Q3<br/>75th Percentile"]
+    end
+
+    subgraph WhiskerUpper["Whisker Boundary"]
+        Max["Max Boundary<br/>Q3 + 1.5 * IQR"]
+    end
+
+    subgraph OutliersRight["Upper Outliers"]
+        O2["Extreme Value<br/>Value > Max Boundary"]
+    end
+
+    O1 -.-> Min
+    Min --- Q1
+    Q3 --- Max
+    Max -.-> O2
 ```
+
+> **Identifying Outliers:** Any data point that falls **below Min Boundary** or **above Max Boundary** is mathematically identified as an **outlier**. In a box plot, these extreme values are plotted as individual points past the whisker ends.
 
 ### 4. Descriptive Summary Metrics
 In addition to visual plots, you can extract exact statistical values directly using Pandas methods:
@@ -228,21 +246,21 @@ df['Age'].skew()
 
 ```mermaid
 flowchart TD
-    subgraph Skewness["Distribution Skewness Types"]
+    subgraph SkewnessMap["Distribution Skewness Types"]
         direction LR
 
         subgraph Pos["Positively Skewed (Right-Skewed)"]
             direction TB
             P1["Skewness > 0"]
-            P2["Long Tail on Right Side"]
+            P2["Long Tail on Right"]
             P3["Mean > Median > Mode"]
-            P4["Examples: Income, Salaries, Ticket Fares"]
+            P4["Examples: Income, Ticket Fares"]
         end
 
-        subgraph Sym["Symmetrical (Normal Distribution)"]
+        subgraph Sym["Symmetrical (Normal)"]
             direction TB
             S1["Skewness ≈ 0"]
-            S2["Symmetric Bell Curve"]
+            S2["Mirror Image Bell Curve"]
             S3["Mean = Median = Mode"]
             S4["Examples: Height, Weight"]
         end
@@ -250,35 +268,28 @@ flowchart TD
         subgraph Neg["Negatively Skewed (Left-Skewed)"]
             direction TB
             N1["Skewness < 0"]
-            N2["Long Tail on Left Side"]
+            N2["Long Tail on Left"]
             N3["Mean < Median < Mode"]
             N4["Examples: Easy Exam Scores"]
         end
     end
-
-    classDef posStyle fill:#1e3a8a,stroke:#60a5fa,stroke-width:1px,color:#fff;
-    classDef symStyle fill:#064e3b,stroke:#34d399,stroke-width:1px,color:#fff;
-    classDef negStyle fill:#581c87,stroke:#c084fc,stroke-width:1px,color:#fff;
-
-    class P1,P2,P3,P4 posStyle;
-    class S1,S2,S3,S4 symStyle;
-    class N1,N2,N3,N4 negStyle;
 ```
 
 #### 1. Symmetrical Distribution (Normal Distribution)
 * **Skewness Value**: $\approx 0$.
-* **Properties**: The left and right sides of the distribution are mirror images. Mean, median, and mode coincide at the central peak.
+* **Properties**: The left and right sides of the distribution are mirror images. 
+* **Relationship**: **Mean** $=$ **Median** $=$ **Mode**.
 
 #### 2. Positively Skewed Distribution (Right-Skewed)
 * **Skewness Value**: $> 0$.
 * **Properties**: The tail of the distribution extends further towards the right (higher values). 
-* **Relationship**: $\text{Mean} > \text{Median} > \text{Mode}$.
+* **Relationship**: **Mean** $>$ **Median** $>$ **Mode**.
 * **Real-World Example**: Individual income or salary distributions. Most people earn within a modest range, while a small number of ultra-high earners stretch the long right tail. Ticket fares also exhibit heavy positive skewness.
 
 #### 3. Negatively Skewed Distribution (Left-Skewed)
 * **Skewness Value**: $< 0$.
 * **Properties**: The tail of the distribution extends further towards the left (lower values).
-* **Relationship**: $\text{Mean} < \text{Median} < \text{Mode}$.
+* **Relationship**: **Mean** $<$ **Median** $<$ **Mode**.
 * **Real-World Example**: Student marks in an unusually easy examination, where most students score close to 100%, and a small number of low scores stretch the left tail.
 
 ---
