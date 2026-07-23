@@ -180,16 +180,24 @@ A box plot visually encodes five key descriptive statistics:
 #### Identifying Outliers
 Any data point that falls **below** $\text{Min}$ or **above** $\text{Max}$ is mathematically identified as an **outlier**. In a box plot, these extreme values are plotted as individual points past the whisker ends.
 
-```text
- Outlier                                                             Outlier 
-                        +---------------------------+                        
-                        |   Q1 (25%)  |   Q3 (75%)  |                        
-   (o)        |---------+-------------+-------------+---------|        (o)   
-              |         |             |             |         |              
-             Min       Q1        Median (Q2)       Q3        Max             
-         Q1-1.5*IQR  25th %        50th %        75th %  Q3+1.5*IQR          
-                        |                           |                        
-                        |<----------- IQR ----------->|                      
+```mermaid
+flowchart LR
+    O1["Low Outlier<br/>(Value < Min)"] --- Min["Min Whisker<br/>Q1 - 1.5 * IQR"]
+    Min --- Q1["Q1<br/>25th Percentile"]
+    Q1 --- Median["Median / Q2<br/>50th Percentile"]
+    Median --- Q3["Q3<br/>75th Percentile"]
+    Q3 --- Max["Max Whisker<br/>Q3 + 1.5 * IQR"]
+    Max --- O2["High Outlier<br/>(Value > Max)"]
+
+    classDef outlier fill:#991b1b,stroke:#f87171,stroke-width:2px,color:#fff;
+    classDef whisker fill:#1e293b,stroke:#94a3b8,stroke-width:2px,color:#fff;
+    classDef box fill:#065f46,stroke:#34d399,stroke-width:2px,color:#fff;
+    classDef median fill:#1e40af,stroke:#60a5fa,stroke-width:2px,color:#fff;
+
+    class O1,O2 outlier;
+    class Min,Max whisker;
+    class Q1,Q3 box;
+    class Median median;
 ```
 
 ### 4. Descriptive Summary Metrics
@@ -218,13 +226,43 @@ df['Age'].skew()
 
 ### Types of Skewness
 
-```
-   Positively Skewed              Symmetrical              Negatively Skewed
-     (Right-Skewed)           (Normal Distribution)          (Left-Skewed)
-        /\                           /\                           /\
-       /  \                         /  \                         /  \
-      /    \                       /    \                       /    \
-     /      \_____                /      \                _____/      \
+```mermaid
+flowchart TD
+    subgraph Skewness["Distribution Skewness Types"]
+        direction LR
+
+        subgraph Pos["Positively Skewed (Right-Skewed)"]
+            direction TB
+            P1["Skewness > 0"]
+            P2["Long Tail on Right Side"]
+            P3["Mean > Median > Mode"]
+            P4["Examples: Income, Salaries, Ticket Fares"]
+        end
+
+        subgraph Sym["Symmetrical (Normal Distribution)"]
+            direction TB
+            S1["Skewness ≈ 0"]
+            S2["Symmetric Bell Curve"]
+            S3["Mean = Median = Mode"]
+            S4["Examples: Height, Weight"]
+        end
+
+        subgraph Neg["Negatively Skewed (Left-Skewed)"]
+            direction TB
+            N1["Skewness < 0"]
+            N2["Long Tail on Left Side"]
+            N3["Mean < Median < Mode"]
+            N4["Examples: Easy Exam Scores"]
+        end
+    end
+
+    classDef posStyle fill:#1e3a8a,stroke:#60a5fa,stroke-width:1px,color:#fff;
+    classDef symStyle fill:#064e3b,stroke:#34d399,stroke-width:1px,color:#fff;
+    classDef negStyle fill:#581c87,stroke:#c084fc,stroke-width:1px,color:#fff;
+
+    class P1,P2,P3,P4 posStyle;
+    class S1,S2,S3,S4 symStyle;
+    class N1,N2,N3,N4 negStyle;
 ```
 
 #### 1. Symmetrical Distribution (Normal Distribution)
