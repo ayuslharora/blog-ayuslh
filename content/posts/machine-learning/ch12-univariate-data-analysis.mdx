@@ -190,7 +190,7 @@ A box plot visually encodes five key descriptive statistics:
 ```mermaid
 flowchart LR
     subgraph OutliersLeft["Lower Outliers"]
-        O1["Extreme Value<br/>Value < Min Boundary"]
+        O1["Extreme Value<br/>Value &lt; Min Boundary"]
     end
 
     subgraph WhiskerLower["Whisker Boundary"]
@@ -207,7 +207,7 @@ flowchart LR
     end
 
     subgraph OutliersRight["Upper Outliers"]
-        O2["Extreme Value<br/>Value > Max Boundary"]
+        O2["Extreme Value<br/>Value &gt; Max Boundary"]
     end
 
     O1 -.-> Min
@@ -251,9 +251,9 @@ flowchart TD
 
         subgraph Pos["Positively Skewed (Right-Skewed)"]
             direction TB
-            P1["Skewness > 0"]
+            P1["Skewness &gt; 0"]
             P2["Long Tail on Right"]
-            P3["Mean > Median > Mode"]
+            P3["Mean &gt; Median &gt; Mode"]
             P4["Examples: Income, Ticket Fares"]
         end
 
@@ -267,9 +267,9 @@ flowchart TD
 
         subgraph Neg["Negatively Skewed (Left-Skewed)"]
             direction TB
-            N1["Skewness < 0"]
+            N1["Skewness &lt; 0"]
             N2["Long Tail on Left"]
-            N3["Mean < Median < Mode"]
+            N3["Mean &lt; Median &lt; Mode"]
             N4["Examples: Easy Exam Scores"]
         end
     end
