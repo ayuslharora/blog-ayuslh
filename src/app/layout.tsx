@@ -46,7 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en-IN" suppressHydrationWarning>
-      <head>
+      <body className={`${inter.className} min-h-screen flex flex-col antialiased overflow-x-hidden`}>
         <script
           id="theme-init"
           dangerouslySetInnerHTML={{ __html: themeInitScript }}
@@ -61,8 +61,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildPersonJsonLd()) }}
         />
-      </head>
-      <body className={`${inter.className} min-h-screen flex flex-col antialiased overflow-x-hidden`}>
         <NavBar categories={categories} />
         <main className="w-full relative z-10 pt-28 flex-1 overflow-x-hidden">{children}</main>
         <Footer />
