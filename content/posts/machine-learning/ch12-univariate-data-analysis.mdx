@@ -158,7 +158,7 @@ plt.show()
 The KDE curve represents the **Probability Density Function (PDF)** of the numerical variable:
 * The **Y-axis** represents the probability density.
 * The **X-axis** represents the feature value.
-* The total area under the PDF curve equals $1.0$ ($100\%$).
+* The total area under the PDF curve equals 1.0 (100%).
 
 Using the PDF, you can estimate the probability of picking a sample within a given range by looking at the relative height and curve shape at that value.
 
@@ -175,15 +175,15 @@ plt.show()
 #### Mathematical Anatomy of the 5-Number Summary
 A box plot visually encodes five key descriptive statistics:
 
-1. **25th Percentile ($Q_1$)**: The first quartile value below which $25\%$ of the data lies.
-2. **50th Percentile ($Q_2$ / Median)**: The middle value dividing the sorted dataset into two equal halves.
-3. **75th Percentile ($Q_3$)**: The third quartile value below which $75\%$ of the data lies.
-4. **Interquartile Range ($IQR$)**: The distance between the 3rd and 1st quartiles:
-   $$IQR = Q_3 - Q_1$$
+1. **25th Percentile (Q1)**: The first quartile value below which 25% of the data lies.
+2. **50th Percentile (Q2 / Median)**: The middle value dividing the sorted dataset into two equal halves.
+3. **75th Percentile (Q3)**: The third quartile value below which 75% of the data lies.
+4. **Interquartile Range (IQR)**: The distance between the 3rd and 1st quartiles:
+   `IQR = Q3 - Q1`
 5. **Calculated Minimum Whisker Boundary**:
-   $$Min = Q_1 - (1.5 \times IQR)$$
+   `Min Boundary = Q1 - (1.5 * IQR)`
 6. **Calculated Maximum Whisker Boundary**:
-   $$Max = Q_3 + (1.5 \times IQR)$$
+   `Max Boundary = Q3 + (1.5 * IQR)`
 
 #### Visualizing Box Plot Anatomy and Outliers
 
@@ -276,20 +276,20 @@ flowchart TD
 ```
 
 #### 1. Symmetrical Distribution (Normal Distribution)
-* **Skewness Value**: $\approx 0$.
+* **Skewness Value**: Approximately 0 (`~ 0`)
 * **Properties**: The left and right sides of the distribution are mirror images. 
-* **Relationship**: $\text{Mean} = \text{Median} = \text{Mode}$.
+* **Relationship**: **Mean** = **Median** = **Mode**
 
 #### 2. Positively Skewed Distribution (Right-Skewed)
-* **Skewness Value**: $> 0$.
+* **Skewness Value**: Greater than 0 (`> 0`)
 * **Properties**: The tail of the distribution extends further towards the right (higher values). 
-* **Relationship**: $\text{Mean} > \text{Median} > \text{Mode}$.
+* **Relationship**: **Mean** &gt; **Median** &gt; **Mode**
 * **Real-World Example**: Individual income or salary distributions. Most people earn within a modest range, while a small number of ultra-high earners stretch the long right tail. Ticket fares also exhibit heavy positive skewness.
 
 #### 3. Negatively Skewed Distribution (Left-Skewed)
-* **Skewness Value**: $< 0$.
+* **Skewness Value**: Less than 0 (`< 0`)
 * **Properties**: The tail of the distribution extends further towards the left (lower values).
-* **Relationship**: $\text{Mean} < \text{Median} < \text{Mode}$.
+* **Relationship**: **Mean** &lt; **Median** &lt; **Mode**
 * **Real-World Example**: Student marks in an unusually easy examination, where most students score close to 100%, and a small number of low scores stretch the left tail.
 
 ---
@@ -303,7 +303,7 @@ flowchart TD
 | **Categorical** | `df['col'].value_counts().plot(kind='pie')` | Visualizes category proportions as percentages. |
 | **Numerical** | `plt.hist()` / `sns.histplot()` | Shows frequency distribution across range bins. |
 | **Numerical** | `sns.kdeplot()` / `sns.distplot()` | Estimates Probability Density Function (PDF) curve. |
-| **Numerical** | `sns.boxplot()` | Reveals 5-number summary ($Q_1, Q_2, Q_3, IQR$) & outliers. |
+| **Numerical** | `sns.boxplot()` | Reveals 5-number summary (Q1, Q2, Q3, IQR) & outliers. |
 | **Numerical** | `df['col'].skew()` | Measures asymmetry (Positive vs. Negative skewness). |
 
 ---
