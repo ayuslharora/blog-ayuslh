@@ -296,15 +296,54 @@ flowchart TD
 
 ## Summary Cheat Sheet
 
-| Feature Type | Plot / Method | Primary Function / Insight |
-| :--- | :--- | :--- |
-| **Categorical** | `sns.countplot()` | Displays raw sample counts across categories. |
-| **Categorical** | `df['col'].value_counts()` | Computes tabular category frequencies. |
-| **Categorical** | `df['col'].value_counts().plot(kind='pie')` | Visualizes category proportions as percentages. |
-| **Numerical** | `plt.hist()` / `sns.histplot()` | Shows frequency distribution across range bins. |
-| **Numerical** | `sns.kdeplot()` / `sns.distplot()` | Estimates Probability Density Function (PDF) curve. |
-| **Numerical** | `sns.boxplot()` | Reveals 5-number summary (Q1, Q2, Q3, IQR) & outliers. |
-| **Numerical** | `df['col'].skew()` | Measures asymmetry (Positive vs. Negative skewness). |
+<div className="overflow-x-auto my-8">
+  <table className="w-full text-left border-collapse">
+    <thead>
+      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
+        <th className="py-3 px-4 font-bold">Feature Type</th>
+        <th className="py-3 px-4 font-bold">Plot / Method</th>
+        <th className="py-3 px-4 font-bold">Primary Function / Insight</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-black/5 dark:divide-white/5">
+      <tr>
+        <td className="py-3 px-4 font-semibold">Categorical</td>
+        <td className="py-3 px-4"><code>sns.countplot()</code></td>
+        <td className="py-3 px-4">Displays raw sample counts across categories.</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Categorical</td>
+        <td className="py-3 px-4"><code>df['col'].value_counts()</code></td>
+        <td className="py-3 px-4">Computes tabular category frequencies.</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Categorical</td>
+        <td className="py-3 px-4"><code>df['col'].value_counts().plot(kind='pie')</code></td>
+        <td className="py-3 px-4">Visualizes category proportions as percentages.</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Numerical</td>
+        <td className="py-3 px-4"><code>plt.hist()</code> / <code>sns.histplot()</code></td>
+        <td className="py-3 px-4">Shows frequency distribution across range bins.</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Numerical</td>
+        <td className="py-3 px-4"><code>sns.kdeplot()</code> / <code>sns.distplot()</code></td>
+        <td className="py-3 px-4">Estimates Probability Density Function (PDF) curve.</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Numerical</td>
+        <td className="py-3 px-4"><code>sns.boxplot()</code></td>
+        <td className="py-3 px-4">Reveals 5-number summary (Q1, Q2, Q3, IQR) &amp; outliers.</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Numerical</td>
+        <td className="py-3 px-4"><code>df['col'].skew()</code></td>
+        <td className="py-3 px-4">Measures asymmetry (Positive vs. Negative skewness).</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 ---
 
