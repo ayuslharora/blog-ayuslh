@@ -196,8 +196,8 @@ sequenceDiagram
 
     rect rgb(24, 24, 27)
     Note over Client,DNS: UDP Direct Query & Response
-    Client->>DNS: DNS Query (Query ID: 1, IP of example.com?)
-    DNS-->>Client: DNS Response (Query ID: 1, IP is 10.0.0.1)
+    Client->>DNS: DNS Query (Transaction ID: 1, IP of example.com?)
+    DNS-->>Client: DNS Response (Transaction ID: 1, IP is 10.0.0.1)
     end
 ```
 
@@ -206,9 +206,9 @@ sequenceDiagram
 If UDP is unreliable, what happens if a DNS query packet gets dropped by a router?
 
 DNS solves this by implementing **Application-Layer Reliability**:
-1. Every DNS query carries a unique **Query ID** (for example, `ID: 1`).
-2. The client sets a short response timer.
-3. If no UDP response with matching `ID: 1` arrives before time out, the DNS client application simply retransmits the query to the same or a backup DNS server.
+1. **Transaction ID (Query ID)**: Every DNS query carries a 16-bit **Transaction ID** (for example, `ID: 1`).
+2. **Response Matching**: The DNS server echoes this exact Transaction ID back in its response, allowing the client to pair incoming responses with pending requests.
+3. **Application Retries**: The client sets a short response timer. If no UDP response with matching `Transaction ID: 1` arrives before timeout, the DNS client application simply retransmits the query to the same or a backup DNS server.
 
 By leveraging UDP's speed for 99% of successful queries and handling retries in the application logic for the remaining 1%, DNS achieves maximum internet resolution speed!
 
