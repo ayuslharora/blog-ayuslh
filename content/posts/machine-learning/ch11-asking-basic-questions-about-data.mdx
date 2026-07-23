@@ -1,0 +1,197 @@
+---
+title: "Ch.11: Asking the Right Questions to Understand Your Data"
+description: "A practical guide to the initial step of data understanding: 7 fundamental questions to inspect dataset shape, bias, memory, missing values, summary statistics, duplicates, and correlation."
+date: "2026-07-24T02:11"
+tags: ["machine-learning", "eda", "data-analysis", "pandas", "data-understanding"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=mJlRTUuVr04)
+
+In the previous post, we covered how to frame a machine learning problem and translate business objectives into technical requirements. Once you have defined your problem and acquired a dataset, your immediate next task is not to jump straight into building machine learning models or plotting complex charts. Instead, the first phase of working with any dataset is **Understanding Your Data**. 
+
+To build a clear intuition about how to analyze and pre-process a dataset, we divide the data understanding phase into a four-step framework:
+1. **Asking Basic Questions** (This post): Building a high-level intuition about the dataset using foundational questions.
+2. **Univariate Data Analysis**: Analyzing the distribution and characteristics of individual features one by one.
+3. **Multivariate Data Analysis**: Exploring interactions, patterns, and relationships across multiple features simultaneously.
+4. **Automated EDA**: Using automated profiling libraries (such as Pandas Profiling / YData Profiling) to generate comprehensive reports in a single step.
+
+Before starting deep exploratory analysis, you should systematically ask seven basic questions whenever you receive a new dataset.
+
+---
+
+## Question 1: How Big is the Data?
+
+The first thing you must determine is the overall scale of your dataset. Knowing the dimensions helps you plan your computational requirements, memory allocation, and algorithm choices.
+
+In Pandas, you can quickly check the dimensions using the `shape` attribute:
+
+```python
+df.shape
+```
+
+This returns a tuple in the format `(rows, columns)`:
+* **Rows**: Represent the total number of data points or samples.
+* **Columns**: Represent the total number of features (independent variables) along with the target variable (dependent output).
+
+If your dataset contains millions of rows, you might need to optimize memory or use chunked processing. If it contains very few samples, you must be cautious about model overfitting.
+
+---
+
+## Question 2: How Does the Data Look?
+
+Once you know the dimensions, you need to visually inspect actual records to understand how data entries are formatted.
+
+While most practitioners default to viewing the top rows:
+
+```python
+df.head()
+```
+
+or the bottom rows:
+
+```python
+df.tail()
+```
+
+relying solely on `df.head()` introduces a subtle risk: **Sampling Bias**.
+
+### The Hidden Risk of Sequential Bias
+Datasets in the real world are often sorted or ordered by time, category, or region. If you only look at the first five rows, you might see data points that belong exclusively to a single category or date range. This can give you a false impression of feature distributions.
+
+To get an unbiased, representative snapshot of your dataset, use random sampling:
+
+```python
+df.sample(5)
+```
+
+By pulling random rows from across the entire dataset, `df.sample()` exposes hidden patterns, varied data formats, and diverse categorical values that `df.head()` might conceal.
+
+---
+
+## Question 3: What are the Data Types of the Columns?
+
+Understanding feature data types is critical for choosing appropriate pre-processing techniques (such as encoding categorical variables or scaling numerical features).
+
+You can inspect column data types, non-null entry counts, and overall memory footprint using:
+
+```python
+df.info()
+```
+
+### Memory Optimization Insights
+`df.info()` provides three crucial pieces of information:
+1. **Column Data Types**: Distinguishes numerical columns (`int64`, `float64`) from object/text columns (`object`, `string`).
+2. **Non-Null Counts**: Gives an early signal about missing values across columns.
+3. **Memory Usage**: Shows how much RAM the DataFrame occupies.
+
+In many raw datasets, numerical values are assigned unnecessarily high-precision data types (for example, storing integer values as `float64`). Converting these to appropriate lower-precision types (`int32`, `int16`, or `category`) significantly reduces memory footprint. For large-scale datasets, this optimization speeds up downstream algorithm execution and prevents out-of-memory errors.
+
+---
+
+## Question 4: Are There Missing Values in the Dataset?
+
+Missing values are a common challenge in real-world data and can cause standard machine learning algorithms to fail or produce biased predictions.
+
+To get an exact count of missing entries per column, execute:
+
+```python
+df.isnull().sum()
+```
+
+This returns a Series indicating the number of missing (`NaN` or `None`) records in each feature.
+
+### Planning Your Cleaning Strategy
+Knowing the exact missing count helps you formulate a data cleaning strategy early:
+* **High Missingness**: If a column has an overwhelming percentage of missing values, imputing it might introduce noise. You may decide to drop the feature or create a binary indicator flag for missingness.
+* **Low Missingness**: If only a small percentage of values are missing, you can plan standard imputation techniques such as mean/median filling for numerical features or mode filling for categorical features.
+
+---
+
+## Question 5: How Does the Data Look Mathematically?
+
+Before plotting visual charts, you should summarize the mathematical distribution of your numerical columns.
+
+Pandas provides a summary function that computes key statistical metrics:
+
+```python
+df.describe()
+```
+
+This generates a statistical summary table containing:
+* `count`: The number of non-missing values.
+* `mean`: The arithmetic average of the column.
+* `std`: The standard deviation, representing data spread and variance.
+* `min`: The minimum observed value.
+* `25%`: The 1st quartile (25th percentile value).
+* `50%`: The median (50th percentile value).
+* `75%`: The 3rd quartile (75th percentile value).
+* `max`: The maximum observed value.
+
+### Catching Outliers and Anomalies
+`df.describe()` is an effective tool for spotting anomalies without plotting histograms:
+* **Extreme Outliers**: If the difference between the 75th percentile and the `max` value is disproportionately large compared to the rest of the distribution, an extreme outlier may be present.
+* **Invalid Inputs**: If a minimum value shows impossible numbers (such as a negative value for age, or zero for blood pressure), it immediately alerts you to data quality issues.
+
+---
+
+## Question 6: Are There Duplicate Values?
+
+Duplicate rows add redundant information, artificially inflate model evaluation metrics, and can cause data leakage between training and testing sets.
+
+To check for duplicate rows across your dataset, use:
+
+```python
+df.duplicated().sum()
+```
+
+If duplicate rows are present, they should be evaluated and removed prior to model training using:
+
+```python
+df.drop_duplicates()
+```
+
+---
+
+## Question 7: How are Features Correlated with Each Other and the Target?
+
+Understanding relationships between numerical features helps in identifying key predictors and removing redundant input columns.
+
+You can compute pairwise linear correlation coefficients using:
+
+```python
+df.corr()
+```
+
+This produces a correlation matrix where values range between `-1` and `+1`:
+* `+1`: Perfect positive linear relationship (as one feature increases, the other increases proportionally).
+* `-1`: Perfect negative linear relationship (as one feature increases, the other decreases proportionally).
+* `0`: No linear relationship between the two features.
+
+### Target Correlation and Feature Selection
+By inspecting the correlation between input features and the target column:
+
+```python
+df.corr()['target_column']
+```
+
+you gain valuable insights:
+1. **Strong Predictors**: Features with high positive or negative correlation coefficients share strong linear relationships with the target variable, making them valuable inputs for predictive models.
+2. **Irrelevant Features**: Features with correlation values near zero share almost no linear relationship with the output. Identification attributes (such as generic ID numbers or index counters) typically fall into this category and can be dropped to reduce dimensionality.
+3. **Multicollinearity**: Features that are highly correlated with each other provide redundant information, which can destabilize linear models.
+
+---
+
+## Summary
+
+Asking these seven basic questions provides a clear structural baseline whenever you begin working with a new dataset:
+
+1. **`df.shape`**: Determine dataset size and dimensions.
+2. **`df.sample()`**: Inspect unbiased sample records.
+3. **`df.info()`**: Identify data types and optimize memory footprint.
+4. **`df.isnull().sum()`**: Count missing values to plan imputation strategies.
+5. **`df.describe()`**: Review summary statistics to catch outliers and anomalies.
+6. **`df.duplicated().sum()`**: Identify and remove duplicate rows.
+7. **`df.corr()`**: Assess feature correlations and select relevant input variables.
+
+In the next post, we will build upon this foundation and begin **Univariate Data Analysis**, exploring how to analyze categorical and numerical distributions individually using visual plots and statistical techniques.
