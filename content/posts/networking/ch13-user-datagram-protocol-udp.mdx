@@ -274,4 +274,6 @@ flowchart TD
 * **Real-Time Applications**  
   Essential for WebRTC video calling, online multiplayer gaming, live streaming, and VPN tunnels where low latency is prioritized over absolute reliability.
 
+To test UDP DNS queries on your machine, you can run `nslookup github.com 8.8.8.8` in your terminal. This command sends a DNS query over UDP (port 53) directly to Google's public DNS server (`8.8.8.8`), asking it to resolve the domain `github.com`. Because UDP is connectionless, the query and response travel back and forth in a single round trip without any TCP handshake overhead.
+
 In the next post, we will explore Transmission Control Protocol (TCP) in detail, examining its 3-way handshake, sequence numbers, window sizing, and reliable flow control mechanisms!
