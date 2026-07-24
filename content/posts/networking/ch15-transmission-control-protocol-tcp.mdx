@@ -344,17 +344,64 @@ sequenceDiagram
 
 ## TCP vs. UDP Comparison Matrix
 
-| Feature | TCP (Transmission Control Protocol) | UDP (User Datagram Protocol) |
-| :--- | :--- | :--- |
-| **Protocol Type** | Connection-Oriented | Connectionless |
-| **Statefulness** | Stateful (Maintains TCB, Sequence Numbers, Window Sizes) | Stateless (No state maintained) |
-| **Data Unit** | Segment | Datagram |
-| **Header Size** | Variable (20 to 60 Bytes) | Fixed (8 Bytes) |
-| **Reliability** | Guaranteed (ACKs + Automatic Retransmissions) | Unreliable (Best-effort delivery) |
-| **Ordering** | Guaranteed In-Order (Buffers and reorders segments) | No order guarantees (Datagrams can arrive out of order) |
-| **Flow & Congestion Control** | Built-in (Sliding Window, Slow Start, Congestion Avoidance) | None |
-| **Overhead & Speed** | Higher CPU/Memory overhead, lower speed | Ultra-low overhead, maximum speed |
-| **Primary Use Cases** | Databases, HTTP/HTTPS, Web APIs, FTP, Email, SSH | DNS, WebRTC, Video Streaming, Online Gaming, QUIC |
+<div className="overflow-x-auto my-8">
+  <table className="w-full text-left border-collapse rounded-xl overflow-hidden shadow-lg border border-zinc-800">
+    <thead>
+      <tr className="bg-amber-500/10 text-amber-400 font-bold border-b border-zinc-800">
+        <th className="p-4 border-r border-zinc-800">Feature</th>
+        <th className="p-4 border-r border-zinc-800">TCP (Transmission Control Protocol)</th>
+        <th className="p-4">UDP (User Datagram Protocol)</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-zinc-800/60 bg-zinc-900/40 text-sm">
+      <tr className="hover:bg-zinc-800/30 transition-colors">
+        <td className="p-4 font-semibold text-zinc-200 border-r border-zinc-800">Protocol Type</td>
+        <td className="p-4 border-r border-zinc-800">Connection-Oriented</td>
+        <td className="p-4">Connectionless</td>
+      </tr>
+      <tr className="hover:bg-zinc-800/30 transition-colors">
+        <td className="p-4 font-semibold text-zinc-200 border-r border-zinc-800">Statefulness</td>
+        <td className="p-4 border-r border-zinc-800">Stateful (Maintains TCB, Sequence Numbers, Window Sizes)</td>
+        <td className="p-4">Stateless (No state maintained)</td>
+      </tr>
+      <tr className="hover:bg-zinc-800/30 transition-colors">
+        <td className="p-4 font-semibold text-zinc-200 border-r border-zinc-800">Data Unit</td>
+        <td className="p-4 border-r border-zinc-800">Segment</td>
+        <td className="p-4">Datagram</td>
+      </tr>
+      <tr className="hover:bg-zinc-800/30 transition-colors">
+        <td className="p-4 font-semibold text-zinc-200 border-r border-zinc-800">Header Size</td>
+        <td className="p-4 border-r border-zinc-800">Variable (20 to 60 Bytes)</td>
+        <td className="p-4">Fixed (8 Bytes)</td>
+      </tr>
+      <tr className="hover:bg-zinc-800/30 transition-colors">
+        <td className="p-4 font-semibold text-zinc-200 border-r border-zinc-800">Reliability</td>
+        <td className="p-4 border-r border-zinc-800">Guaranteed (ACKs + Automatic Retransmissions)</td>
+        <td className="p-4">Unreliable (Best-effort delivery)</td>
+      </tr>
+      <tr className="hover:bg-zinc-800/30 transition-colors">
+        <td className="p-4 font-semibold text-zinc-200 border-r border-zinc-800">Ordering</td>
+        <td className="p-4 border-r border-zinc-800">Guaranteed In-Order (Buffers and reorders segments)</td>
+        <td className="p-4">No order guarantees (Datagrams can arrive out of order)</td>
+      </tr>
+      <tr className="hover:bg-zinc-800/30 transition-colors">
+        <td className="p-4 font-semibold text-zinc-200 border-r border-zinc-800">Flow & Congestion Control</td>
+        <td className="p-4 border-r border-zinc-800">Built-in (Sliding Window, Slow Start, Congestion Avoidance)</td>
+        <td className="p-4">None</td>
+      </tr>
+      <tr className="hover:bg-zinc-800/30 transition-colors">
+        <td className="p-4 font-semibold text-zinc-200 border-r border-zinc-800">Overhead & Speed</td>
+        <td className="p-4 border-r border-zinc-800">Higher CPU/Memory overhead, lower speed</td>
+        <td className="p-4">Ultra-low overhead, maximum speed</td>
+      </tr>
+      <tr className="hover:bg-zinc-800/30 transition-colors">
+        <td className="p-4 font-semibold text-zinc-200 border-r border-zinc-800">Primary Use Cases</td>
+        <td className="p-4 border-r border-zinc-800">Databases, HTTP/HTTPS, Web APIs, FTP, Email, SSH</td>
+        <td className="p-4">DNS, WebRTC, Video Streaming, Online Gaming, QUIC</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 ---
 
