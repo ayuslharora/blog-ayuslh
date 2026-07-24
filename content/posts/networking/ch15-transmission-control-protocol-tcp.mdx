@@ -119,16 +119,20 @@ To understand why TCP requires extra memory and processing power compared to UDP
 
 ```mermaid
 flowchart TD
-    subgraph UDP_State ["UDP (Stateless Architecture)"]
-        U1["Sender sends datagram"] --> U2["No state stored in OS kernel"] --> U3["No memory of sequence or window size"]
-    end
-
     subgraph TCP_State ["TCP (Stateful Architecture)"]
+        direction LR
         T1["Sender performs 3-Way Handshake"] --> T2["Allocates Transmission Control Block (TCB)"] --> T3["Stores Sequence Numbers, Window Sizes & ACK Counters"]
     end
 
-    style UDP_State fill:#14532d,stroke:#22c55e,color:#fff
-    style TCP_State fill:#1e1b4b,stroke:#6366f1,color:#fff
+    subgraph UDP_State ["UDP (Stateless Architecture)"]
+        direction LR
+        U1["Sender sends datagram"] --> U2["No state stored in OS kernel"] --> U3["No memory of sequence or window size"]
+    end
+
+    TCP_State ~~~ UDP_State
+
+    style TCP_State fill:#1e1b4b,stroke:#6366f1,stroke-width:2px,color:#fff
+    style UDP_State fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#fff
 ```
 
 When two machines establish a TCP connection, both operating system kernels allocate a internal control structure (Transmission Control Block, or TCB) to store:
