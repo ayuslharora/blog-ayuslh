@@ -204,7 +204,6 @@ flowchart TD
 
 ## Why Critical Systems Demand TCP (The SQL Disaster Scenario)
 
-> [!WARNING]
 > **Note:** This is an extreme example used only to demonstrate why UDP is generally not used for operations where reliability is critical. In practice, a UDP datagram usually carries the entire message as a single unit and is not split into multiple UDP datagrams. However, if a datagram is very large, it may be fragmented (split) at the IP layer (We will explore fragmentation in a future MTU post).
 
 To appreciate why TCP's overhead is necessary, consider what happens if an application uses UDP instead of TCP for database operations.
@@ -280,49 +279,66 @@ flowchart TD
 
 ## How TCP Uses Port Numbers (Interactive Request-Response Flow)
 
-To visualize how TCP uses port numbers to multiplex connections across multiple applications running on the same machine, consider a client host interacting with a database host.
+To visualize how TCP uses port numbers to multiplex connections across multiple applications running on the same host machine, consider a client host interacting with a remote database server.
 
 ### Endpoint Setup
-- **Host A (Client)**: IP `192.168.1.50`
+- **Host A (Client Machine)**: IP `192.168.1.50`
   - App A (React Dev Server) running on port `3000`
   - App B (Express API Backend) running on port `8000`
   - App C (Background Worker) running on port `3210`
-- **Host B (Database Server)**: IP `10.0.0.5`
+- **Host B (Database Server Machine)**: IP `10.0.0.5`
   - PostgreSQL DB running on port `5432` (default PostgreSQL port)
+  - FastAPI App running on port `8000`
+  - Nginx Web Server running on port `80`
 
-### Request-Response Interaction Sequence
+### Step-by-Step Request and Response Breakdown
+
+#### Phase 1: Outbound Request (Express Backend -> PostgreSQL DB)
+1. **Query Initiation**: The Express backend app running on Host A (`192.168.1.50:8000`) wants to execute a query: `SELECT * FROM users;`.
+2. **Layer 4 Encapsulation**: Host A's operating system wraps the query payload into a TCP segment with:
+   - **Source Port**: `8000` (identifies the Express process on Host A)
+   - **Destination Port**: `5432` (identifies the PostgreSQL process on Host B)
+3. **Layer 3 Encapsulation**: The OS wraps the TCP segment into an IP packet with:
+   - **Source IP**: `192.168.1.50` (Host A IP)
+   - **Destination IP**: `10.0.0.5` (Host B IP)
+4. **Server Demultiplexing on Host B**: When the IP packet arrives at Host B (`10.0.0.5`), Host B's operating system inspects the **Destination Port (5432)**. Even though Host B is also running FastAPI on port `8000` and Nginx on port `80`, the OS uses port `5432` to deliver the query payload directly to the PostgreSQL database process.
+
+#### Phase 2: Inbound Response (PostgreSQL DB -> Express Backend)
+1. **Query Processing**: PostgreSQL executes `SELECT * FROM users;` and generates a response containing the user data records.
+2. **Address Swapping**: When constructing the return response, the operating system **flips the IP addresses and port numbers**:
+   - **Source IP**: `10.0.0.5` (PostgreSQL Server IP)
+   - **Destination IP**: `192.168.1.50` (Host A IP)
+   - **Source Port**: `5432` (PostgreSQL DB service port)
+   - **Destination Port**: `8000` (The Express app port that initiated the request)
+3. **Client Demultiplexing on Host A**: When the return IP packet reaches Host A (`192.168.1.50`), Host A's operating system inspects **Destination Port 8000**. Even though Host A is simultaneously running React on port `3000` and a background worker on port `3210`, the OS routes the database response directly into the Express backend process listening on port `8000`.
+
+### Visual Interaction Sequence
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant HostA_App as Host A: Express Backend (Port 8000)
-    participant HostA_OS as Host A: Operating System Kernel
+    participant HostA_OS as Host A: OS Kernel (192.168.1.50)
     participant Network as Network (IP Routing)
-    participant HostB_OS as Host B: Operating System Kernel
-    participant HostB_DB as Host B: PostgreSQL Server (Port 5432)
+    participant HostB_OS as Host B: OS Kernel (10.0.0.5)
+    participant HostB_DB as Host B: PostgreSQL DB (Port 5432)
 
-    Note over HostA_App, HostB_DB: 1. Outbound SQL Query Request
-    HostA_App->>HostA_OS: Send SQL Query: SELECT * FROM users;
-    Note over HostA_OS: Encapsulates into TCP Segment:<br>Src IP: 192.168.1.50 | Dest IP: 10.0.0.5<br>Src Port: 8000 | Dest Port: 5432
-    HostA_OS->>Network: Transmit IP Packet over wire
-    Network->>HostB_OS: Deliver IP Packet to Host B
+    Note over HostA_App, HostB_DB: Outbound Flow: Express App sends SQL Query
+    HostA_App->>HostA_OS: 1. Send Query: SELECT * FROM users;
+    Note over HostA_OS: 2. Encapsulates TCP & IP Headers:<br>Src IP: 192.168.1.50 | Dest IP: 10.0.0.5<br>Src Port: 8000 | Dest Port: 5432
+    HostA_OS->>Network: 3. Transmit IP Packet over wire
+    Network->>HostB_OS: 4. Deliver IP Packet to Host B
+    Note over HostB_OS: 5. OS checks Dest Port 5432.<br>Routes directly to PostgreSQL (ignoring ports 8000, 80).
+    HostB_OS->>HostB_DB: 6. Deliver Query Payload to PostgreSQL
 
-    Note over HostB_OS: Inspects Dest Port (5432).<br>Routes payload directly to PostgreSQL process.
-    HostB_OS->>HostB_DB: Pass TCP Payload to PostgreSQL
-
-    Note over HostA_App, HostB_DB: 2. Inbound Query Result Response
-    HostB_DB->>HostB_OS: Return User Records Payload
-    Note over HostB_OS: Encapsulates into Return TCP Segment:<br>Src IP: 10.0.0.5 | Dest IP: 192.168.1.50<br>Src Port: 5432 | Dest Port: 8000
-    HostB_OS->>Network: Transmit Return IP Packet
-    Network->>HostA_OS: Deliver IP Packet to Host A
-
-    Note over HostA_OS: Inspects Dest Port (8000).<br>Routes response directly to Express API Backend process.
-    HostA_OS->>HostA_App: Deliver Data to Express Application
+    Note over HostA_App, HostB_DB: Inbound Flow: PostgreSQL sends Query Results Back
+    HostB_DB->>HostB_OS: 7. Return User Records Payload
+    Note over HostB_OS: 8. Flips Source & Destination Headers:<br>Src IP: 10.0.0.5 | Dest IP: 192.168.1.50<br>Src Port: 5432 | Dest Port: 8000
+    HostB_OS->>Network: 9. Transmit Return IP Packet
+    Network->>HostA_OS: 10. Deliver Return Packet to Host A
+    Note over HostA_OS: 11. OS checks Dest Port 8000.<br>Routes response directly to Express App (ignoring ports 3000, 3210).
+    HostA_OS->>HostA_App: 12. Deliver User Records to Express App
 ```
-
-When Host B's operating system receives the IP packet, it unpacks the layer headers and checks the **Destination Port (5432)**. Even if Host B is simultaneously running an API on port `8000` or a web server on port `80`, the OS routes the segment directly to the PostgreSQL process listening on port `5432`.
-
-When PostgreSQL replies, the source and destination IP addresses and port numbers flip, allowing Host A's operating system to direct the database records straight back to the Express app running on port `8000`.
 
 ---
 
@@ -331,23 +347,3 @@ When PostgreSQL replies, the source and destination IP addresses and port number
 | Feature | TCP (Transmission Control Protocol) | UDP (User Datagram Protocol) |
 | :--- | :--- | :--- |
 | **Protocol Type** | Connection-Oriented | Connectionless |
-| **Statefulness** | Stateful (Maintains TCB, Sequence #s, Window Sizes) | Stateless (No state maintained) |
-| **Data Unit** | Segment | Datagram |
-| **Header Size** | Variable (20 to 60 Bytes) | Fixed (8 Bytes) |
-| **Reliability** | Guaranteed (ACKs + Automatic Retransmissions) | Unreliable (Best-effort delivery) |
-| **Ordering** | Guaranteed In-Order (Buffers and reorders segments) | No order guarantees (Datagrams can arrive out of order) |
-| **Flow & Congestion Control** | Built-in (Sliding Window, Slow Start, Congestion Avoidance) | None |
-| **Overhead & Speed** | Higher CPU/Memory overhead, lower speed | Ultra-low overhead, maximum speed |
-| **Primary Use Cases** | Databases, HTTP/HTTPS, Web APIs, FTP, Email, SSH | DNS, WebRTC, Video Streaming, Online Gaming, QUIC |
-
----
-
-## Summary and What's Next
-
-In this post, we explored the high-level architecture of **TCP**:
-- Why connection-oriented transport and 3-way handshakes establish state before sending data.
-- How state tracking allows TCP to provide reliable, guaranteed, and in-order delivery.
-- Why critical services like databases, web servers, email, and SSH rely strictly on TCP over UDP.
-- How source and destination port numbers direct segments to specific application processes.
-
-In the next post, we will take a deep dive into the **Anatomy of a TCP Segment**, examining the 20 to 60-byte header fields, flags (`SYN`, `ACK`, `FIN`, `RST`, `PSH`, `URG`), sequence numbers, acknowledgment math, and window scaling mechanisms.
