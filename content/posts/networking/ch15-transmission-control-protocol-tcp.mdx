@@ -48,26 +48,46 @@ While Layer 3 (IP) delivers raw packets across intermediate routers to a destina
 TCP introduces several mechanisms to guarantee data integrity across lossy, unpredictable networks.
 
 ```mermaid
-flowchart LR
-    subgraph Properties ["Core Pillars of TCP Architecture"]
+flowchart TD
+    subgraph CorePillars ["Core Pillars of TCP Architecture"]
         direction TB
-        P1["<b>1. Port Addressing</b><br>Identifies application processes on hosts"]
-        P2["<b>2. Connection-Oriented</b><br>Requires 3-Way Handshake before sending data"]
-        P3["<b>3. Stateful Architecture</b><br>Tracks Sequence Numbers & Window Sizes"]
-        P4["<b>4. Data Segmentation</b><br>Breaks streams into TCP Segments"]
-        P5["<b>5. In-Order Delivery</b><br>Reassembles out-of-order segments"]
-        P6["<b>6. Reliable Retransmission</b><br>Retransmits dropped packets via ACKs"]
-        P7["<b>7. Graceful Termination</b><br>Uses 4-Way FIN-ACK handshake to close"]
+        
+        subgraph Row1 [" "]
+            direction LR
+            P1["<b>1. Port Addressing</b><br>Identifies application processes on hosts"]
+            P2["<b>2. Connection-Oriented</b><br>Requires 3-Way Handshake before sending data"]
+        end
+
+        subgraph Row2 [" "]
+            direction LR
+            P3["<b>3. Stateful Architecture</b><br>Tracks Sequence Numbers & Window Sizes"]
+            P4["<b>4. Data Segmentation</b><br>Breaks streams into TCP Segments"]
+        end
+
+        subgraph Row3 [" "]
+            direction LR
+            P5["<b>5. In-Order Delivery</b><br>Reassembles out-of-order segments"]
+            P6["<b>6. Reliable Retransmission</b><br>Retransmits dropped packets via ACKs"]
+        end
+
+        subgraph Row4 [" "]
+            direction LR
+            P7["<b>7. Graceful Termination</b><br>Uses 4-Way FIN-ACK handshake to close"]
+        end
     end
 
-    style Properties fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
-    style P1 fill:#312e81,stroke:#6366f1,color:#fff
-    style P2 fill:#1e3a8a,stroke:#3b82f6,color:#fff
-    style P3 fill:#065f46,stroke:#10b981,color:#fff
-    style P4 fill:#831843,stroke:#ec4899,color:#fff
-    style P5 fill:#701a75,stroke:#d946ef,color:#fff
-    style P6 fill:#7c2d12,stroke:#f97316,color:#fff
-    style P7 fill:#365314,stroke:#84cc16,color:#fff
+    style CorePillars fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style Row1 fill:transparent,stroke:none
+    style Row2 fill:transparent,stroke:none
+    style Row3 fill:transparent,stroke:none
+    style Row4 fill:transparent,stroke:none
+    style P1 fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#fff
+    style P2 fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff
+    style P3 fill:#065f46,stroke:#10b981,stroke-width:2px,color:#fff
+    style P4 fill:#831843,stroke:#ec4899,stroke-width:2px,color:#fff
+    style P5 fill:#701a75,stroke:#d946ef,stroke-width:2px,color:#fff
+    style P6 fill:#7c2d12,stroke:#f97316,stroke-width:2px,color:#fff
+    style P7 fill:#365314,stroke:#84cc16,stroke-width:2px,color:#fff
 ```
 
 ### 1. Port Addressing (Process Identification)
