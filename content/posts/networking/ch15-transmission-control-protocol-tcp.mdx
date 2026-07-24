@@ -204,7 +204,10 @@ flowchart TD
 
 ## Why Critical Systems Demand TCP (The SQL Disaster Scenario)
 
-To appreciate why TCP's overhead is necessary, consider what happens if a application uses UDP instead of TCP for database operations.
+> [!WARNING]
+> **Note:** This is an extreme example used only to demonstrate why UDP is generally not used for operations where reliability is critical. In practice, a UDP datagram usually carries the entire message as a single unit and is not split into multiple UDP datagrams. However, if a datagram is very large, it may be fragmented (split) at the IP layer (We will explore fragmentation in a future MTU post).
+
+To appreciate why TCP's overhead is necessary, consider what happens if an application uses UDP instead of TCP for database operations.
 
 Suppose a Node.js backend sends the following SQL query to a remote PostgreSQL database across the network:
 
