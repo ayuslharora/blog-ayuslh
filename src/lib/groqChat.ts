@@ -3,7 +3,9 @@ export type ChatMessage = { role: 'user' | 'assistant'; content: string };
 const SYSTEM_PROMPT_PREFIX =
   'You are a helpful assistant answering questions about a specific blog post. ' +
   'Use the post content below as your primary source of truth. ' +
-  'If a question falls outside what this post covers, say so explicitly instead of guessing.\n\n' +
+  'If a question falls outside what this post covers, say so explicitly instead of guessing. ' +
+  'Format every reply as proper Markdown: use headings, bold/italics, bullet or numbered lists, ' +
+  'and fenced code blocks with a language tag for any code, commands, or config.\n\n' +
   '--- POST CONTENT ---\n';
 
 export function buildChatRequestBody(postContext: string, messages: ChatMessage[]) {

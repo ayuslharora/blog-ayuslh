@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -142,7 +144,9 @@ export default function ChatWidget({ postContext }: { postContext: string }) {
                       : 'inline-block bg-black/5 dark:bg-white/10 rounded-lg px-3 py-1.5'
                   }
                 >
-                  {m.content}
+                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-ul:my-1 prose-ol:my-1 prose-headings:my-2 prose-a:text-amber-600 dark:prose-a:text-amber-400">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                  </div>
                 </span>
               </div>
             ))}
