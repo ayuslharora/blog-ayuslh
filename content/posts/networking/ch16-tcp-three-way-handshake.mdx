@@ -20,35 +20,46 @@ In this post, we will take a deep dive into **how** TCP establishes this connect
 
 ## Why Do We Need a Connection?
 
-Unlike UDP (where a client simply bursts datagrams into the network without verifying whether the server is listening), TCP is a **stateful protocol**. 
+To understand why TCP requires a connection establishment phase, we must contrast it with connectionless protocols like UDP:
+
+* **Connectionless Protocols (UDP)**: When a client sends a UDP datagram, it simply fires bytes onto the network wire. It does not verify whether the destination server is online, whether the target port is listening, or whether the receiver has buffer space. If the server is offline, the datagram is dropped into the void, and the client remains unaware.
+* **Stateful Protocols (TCP)**: TCP promises guaranteed, in-order, and error-checked data delivery over an inherently unreliable IP network (where packets can be lost, corrupted, delayed, or reordered). 
+
+To fulfill this reliability guarantee, TCP **must be stateful**. Both devices must explicitly establish, synchronize, and track connection state before transmitting a single byte of application data.
 
 ```mermaid
 flowchart TD
-    subgraph ClientHost ["Client Host (React App: 192.168.1.5:8000)"]
-        ClientState["State Memory:<br/>- Initial Sequence Number (ISN_client)<br/>- Receive Window Size<br/>- Connection State (SYN-SENT -> ESTABLISHED)"]
+    subgraph ClientHost ["Client OS Kernel (192.168.1.5:8000)"]
+        ClientState["<b>Client State Memory Table:</b><br/>• Sequence Tracking (ISN_client)<br/>• Flow Control (Receive Window Size)<br/>• State: CLOSED -> SYN-SENT -> ESTABLISHED"]
     end
 
-    subgraph NetworkWire ["Untrusted IP Network"]
-        Wire["IP Packets carrying TCP Segments"]
+    subgraph UntrustedNetwork ["Untrusted IP Network (Layer 3)"]
+        Wire["IP Packets carrying TCP Segments<br/>(Can drop, delay, or reorder packets)"]
     end
 
-    subgraph ServerHost ["Server Host (Express Backend: 10.0.0.1:80)"]
-        ServerState["State Memory:<br/>- Initial Sequence Number (ISN_server)<br/>- Receive Window Size<br/>- Connection State (SYN-RCVD -> ESTABLISHED)"]
+    subgraph ServerHost ["Server OS Kernel (10.0.0.1:80)"]
+        ServerState["<b>Server State Memory Table:</b><br/>• Sequence Tracking (ISN_server)<br/>• Flow Control (Receive Window Size)<br/>• State: LISTEN -> SYN-RCVD -> ESTABLISHED"]
     end
 
     ClientState <--> Wire <--> ServerState
 
     style ClientHost fill:#1e3a8a,stroke:#3b82f6,color:#fff
-    style NetworkWire fill:#1e293b,stroke:#64748b,color:#fff
+    style UntrustedNetwork fill:#1e293b,stroke:#64748b,color:#fff
     style ServerHost fill:#065f46,stroke:#10b981,color:#fff
 ```
 
-Before exchanging application payload, both client and server host operating systems must **synchronize their initial connection states**:
-1. Agree on starting **Sequence Numbers** for data tracking.
-2. Communicate **Window Sizes** to prevent buffer overflow (flow control).
-3. Confirm that both endpoints are active, listening on specified ports, and ready to accept incoming segments.
+### What is a "Connection" in TCP?
 
-This preliminary exchange is a fundamental requirement for achieving reliable, in-order data delivery over an unreliable IP network.
+A common misconception is that a TCP connection creates a dedicated physical circuit or virtual tunnel across routers in the network. In reality, **routers between the client and server know nothing about a TCP connection** (they operate at Layer 3, forwarding raw IP packets).
+
+A TCP connection exists **entirely in the memory of the two host operating systems**. It is a virtual agreement consisting of synchronized state parameters stored in OS kernel data structures at both endpoints:
+
+1. **Sequence Number Synchronization**: Both hosts agree on starting Sequence Numbers (`ISN`) so they can detect lost packets, reassemble bytes in exact order, and discard duplicates.
+2. **Buffer and Flow Control Alignment**: Both hosts exchange their **Receive Window Sizes**, informing each other how much unacknowledged data their memory buffers can hold to prevent buffer overflow.
+3. **Endpoint Verification**: Both hosts confirm that target ports are active, listening, and ready to process incoming payloads.
+4. **State Persistence**: Both kernels maintain these state tables active in memory for the entire duration of the session until the connection is explicitly closed.
+
+Without establishing and synchronizing this state upfront, reliable data transfer across an unpredictable network would be impossible.
 
 ---
 
