@@ -148,7 +148,7 @@ flowchart TD
         C1["ESTABLISHED"] -->|Sends FIN| C2["FIN-WAIT-1"]
         C2 -->|Receives ACK| C3["FIN-WAIT-2"]
         C3 -->|Receives FIN, Sends ACK| C4["TIME-WAIT"]
-        C4 -->|2 * MSL Timer Expires| C5["CLOSED"]
+        C4 -->|Timer Expires| C5["CLOSED"]
     end
 
     subgraph PassiveCloser ["Passive Closer (Server State Machine)"]
@@ -175,7 +175,7 @@ flowchart TD
 
 ## Deep Dive: The TIME-WAIT State
 
-Why doesn't the active closer (client) transition directly to `CLOSED` after sending the final ACK in Step 4? Why must it wait in **`TIME-WAIT`** for **2 * MSL (Maximum Segment Lifetime)** (typically 30 seconds to 2 minutes)?
+Why doesn't the active closer (client) transition directly to `CLOSED` after sending the final ACK in Step 4? Why must it wait in **`TIME-WAIT`** for a short timer period before fully closing?
 
 There are two fundamental reasons:
 
@@ -193,7 +193,7 @@ IP networks can delay packets due to routing loops. Imagine a scenario where a c
 
 If an old delayed packet from the previous connection suddenly arrives, the new connection could mistake it for valid data, corrupting application state.
 
-Holding the socket in `TIME-WAIT` for 2 * MSL ensures that all old straggler packets belonging to that 4-tuple expire and drain from the network before the port can be reused.
+Holding the socket in `TIME-WAIT` for a timer period ensures that all old straggler packets belonging to that 4-tuple expire and drain from the network before the port can be reused.
 
 ### Who Enters TIME-WAIT? (Can the Server Enter TIME-WAIT?)
 
