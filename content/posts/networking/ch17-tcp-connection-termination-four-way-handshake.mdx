@@ -27,11 +27,11 @@ In the 3-way handshake, the server merges its acknowledgment (`ACK`) and synchro
 The answer lies in TCP's **Full-Duplex Architecture**:
 
 ```mermaid
-flowchart LR
-    subgraph FullDuplex ["Full-Duplex TCP Connection"]
+flowchart TD
+    subgraph FullDuplex ["Full-Duplex TCP Connection (Two Independent Data Streams)"]
         direction TB
-        Client["Client OS"] <== "Direction 1: Client to Server Data Stream" ==> Server["Server OS"]
-        Client <== "Direction 2: Server to Client Data Stream" ==> Server
+        Client["Client OS"] -->|"Stream 1: Client to Server Data Stream (Closed by Client FIN)"| Server["Server OS"]
+        Server -->|"Stream 2: Server to Client Data Stream (Closed by Server FIN)"| Client
     end
 
     style FullDuplex fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff
