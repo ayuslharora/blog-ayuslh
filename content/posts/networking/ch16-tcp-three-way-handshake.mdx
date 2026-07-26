@@ -28,29 +28,64 @@ To understand why TCP requires a connection establishment phase, we must contras
 To fulfill this reliability guarantee, TCP **must be stateful**. Both devices must explicitly establish, synchronize, and track connection state before transmitting a single byte of application data.
 
 ```mermaid
-flowchart TD
-    subgraph ClientHost ["Client OS Kernel (192.168.1.5:8000)"]
-        ClientState["<b>Client State Memory Table:</b><br/>• Sequence Tracking (ISN_client)<br/>• Flow Control (Receive Window Size)<br/>• State: CLOSED -> SYN-SENT -> ESTABLISHED"]
+flowchart LR
+    subgraph Connectionless ["1. Connectionless UDP (Fire & Forget)"]
+        direction TB
+        U_Client["Client"] -->|Fires UDP Datagram<br/>No Check, No Setup| U_Wire["Untrusted IP Network"]
+        U_Wire -.->|Dropped if Offline| U_Server["Server (Unknown State)"]
     end
 
-    subgraph UntrustedNetwork ["Untrusted IP Network (Layer 3)"]
-        Wire["IP Packets carrying TCP Segments<br/>(Can drop, delay, or reorder packets)"]
+    subgraph Stateful ["2. Stateful TCP (Virtual Bridge)"]
+        direction TB
+        T_Client["Client OS Kernel<br/>(State Table Memory)"] <== Synchronized 3-Way Handshake ==> T_Server["Server OS Kernel<br/>(State Table Memory)"]
+        T_Client <-->|Guaranteed Reliable Data Stream| T_Server
     end
 
-    subgraph ServerHost ["Server OS Kernel (10.0.0.1:80)"]
-        ServerState["<b>Server State Memory Table:</b><br/>• Sequence Tracking (ISN_server)<br/>• Flow Control (Receive Window Size)<br/>• State: LISTEN -> SYN-RCVD -> ESTABLISHED"]
-    end
-
-    ClientState <--> Wire <--> ServerState
-
-    style ClientHost fill:#1e3a8a,stroke:#3b82f6,color:#fff
-    style UntrustedNetwork fill:#1e293b,stroke:#64748b,color:#fff
-    style ServerHost fill:#065f46,stroke:#10b981,color:#fff
+    style Connectionless fill:#451a03,stroke:#f97316,stroke-width:2px,color:#fff
+    style Stateful fill:#065f46,stroke:#10b981,stroke-width:2px,color:#fff
+    style U_Client fill:#78350f,stroke:#fbbf24,color:#fff
+    style U_Server fill:#78350f,stroke:#fbbf24,color:#fff
+    style T_Client fill:#047857,stroke:#34d399,color:#fff
+    style T_Server fill:#047857,stroke:#34d399,color:#fff
 ```
 
 ### What is a "Connection" in TCP?
 
 A common misconception is that a TCP connection creates a dedicated physical circuit or virtual tunnel across routers in the network. In reality, **routers between the client and server know nothing about a TCP connection** (they operate at Layer 3, forwarding raw IP packets).
+
+```mermaid
+flowchart TD
+    subgraph Layer4_Endpoints ["Layer 4 (Transport Layer): Virtual Connection State"]
+        subgraph Client ["Client Host (192.168.1.5:8000)"]
+            C_Memory["<b>Client Kernel State Memory:</b><br/>• Sequence Tracking (ISN_client)<br/>• Flow Control (Receive Window Size)<br/>• State: SYN-SENT -> ESTABLISHED"]
+        end
+
+        subgraph Server ["Server Host (10.0.0.1:80)"]
+            S_Memory["<b>Server Kernel State Memory:</b><br/>• Sequence Tracking (ISN_server)<br/>• Flow Control (Receive Window Size)<br/>• State: SYN-RCVD -> ESTABLISHED"]
+        end
+
+        C_Memory <== "Virtual State Agreement (Synchronized)" ==> S_Memory
+    end
+
+    subgraph Layer3_Routers ["Layer 3 (Network Layer): Stateless Routers"]
+        R1["Router 1"] --> R2["Router 2"] --> R3["Router 3"]
+        Note_Routers["Routers store ZERO connection state!<br/>They only forward individual IP packets."]
+    end
+
+    Client --> R1
+    R3 --> Server
+
+    style Layer4_Endpoints fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff
+    style Layer3_Routers fill:#1e293b,stroke:#64748b,stroke-width:2px,color:#fff
+    style Client fill:#1e3a8a,stroke:#3b82f6,color:#fff
+    style Server fill:#065f46,stroke:#10b981,color:#fff
+    style C_Memory fill:#1d4ed8,stroke:#60a5fa,color:#fff
+    style S_Memory fill:#047857,stroke:#34d399,color:#fff
+    style R1 fill:#334155,stroke:#94a3b8,color:#fff
+    style R2 fill:#334155,stroke:#94a3b8,color:#fff
+    style R3 fill:#334155,stroke:#94a3b8,color:#fff
+    style Note_Routers fill:#451a03,stroke:#f97316,color:#fff
+```
 
 A TCP connection exists **entirely in the memory of the two host operating systems**. It is a virtual agreement consisting of synchronized state parameters stored in OS kernel data structures at both endpoints:
 
