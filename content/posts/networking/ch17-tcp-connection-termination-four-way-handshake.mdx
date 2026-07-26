@@ -67,26 +67,26 @@ sequenceDiagram
     Note over Client, Server: Connection State: ESTABLISHED (Data Transfer Complete)
 
     Note over Client: Step 1: Client initiates closure (FIN)
-    Client->>Wire: TCP FIN Segment (Flags: FIN=1, ACK=1)<br/>Seq: u, Ack: v
+    Client->>Wire: TCP FIN Segment (Flags: FIN=1, ACK=1)
     Note over Client: State: FIN-WAIT-1
     Wire->>Server: Deliver FIN Segment
 
     Note over Server: State: CLOSE-WAIT
     Note over Server: Step 2: Server acknowledges Client's FIN
-    Server->>Wire: TCP ACK Segment (Flags: ACK=1)<br/>Seq: v, Ack: u + 1
+    Server->>Wire: TCP ACK Segment (Flags: ACK=1)
     Wire->>Client: Deliver ACK Segment
 
     Note over Client: State: FIN-WAIT-2
     Note over Client, Server: Half-Closed State (Server flushes remaining buffered data)
 
     Note over Server: Step 3: Server finishes sending data and closes (FIN)
-    Server->>Wire: TCP FIN Segment (Flags: FIN=1, ACK=1)<br/>Seq: w, Ack: u + 1
+    Server->>Wire: TCP FIN Segment (Flags: FIN=1, ACK=1)
     Note over Server: State: LAST-ACK
     Wire->>Client: Deliver FIN Segment
 
-    Note over Client: State: TIME-WAIT (Timer: 2 * MSL)
+    Note over Client: State: TIME-WAIT
     Note over Client: Step 4: Client acknowledges Server's FIN
-    Client->>Wire: TCP ACK Segment (Flags: ACK=1)<br/>Seq: u + 1, Ack: w + 1
+    Client->>Wire: TCP ACK Segment (Flags: ACK=1)
     Wire->>Server: Deliver ACK Segment
 
     Note over Server: State: CLOSED (Memory Released)
@@ -105,7 +105,7 @@ When an application (such as a web browser or React app) completes its data tran
 
 The server receives the `FIN` segment from the client.
 
-- **Server Action**: Server kernel immediately sends an **`ACK` segment** back to the client (`Ack = u + 1`).
+- **Server Action**: Server kernel immediately sends an **`ACK` segment** back to the client (`ACK = 1`).
 - **Server State Transition**: Server moves from `ESTABLISHED` state to **`CLOSE-WAIT`**.
 - **Client State Transition**: Upon receiving this ACK, client moves from `FIN-WAIT-1` to **`FIN-WAIT-2`**.
 - **Meaning**: Server confirms it received the client's FIN. The connection is now **Half-Closed**.
@@ -114,7 +114,7 @@ The server receives the `FIN` segment from the client.
 
 While in `CLOSE-WAIT`, the server application finishes sending any remaining buffered responses. Once all response data is flushed and the server application calls `close()`, the server kernel initiates its own closure.
 
-- **Server Action**: Server constructs a TCP segment with **`FIN = 1, ACK = 1`** (`Seq = w`).
+- **Server Action**: Server constructs a TCP segment with **`FIN = 1, ACK = 1`**.
 - **Server State Transition**: Server moves from `CLOSE-WAIT` to **`LAST-ACK`**.
 - **Meaning**: "I have finished sending all response data. I want to close the Server to Client data stream."
 
@@ -122,7 +122,7 @@ While in `CLOSE-WAIT`, the server application finishes sending any remaining buf
 
 The client receives the server's `FIN` segment.
 
-- **Client Action**: Client kernel sends a final **`ACK` segment** back to the server (`Ack = w + 1`).
+- **Client Action**: Client kernel sends a final **`ACK` segment** back to the server (`ACK = 1`).
 - **Server State Transition**: Upon receiving this ACK, server transitions to **`CLOSED`** state and immediately frees socket memory.
 - **Client State Transition**: Client transitions to **`TIME-WAIT`** state and starts a timer. Once the timer expires, the client moves to **`CLOSED`**.
 
