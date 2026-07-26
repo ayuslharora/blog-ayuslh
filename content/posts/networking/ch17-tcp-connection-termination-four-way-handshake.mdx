@@ -30,8 +30,8 @@ The answer lies in TCP's **Full-Duplex Architecture**:
 flowchart LR
     subgraph FullDuplex ["Full-Duplex TCP Connection"]
         direction TB
-        Client["Client OS"] <==="Direction 1: Client -> Server Data Stream"===> Server["Server OS"]
-        Client <==="Direction 2: Server -> Client Data Stream"===> Server
+        Client["Client OS"] <== "Direction 1: Client to Server Data Stream" ==> Server["Server OS"]
+        Client <== "Direction 2: Server to Client Data Stream" ==> Server
     end
 
     style FullDuplex fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff
@@ -90,7 +90,7 @@ sequenceDiagram
     Wire->>Server: Deliver ACK Segment
 
     Note over Server: State: CLOSED (Memory Released)
-    Note over Client: Timer expires -> State: CLOSED (Memory Released)
+    Note over Client: Timer expires: State becomes CLOSED (Memory Released)
 ```
 
 ### Step 1: The First FIN (Client to Server)
@@ -142,25 +142,33 @@ The client receives the server's `FIN` segment.
 ## Connection Teardown State Machine
 
 ```mermaid
-stateDiagram-v2
-    direction TB
-    [*] --> ESTABLISHED
+flowchart TD
+    subgraph ActiveCloser ["Active Closer (Client State Machine)"]
+        direction TB
+        C1["ESTABLISHED"] -->|Sends FIN| C2["FIN-WAIT-1"]
+        C2 -->|Receives ACK| C3["FIN-WAIT-2"]
+        C3 -->|Receives FIN, Sends ACK| C4["TIME-WAIT"]
+        C4 -->|2 * MSL Timer Expires| C5["CLOSED"]
+    end
 
-    state "Active Closer (Client)" as ActiveCloser {
-        ESTABLISHED --> FIN_WAIT_1: Sends FIN
-        FIN_WAIT_1 --> FIN_WAIT_2: Receives ACK
-        FIN_WAIT_2 --> TIME_WAIT: Receives FIN, Sends ACK
-        TIME_WAIT --> CLOSED_Client: 2 * MSL Timer Expires
-    }
+    subgraph PassiveCloser ["Passive Closer (Server State Machine)"]
+        direction TB
+        S1["ESTABLISHED"] -->|Receives FIN, Sends ACK| S2["CLOSE-WAIT"]
+        S2 -->|Flushes Data, Sends FIN| S3["LAST-ACK"]
+        S3 -->|Receives ACK| S4["CLOSED"]
+    end
 
-    state "Passive Closer (Server)" as PassiveCloser {
-        ESTABLISHED --> CLOSE_WAIT: Receives FIN, Sends ACK
-        CLOSE_WAIT --> LAST_ACK: Flushes Data, Sends FIN
-        LAST_ACK --> CLOSED_Server: Receives ACK
-    }
-
-    CLOSED_Client --> [*]
-    CLOSED_Server --> [*]
+    style ActiveCloser fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff
+    style PassiveCloser fill:#065f46,stroke:#10b981,stroke-width:2px,color:#fff
+    style C1 fill:#1d4ed8,color:#fff
+    style C2 fill:#1d4ed8,color:#fff
+    style C3 fill:#1d4ed8,color:#fff
+    style C4 fill:#1d4ed8,color:#fff
+    style C5 fill:#1e293b,color:#fff
+    style S1 fill:#047857,color:#fff
+    style S2 fill:#047857,color:#fff
+    style S3 fill:#047857,color:#fff
+    style S4 fill:#1e293b,color:#fff
 ```
 
 ---
