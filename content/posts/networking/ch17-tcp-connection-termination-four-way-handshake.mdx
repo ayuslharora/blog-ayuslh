@@ -195,6 +195,16 @@ If an old delayed packet from the previous connection suddenly arrives, the new 
 
 Holding the socket in `TIME-WAIT` for 2 * MSL ensures that all old straggler packets belonging to that 4-tuple expire and drain from the network before the port can be reused.
 
+### Who Enters TIME-WAIT? (Can the Server Enter TIME-WAIT?)
+
+A common point of confusion is whether `TIME-WAIT` is exclusive to clients.
+
+The rule in TCP is simple: **Whichever endpoint sends the first `FIN` segment (the Active Closer) is the host that enters `TIME-WAIT`.**
+
+* **Client-Initiated Close**: If the client sends the first `FIN` (e.g., user closes a browser tab or websocket), the **Client** enters `TIME-WAIT`.
+* **Server-Initiated Close**: If the server sends the first `FIN` (e.g., Nginx server times out an idle HTTP keep-alive connection or sends `Connection: close`), the **Server** becomes the active closer and enters `TIME-WAIT`!
+* **Passive Closer**: The receiving host (the passive closer) does **not** enter `TIME-WAIT`—it transitions directly from `LAST-ACK` to `CLOSED` upon receiving the final ACK.
+
 ---
 
 ## Technical Edge Cases
