@@ -211,9 +211,72 @@ The rule in TCP is simple: **Whichever endpoint sends the first `FIN` segment (t
 
 ### 1. Abrupt Termination: The RST (Reset) Segment
 
-Not all connections close gracefully via the 4-way teardown. If a process crashes, a server reboots unexpectedly, or a firewall blocks traffic, TCP sends an **`RST` (Reset)** segment (`RST = 1`).
+Not all TCP connections close gracefully through a 4-way handshake. In certain operational scenarios, a connection must be terminated immediately. This is accomplished using an **`RST` (Reset)** segment.
 
-An `RST` segment immediately aborts the connection, bypassing `FIN-WAIT` and `TIME-WAIT` states, and instantly frees memory on both hosts.
+#### Graceful (`FIN`) vs. Forceful (`RST`) Termination
+
+The fundamental difference between a standard `FIN` segment and an `RST` segment comes down to courtesy versus emergency aborts:
+
+* **Graceful Teardown (`FIN`)**: A polite, negotiated agreement between hosts. The active closer announces it has finished sending data, allowing the passive closer time to flush any remaining in-flight responses before closing.
+* **Abrupt Reset (`RST`)**: A sudden, non-negotiable directive that forces an immediate connection teardown without waiting for pending data or acknowledgments.
+
+```mermaid
+flowchart LR
+    subgraph Graceful ["Graceful Close (FIN)"]
+        direction TB
+        F1["Sends FIN"] --> F2["Waits for ACK"] --> F3["Enters TIME-WAIT"] --> F4["CLOSED"]
+    end
+
+    subgraph Abrupt ["Abrupt Reset (RST)"]
+        direction TB
+        R1["Sends / Receives RST"] --> R2["Instantly Wipes Socket Memory"] --> R3["CLOSED"]
+    end
+
+    style Graceful fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff
+    style Abrupt fill:#450a0a,stroke:#f87171,stroke-width:2px,color:#fff
+    style F1 fill:#1e3a8a,color:#fff
+    style F2 fill:#1e3a8a,color:#fff
+    style F3 fill:#1e3a8a,color:#fff
+    style F4 fill:#1e293b,color:#fff
+    style R1 fill:#991b1b,color:#fff
+    style R2 fill:#991b1b,color:#fff
+    style R3 fill:#1e293b,color:#fff
+```
+
+#### How an RST Segment Works under the Hood
+
+When a host transmits or receives an `RST` segment:
+
+1. **Bypasses State Lifecycle**:
+   Both endpoints bypass intermediate handshake states (`FIN-WAIT-1`, `FIN-WAIT-2`, `CLOSE-WAIT`, `LAST-ACK`, and `TIME-WAIT`) and transition directly to `CLOSED`.
+
+2. **No Acknowledgment Required (Preventing Infinite Reset Loops)**:
+   The recipient of an `RST` segment does **not** send an `ACK` back. This design rule prevents infinite packet loops: if an `ACK` sent in response to an `RST` were dropped or misrouted, the other host (which already destroyed its connection state) would be forced to respond with *another* `RST`, creating an endless ping-pong loop of packets storming the network. Unlike `FIN` (which asks for confirmation), `RST` is a one-way command. The connection is considered dead the instant `RST` is processed.
+
+3. **Buffer Erasure (Immediate Memory Purge)**:
+   In a normal `FIN` teardown, TCP guarantees that all queued data is flushed across the wire before closing. In an `RST` scenario:
+   - **Outbound Transmission Queue**: The OS kernel immediately wipes all unsent payload bytes sitting in its outbound socket buffer. They are deleted from RAM without ever touching the network.
+   - **Inbound Receive Queue**: If the application has not yet read the data already sitting in its socket receive buffer, the OS kernel purges those unread bytes immediately. Any subsequent `read()` system call by the application returns an instant error (`ECONNRESET` / "Connection reset by peer") instead of returning the unread data.
+
+#### Common Triggers for RST Segments
+
+1. **Connection Refused (Closed Port)**:
+   If a client sends a `SYN` request to a server port where no application is actively listening (e.g., attempting an HTTP request on port 8080 when the backend server is stopped), the host OS kernel immediately responds with an `RST` segment to inform the client that the port is closed.
+
+2. **Process Crash or Sudden Host Reboot**:
+   If an application process (like Node.js, Python, or Nginx) crashes unexpectedly while holding active TCP connections, the OS kernel reclaims orphaned socket descriptors by sending `RST` segments to all connected peers.
+
+3. **Out-of-State / Unsolicited Packets**:
+   If a host receives a TCP segment belonging to a connection that no longer exists in its active state table (for example, if a firewall or router previously cleared the connection state), the host replies with an `RST` segment to signal that the connection is invalid.
+
+#### Comparison: FIN vs. RST
+
+| Feature | `FIN` Segment (Graceful Close) | `RST` Segment (Abrupt Reset) |
+| :--- | :--- | :--- |
+| **Operational Goal** | Clean, negotiated connection shutdown | Immediate, forced connection termination |
+| **Buffer Handling** | Flushes and delivers all pending data | Discards all queued and in-flight data |
+| **Acknowledgment** | Requires explicit `ACK` segments | No `ACK` expected or transmitted |
+| **State Lifecycle** | Moves through state transitions and `TIME-WAIT` | Bypasses all states and instantly transitions to `CLOSED` |
 
 ### 2. Simultaneous Close
 
