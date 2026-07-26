@@ -205,11 +205,24 @@ If both endpoints send `FIN` segments simultaneously:
 - Both endpoints receive `FIN`, send `ACK`, and enter `CLOSING` state.
 - Upon receiving the `ACK`, both enter `TIME-WAIT` and eventually `CLOSED`.
 
+### 3. Combined FIN-ACK Optimization (3-Way Connection Termination)
+
+In a standard 4-way teardown, the server sends a separate `ACK` followed by a separate `FIN`. This occurs when the server still has buffered response data to flush to the client.
+
+However, **if the server has no pending data and is ready to close immediately upon receiving the client's `FIN`**:
+- Many modern TCP implementations optimize transmission by merging the server's `ACK` and `FIN` into a single **`FIN-ACK` segment** (`FIN = 1, ACK = 1`).
+- This compresses the exchange into a **3-way termination**:
+  1. `FIN` (Client to Server)
+  2. `FIN-ACK` (Server to Client)
+  3. `ACK` (Client to Server)
+- **Logically Identical**: Even though sent as 3 physical packets on the wire, logically it executes the exact same four actions (`Client FIN`, `Server ACK`, `Server FIN`, `Client ACK`). Both 4-way teardown and 3-way combined `FIN-ACK` teardown are completely valid standard TCP behaviors.
+
 ---
 
 ## Summary
 
 * **3-Way Handshake (SYN, SYN-ACK, ACK)** establishes a stateful TCP connection.
 * **4-Way Teardown (FIN, ACK, FIN, ACK)** gracefully closes a TCP connection because TCP is full-duplex, allowing one direction to close while the other flushes pending responses.
+* **Combined FIN-ACK (3-Way Termination)** occurs when the server has no pending data and merges its `ACK` and `FIN` into a single segment.
 * **`TIME-WAIT` State** protects against lost final ACKs and prevents stale delayed packets from corrupting future connections on the same port.
 * **`RST` Segments** provide emergency abrupt termination when graceful teardown is impossible.
