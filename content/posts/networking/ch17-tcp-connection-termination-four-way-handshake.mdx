@@ -269,6 +269,22 @@ When a host transmits or receives an `RST` segment:
 3. **Out-of-State / Unsolicited Packets**:
    If a host receives a TCP segment belonging to a connection that no longer exists in its active state table (for example, if a firewall or router previously cleared the connection state), the host replies with an `RST` segment to signal that the connection is invalid.
 
+#### What Happens if an RST Segment is Lost in Transit?
+
+Because an `RST` segment is not acknowledged (`No ACK`), IP network routers can occasionally drop an `RST` segment in transit. When this happens:
+
+1. **Temporary Half-Open (Zombie) State**:
+   - **Sender of RST (Host A)**: Host A immediately closes its socket and wipes its state table. It considers the connection dead.
+   - **Recipient (Host B)**: Because Host B never received the `RST` segment, Host B still believes the connection is active (`ESTABLISHED`) and keeps its kernel socket memory allocated.
+
+2. **Self-Healing on Next Packet Transmission**:
+   - The moment Host B attempts to send new data bytes or a keep-alive probe to Host A, Host A receives a packet for a connection that no longer exists in its table.
+   - Host A's kernel immediately responds by transmitting **another `RST` segment**.
+   - Host B receives this new `RST` segment and finally tears down its socket, throwing an `ECONNRESET` error.
+
+3. **Fallback to Keep-Alive Timers**:
+   - If Host B remains completely silent and never transmits data, Host B's **TCP Keep-Alive timer** (or application-level heartbeat) eventually triggers, sending probe packets. When Host A rejects the probe with an `RST`, Host B's connection is cleanly closed.
+
 #### Comparison: FIN vs. RST
 
 | Feature | `FIN` Segment (Graceful Close) | `RST` Segment (Abrupt Reset) |
