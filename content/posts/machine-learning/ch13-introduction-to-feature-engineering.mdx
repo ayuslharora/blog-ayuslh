@@ -132,7 +132,9 @@ When features exist on vastly different numeric scales, distance-based algorithm
 
 In algorithms relying on Euclidean distance equations:
 
-$$d = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}$$
+```
+d = √((x₂ - x₁)² + (y₂ - y₁)²)
+```
 
 The squared term for `Salary` will dominate the calculation, rendering the `Age` feature mathematically negligible.
 
@@ -157,7 +159,9 @@ While keeping these columns separate provides raw counts, an experienced data sc
 
 We can construct a new synthetic feature called `Family_Size`:
 
-$$\text{Family\_Size} = \text{SibSp} + \text{Parch} + 1$$
+```
+Family_Size = SibSp + Parch + 1
+```
 
 Furthermore, we can transform `Family_Size` into categorical bins:
 * `Family_Size == 1` $\rightarrow$ `"Alone"`
