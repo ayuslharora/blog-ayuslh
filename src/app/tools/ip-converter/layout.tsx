@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { buildSoftwareApplicationJsonLd, buildFaqPageJsonLd, serializeJsonLd } from '../../../lib/jsonLd';
 import { FAQS } from '../../../lib/ipConverterFaqs';
 
@@ -12,7 +13,8 @@ export const metadata: Metadata = {
 export default function IpConverterLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <script
+      <Script
+        id="jsonld-ip-converter-app"
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: serializeJsonLd(
@@ -25,7 +27,8 @@ export default function IpConverterLayout({ children }: { children: React.ReactN
           ),
         }}
       />
-      <script
+      <Script
+        id="jsonld-ip-converter-faq"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildFaqPageJsonLd(FAQS)) }}
       />

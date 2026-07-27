@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import NavBar from '../components/NavBar';
 import Footer from '../components/Footer';
@@ -47,16 +48,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en-IN" suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen flex flex-col antialiased overflow-x-hidden`}>
-        <script
+        <Script
           id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: themeInitScript }}
         />
-        <script
+        <Script
           id="jsonld-website"
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildWebsiteJsonLd()) }}
         />
-        <script
+        <Script
           id="jsonld-person"
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildPersonJsonLd()) }}

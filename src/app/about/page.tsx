@@ -1,3 +1,4 @@
+import Script from 'next/script';
 import { buildProfilePageJsonLd, serializeJsonLd } from '../../lib/jsonLd';
 
 export const metadata = {
@@ -10,7 +11,8 @@ export const metadata = {
 export default function AboutPage() {
   return (
     <div className="max-w-4xl mx-auto px-6 pb-24 pt-12 md:pt-20">
-      <script
+      <Script
+        id="jsonld-profile"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildProfilePageJsonLd()) }}
       />

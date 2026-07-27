@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
+import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { getAllSeries, getPostsBySeries } from '../../lib/posts';
 import { getSeriesTitle, getSeriesDescription, hasCover } from '../../lib/covers';
@@ -43,7 +44,8 @@ export default async function SeriesPage({
 
   return (
     <div className="max-w-3xl mx-auto px-6 pb-24 pt-8">
-      <script
+      <Script
+        id="jsonld-series-collection"
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: serializeJsonLd(

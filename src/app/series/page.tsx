@@ -1,3 +1,4 @@
+import Script from 'next/script';
 import { getAllSeries } from '../../lib/posts';
 import { getSeriesTitle } from '../../lib/covers';
 import { buildSeriesIndexItemListJsonLd, serializeJsonLd } from '../../lib/jsonLd';
@@ -15,7 +16,8 @@ export default function SeriesPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-6 pb-24 pt-12">
-      <script
+      <Script
+        id="jsonld-series-index"
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: serializeJsonLd(
