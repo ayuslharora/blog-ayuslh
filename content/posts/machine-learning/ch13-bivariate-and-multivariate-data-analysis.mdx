@@ -1,3 +1,4 @@
+
 ---
 title: "Ch.13: Bivariate and Multivariate Data Analysis: Visualizing Feature Interactions"
 description: "A comprehensive guide to Bivariate and Multivariate Data Analysis in EDA: analyzing Numerical vs Numerical, Numerical vs Categorical, and Categorical vs Categorical feature interactions using Seaborn plots, heatmaps, cross-tabulations, pair plots, and cluster maps."
@@ -75,6 +76,8 @@ plt.ylabel("Tip ($)")
 plt.show()
 ```
 
+<img src="/images/ch13-scatter-bill-tip.png" alt="Scatter plot of total bill versus tip amount" className="w-full h-auto" />
+
 #### Key Observation:
 The plot reveals a clear **positive linear relationship**: as `total_bill` increases, `tip` increases proportionally. Higher bills generally lead to higher tips.
 
@@ -94,6 +97,8 @@ sns.scatterplot(
 plt.title("Multivariate Analysis of Restaurant Tipping Behavior")
 plt.show()
 ```
+
+<img src="/images/ch13-scatter-multivariate.png" alt="Scatter plot encoding total bill, tip, gender, smoker status, and party size" className="w-full h-auto" />
 
 ```mermaid
 flowchart LR
@@ -128,6 +133,8 @@ plt.ylabel("Total Passengers")
 plt.show()
 ```
 
+<img src="/images/ch13-lineplot-flights.png" alt="Line plot of annual US airline passenger volume from 1949 to 1960" className="w-full h-auto" />
+
 #### Key Observation:
 Line plots clearly highlight continuous temporal trends, demonstrating steady linear growth in commercial air travel throughout the 1950s.
 
@@ -146,8 +153,10 @@ sns.pairplot(iris, hue='species')
 plt.show()
 ```
 
+<img src="/images/ch13-pairplot-iris.png" alt="Pair plot grid of Iris features color-coded by species" className="w-full h-auto" />
+
 #### Grid Anatomy of a Pair Plot:
-* **Off-Diagonal Cells**: Display bivariate scatter plots comparing feature row $i$ against feature column $j$.
+* **Off-Diagonal Cells**: Display bivariate scatter plots comparing feature row `i` against feature column `j`.
 * **Diagonal Cells**: Because a feature paired with itself cannot form a scatter plot, Seaborn automatically renders univariate KDE or histogram distributions.
 * **Class Separability**: Color-coding by `hue='species'` immediately reveals which feature combinations (for example, `petal_length` vs `petal_width`) achieve complete linear separation between flower species.
 
@@ -173,6 +182,8 @@ plt.ylabel("Average Age")
 plt.show()
 ```
 
+<img src="/images/ch13-barplot-pclass-age.png" alt="Bar plot of average passenger age across ticket classes with confidence interval error bars" className="w-full h-auto" />
+
 #### Understanding Bar Plot Error Bars:
 The thin vertical black lines at the top of each bar represent **Confidence Intervals** (or standard error). They indicate the statistical uncertainty surrounding the calculated mean.
 
@@ -185,6 +196,8 @@ sns.barplot(x='pclass', y='fare', hue='sex', data=titanic)
 plt.title("Average Ticket Fare by Class and Gender")
 plt.show()
 ```
+
+<img src="/images/ch13-barplot-pclass-fare-sex.png" alt="Bar plot of average ticket fare by passenger class, split by gender" className="w-full h-auto" />
 
 #### Key Insights:
 * Passengers in Class 1 paid a drastically higher average fare (~$80+) compared to Class 2 (~$20) and Class 3 (~$13).
@@ -202,6 +215,8 @@ plt.xlabel("Gender")
 plt.ylabel("Age")
 plt.show()
 ```
+
+<img src="/images/ch13-boxplot-sex-age-survived.png" alt="Box plot of age distribution split by gender and survival status" className="w-full h-auto" />
 
 #### Key Insights:
 * **Male Passengers**: Surviving males recorded a lower median age than non-surviving males, illustrating that young boys were given priority in lifeboats ("women and children first").
@@ -223,6 +238,8 @@ plt.legend()
 plt.show()
 ```
 
+<img src="/images/ch13-kde-survival-overlay.png" alt="Overlaid KDE curves of age probability density for survived versus died passengers" className="w-full h-auto" />
+
 ```mermaid
 flowchart LR
     KDE["KDE Distribution Overlay"] --> AgeChild["Age 0 - 15 (Children):<br/>Survival Curve > Mortality Curve<br/>(High Survival Probability)"]
@@ -230,8 +247,8 @@ flowchart LR
 ```
 
 #### Key Analytical Findings:
-* For children aged $0$ to $15$, the survival curve (blue) is significantly higher than the mortality curve (red), proving that young children experienced high survival probabilities.
-* For adults aged $15$ to $30$, the mortality curve surpasses the survival curve, revealing that young adults suffered the highest mortality rates during the disaster.
+* For children aged 0 to 15, the survival curve (blue) is significantly higher than the mortality curve (red), proving that young children experienced high survival probabilities.
+* For adults aged 15 to 30, the mortality curve surpasses the survival curve, revealing that young adults suffered the highest mortality rates during the disaster.
 
 ---
 
@@ -270,6 +287,8 @@ plt.ylabel("Passenger Class")
 plt.show()
 ```
 
+<img src="/images/ch13-heatmap-crosstab.png" alt="Heatmap of passenger class versus survival count" className="w-full h-auto" />
+
 #### Normalizing Contingency Tables to Percentages:
 Raw counts can be misleading if category sample sizes are unbalanced. Normalizing by rows computes exact survival percentages per class:
 
@@ -299,6 +318,8 @@ sns.clustermap(flight_pivot, cmap='Blues')
 plt.title("Hierarchical Clustering of Monthly Flight Volumes")
 plt.show()
 ```
+
+<img src="/images/ch13-clustermap-flights.png" alt="Cluster map of monthly flight volumes with hierarchical clustering dendrograms" className="w-full h-auto" />
 
 ```mermaid
 flowchart LR
@@ -333,9 +354,9 @@ flowchart LR
 1. **Dataset Overview**: Total variables, sample count, missing value percentages, duplicate rows count, and total memory allocation.
 2. **Univariate Variable Analysis**: Per-column descriptive statistics (mean, median, IQR, min/max, skewness, distinct counts) alongside distribution histograms.
 3. **Bivariate & Correlation Matrices**: Automatically computes correlation matrices using multiple coefficients:
-   * **Pearson Correlation ($r$)**: Linear numerical correlation.
+   * **Pearson Correlation (`r`)**: Linear numerical correlation.
    * **Spearman & Kendall Rank Correlation**: Non-linear ordinal correlation.
-   * **Phik ($\phi_k$) Correlation**: Inter-variable correlation handling both numerical and categorical variables simultaneously.
+   * **Phik (φₖ) Correlation**: Inter-variable correlation handling both numerical and categorical variables simultaneously.
    * **Cramér's V**: Categorical-to-categorical association strength.
 4. **Missing Value Diagnostics**: Visual bar charts, matrix maps, and dendrograms illustrating missing data co-occurrences across features.
 5. **Automated Warnings & Alerts**: Highlights data quality issues including high collinearity, zero-variance columns, extreme skewness, and high cardinality.
