@@ -73,6 +73,8 @@ plt.ylabel("Count")
 plt.show()
 ```
 
+<img src="/images/ch12-countplot-survived.png" alt="Count plot of the Survived column showing counts of 0 and 1" className="w-full h-auto" />
+
 If you analyze passenger classes or embarkation ports, `sns.countplot` highlights majority and minority classes immediately:
 
 ```python
@@ -80,6 +82,8 @@ If you analyze passenger classes or embarkation ports, `sns.countplot` highlight
 sns.countplot(x=df['Pclass'])
 plt.show()
 ```
+
+<img src="/images/ch12-countplot-pclass.png" alt="Count plot of the Pclass column showing passenger counts per class" className="w-full h-auto" />
 
 ### 2. Tabular Value Counts (`df['col'].value_counts()`)
 If you want exact numerical totals instead of a chart, Pandas provides the `.value_counts()` method:
@@ -99,6 +103,8 @@ plt.ylabel("Frequency")
 plt.show()
 ```
 
+<img src="/images/ch12-valuecounts-bar-pclass.png" alt="Bar chart of passenger count per class generated from value_counts" className="w-full h-auto" />
+
 ### 3. Proportional Distribution with Pie Charts (`kind='pie'`)
 While bar charts excel at showing raw counts, **Pie Charts** are effective for displaying proportional percentages of a categorical feature relative to the whole dataset.
 
@@ -114,6 +120,8 @@ plt.title("Survival Percentage Breakdown")
 plt.ylabel("") # Remove default ylabel
 plt.show()
 ```
+
+<img src="/images/ch12-piechart-survived.png" alt="Pie chart showing the percentage breakdown of survived versus died passengers" className="w-full h-auto" />
 
 Pie charts work best when the number of unique categories is small (for example, binary flags or top 3 to 5 categories). If a column contains dozens of distinct categories, a bar chart or horizontal count plot is far easier to read.
 
@@ -135,6 +143,8 @@ plt.ylabel("Frequency")
 plt.show()
 ```
 
+<img src="/images/ch12-histogram-age.png" alt="Histogram of the Age column with 20 bins" className="w-full h-auto" />
+
 #### The Impact of Bin Selection
 The `bins` parameter controls the resolution of your histogram:
 * **Too Few Bins (e.g., `bins=5`)**: Over-aggregates the data, hiding underlying distribution spikes or bimodal patterns.
@@ -154,6 +164,8 @@ plt.ylabel("Density")
 plt.show()
 ```
 
+<img src="/images/ch12-kde-age.png" alt="Histogram of Age overlaid with a smooth KDE curve" className="w-full h-auto" />
+
 #### Understanding the Probability Density Function (PDF)
 The KDE curve represents the **Probability Density Function (PDF)** of the numerical variable:
 * The **Y-axis** represents the probability density.
@@ -171,6 +183,8 @@ sns.boxplot(x=df['Age'])
 plt.title("Box Plot of Age")
 plt.show()
 ```
+
+<img src="/images/ch12-boxplot-age.png" alt="Box plot of Age showing the 5-number summary and outliers" className="w-full h-auto" />
 
 #### Mathematical Anatomy of the 5-Number Summary
 A box plot visually encodes five key descriptive statistics:
@@ -230,6 +244,8 @@ print("Standard Deviation:", df['Age'].std())
 print("Variance:", df['Age'].var())
 ```
 
+<img src="/images/ch12-output-descriptive-stats.png" alt="Console output showing the minimum, maximum, mean, median, standard deviation, and variance of the Age column" className="w-full h-auto" />
+
 ---
 
 ## Understanding Skewness (`df['col'].skew()`)
@@ -241,6 +257,8 @@ You can compute the skewness value in Pandas using:
 ```python
 df['Age'].skew()
 ```
+
+<img src="/images/ch12-output-skew-value.png" alt="Console output showing the computed skewness value of the Age column" className="w-full h-auto" />
 
 ### Types of Skewness
 
@@ -274,6 +292,8 @@ flowchart TD
         end
     end
 ```
+
+<img src="/images/ch12-skewness-comparison.png" alt="Three histograms comparing positively skewed, symmetrical, and negatively skewed distributions with mean and median marked" className="w-full h-auto" />
 
 #### 1. Symmetrical Distribution (Normal Distribution)
 * **Skewness Value**: Approximately 0 (`~ 0`)
