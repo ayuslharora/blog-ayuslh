@@ -37,8 +37,8 @@ flowchart LR
 
     subgraph Stateful ["2. Stateful TCP (Virtual Bridge)"]
         direction TB
-        T_Client["Client OS Kernel<br/>(State Table Memory)"] <== Synchronized 3-Way Handshake ==> T_Server["Server OS Kernel<br/>(State Table Memory)"]
-        T_Client <-->|Guaranteed Reliable Data Stream| T_Server
+        T_Client["Client OS Kernel<br/>(State Table Memory)"] <== 3-Way Handshake ==> T_Server["Server OS Kernel<br/>(State Table Memory)"]
+        T_Client <-->|Reliable Data Stream| T_Server
     end
 
     style Connectionless fill:#451a03,stroke:#f97316,stroke-width:2px,color:#fff
