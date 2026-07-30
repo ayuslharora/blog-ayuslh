@@ -24,20 +24,7 @@ While the IPv4 specification (RFC 791) spans 45 pages of complex packet rules, t
 
 In networking specifications, packet headers are visually represented as a **32-bit wide grid** (4 bytes per row). Here is how a UDP datagram header is structured in memory:
 
-```mermaid
-flowchart TD
-    subgraph Grid ["UDP Datagram Header Layout (32 Bits Wide / 4 Bytes per Row)"]
-        direction TD
-        Row1["<b>Bits 0 - 15 (2 Bytes)</b>: Source Port | <b>Bits 16 - 31 (2 Bytes)</b>: Destination Port"]
-        Row2["<b>Bits 0 - 15 (2 Bytes)</b>: Length | <b>Bits 16 - 31 (2 Bytes)</b>: Checksum"]
-        Row3["<b>Bits 0 - 31+</b>: Application Data Payload (Variable Length)"]
-    end
-
-    style Grid fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
-    style Row1 fill:#451a03,stroke:#f97316,stroke-width:2px,color:#fff
-    style Row2 fill:#166534,stroke:#4ade80,stroke-width:2px,color:#fff
-    style Row3 fill:#1e3a5f,stroke:#60a5fa,stroke-width:2px,color:#fff
-```
+<UdpHeaderTable />
 
 ### Physical Byte Stream Note
 Although diagrams represent headers in 32-bit rows for clarity, data in transit over wire or fiber optics travels as a **continuous 1D byte stream**:

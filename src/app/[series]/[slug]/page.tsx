@@ -14,6 +14,8 @@ import { buildBlogPostingJsonLd, buildBreadcrumbJsonLd, serializeJsonLd } from '
 import ChatWidget from '../../../components/ChatWidget';
 import IpConverter from '../../../components/IpConverter';
 import Mermaid from '../../../components/Mermaid';
+import TcpHeaderTable from '../../../components/TcpHeaderTable';
+import UdpHeaderTable from '../../../components/UdpHeaderTable';
 import TableOfContents from '../../../components/TableOfContents';
 import RelatedPosts from '../../../components/RelatedPosts';
 
@@ -118,6 +120,8 @@ export default async function PostPage({
           options={{ mdxOptions: { remarkPlugins: [remarkGfm], rehypePlugins: [rehypeSlug] } }}
           components={{
             IpConverter,
+            TcpHeaderTable,
+            UdpHeaderTable,
             pre: (props: any) => {
               const child = props.children;
               if (child && child.type === 'code' && child.props.className === 'language-mermaid') {
