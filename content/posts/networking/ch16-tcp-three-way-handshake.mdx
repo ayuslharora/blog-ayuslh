@@ -1,6 +1,6 @@
 ---
 title: "Ch.16: TCP 3-Way Handshake (SYN, SYN-ACK, ACK)"
-description: "A comprehensive breakdown of the TCP 3-way handshake: why stateful connections require state synchronization, the 3-step SYN, SYN-ACK, and ACK sequence, header state parameters, TCP Fast Open (TFO), and connection state machines."
+description: "A clear walkthrough of the TCP 3-way handshake: why a connection has to be established before any data is sent, the SYN, SYN-ACK, and ACK exchange step by step, and why TCP is called a stateful protocol."
 date: "2026-07-26T04:11:29+05:30"
 tags: ["networking", "tcp", "transport-layer", "handshake", "protocols"]
 draft: false
@@ -12,105 +12,44 @@ source:
 
 *Video Reference:* [YouTube](https://www.youtube.com/watch?v=xkP8iBAdgck)
 
-In the previous post, we explored an overview of **Transmission Control Protocol (TCP)**, contrasting its connection-oriented, stateful, and reliable architecture against UDP's connectionless and lightweight nature. We learned that before any application data (such as an HTTP GET request, a database query, or a WebSocket message) can travel across a network via TCP, both devices must first establish a connection.
+In the previous post, we explored an overview of **Transmission Control Protocol (TCP)** and saw one important point: TCP is a **connection-oriented protocol**. That means before any actual data can be sent over TCP, a connection first needs to be established for it.
 
-In this post, we will take a deep dive into **how** TCP establishes this connection through the famous **TCP 3-Way Handshake (SYN, SYN-ACK, ACK)**. We will examine why state synchronization is essential, walk through the step-by-step segment exchange, analyze header parameters, discuss optimizations like TCP Fast Open (TFO), and inspect connection states.
-
----
-
-## Why Do We Need a Connection?
-
-To understand why TCP requires a connection establishment phase, we must contrast it with connectionless protocols like UDP:
-
-* **Connectionless Protocols (UDP)**: When a client sends a UDP datagram, it simply fires bytes onto the network wire. It does not verify whether the destination server is online, whether the target port is listening, or whether the receiver has buffer space. If the server is offline, the datagram is dropped into the void, and the client remains unaware.
-* **Stateful Protocols (TCP)**: TCP promises guaranteed, in-order, and error-checked data delivery over an inherently unreliable IP network (where packets can be lost, corrupted, delayed, or reordered). 
-
-To fulfill this reliability guarantee, TCP **must be stateful**. Both devices must explicitly establish, synchronize, and track connection state before transmitting a single byte of application data.
-
-```mermaid
-flowchart LR
-    subgraph Connectionless ["1. Connectionless UDP (Fire & Forget)"]
-        direction TB
-        U_Client["Client"] -->|Fires UDP Datagram<br/>No Check, No Setup| U_Wire["Untrusted IP Network"]
-        U_Wire -.->|Dropped if Offline| U_Server["Server (Unknown State)"]
-    end
-
-    subgraph Stateful ["2. Stateful TCP (Virtual Bridge)"]
-        direction TB
-        T_Client["Client OS Kernel<br/>(State Table Memory)"] <== 3-Way Handshake ==> T_Server["Server OS Kernel<br/>(State Table Memory)"]
-        T_Client <-->|Reliable Data Stream| T_Server
-    end
-
-    style Connectionless fill:#451a03,stroke:#f97316,stroke-width:2px,color:#fff
-    style Stateful fill:#065f46,stroke:#10b981,stroke-width:2px,color:#fff
-    style U_Client fill:#78350f,stroke:#fbbf24,color:#fff
-    style U_Server fill:#78350f,stroke:#fbbf24,color:#fff
-    style T_Client fill:#047857,stroke:#34d399,color:#fff
-    style T_Server fill:#047857,stroke:#34d399,color:#fff
-```
-
-### What is a "Connection" in TCP?
-
-A common misconception is that a TCP connection creates a dedicated physical circuit or virtual tunnel across routers in the network. In reality, **routers between the client and server know nothing about a TCP connection** (they operate at Layer 3, forwarding raw IP packets).
-
-```mermaid
-flowchart TD
-    subgraph Layer4_Endpoints ["Layer 4 (Transport Layer): Virtual Connection State"]
-        subgraph Client ["Client Host (192.168.1.5:8000)"]
-            C_Memory["<b>Client Kernel State Memory:</b><br/>• Sequence Tracking (ISN_client)<br/>• Flow Control (Receive Window Size)<br/>• State: SYN-SENT -> ESTABLISHED"]
-        end
-
-        subgraph Server ["Server Host (10.0.0.1:80)"]
-            S_Memory["<b>Server Kernel State Memory:</b><br/>• Sequence Tracking (ISN_server)<br/>• Flow Control (Receive Window Size)<br/>• State: SYN-RCVD -> ESTABLISHED"]
-        end
-
-        C_Memory <== "Virtual State Agreement (Synchronized)" ==> S_Memory
-    end
-
-    subgraph Layer3_Routers ["Layer 3 (Network Layer): Stateless Routers"]
-        R1["Router 1"] --> R2["Router 2"] --> R3["Router 3"]
-        Note_Routers["Routers store ZERO connection state!<br/>They only forward individual IP packets."]
-    end
-
-    Client --> R1
-    R3 --> Server
-
-    style Layer4_Endpoints fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff
-    style Layer3_Routers fill:#1e293b,stroke:#64748b,stroke-width:2px,color:#fff
-    style Client fill:#1e3a8a,stroke:#3b82f6,color:#fff
-    style Server fill:#065f46,stroke:#10b981,color:#fff
-    style C_Memory fill:#1d4ed8,stroke:#60a5fa,color:#fff
-    style S_Memory fill:#047857,stroke:#34d399,color:#fff
-    style R1 fill:#334155,stroke:#94a3b8,color:#fff
-    style R2 fill:#334155,stroke:#94a3b8,color:#fff
-    style R3 fill:#334155,stroke:#94a3b8,color:#fff
-    style Note_Routers fill:#451a03,stroke:#f97316,color:#fff
-```
-
-A TCP connection exists **entirely in the memory of the two host operating systems**. It is a virtual agreement consisting of synchronized state parameters stored in OS kernel data structures at both endpoints:
-
-1. **Sequence Number Synchronization**: Both hosts agree on starting Sequence Numbers (`ISN`) so they can detect lost packets, reassemble bytes in exact order, and discard duplicates.
-2. **Buffer and Flow Control Alignment**: Both hosts exchange their **Receive Window Sizes**, informing each other how much unacknowledged data their memory buffers can hold to prevent buffer overflow.
-3. **Endpoint Verification**: Both hosts confirm that target ports are active, listening, and ready to process incoming payloads.
-4. **State Persistence**: Both kernels maintain these state tables active in memory for the entire duration of the session until the connection is explicitly closed.
-
-Without establishing and synchronizing this state upfront, reliable data transfer across an unpredictable network would be impossible.
+That connection establishment happens through the **TCP 3-Way Handshake**. In this post, we'll go through exactly what the TCP 3-way handshake is and what happens during it.
 
 ---
 
-## Practical Application Scenario
+## Why Do We Need a Connection First?
 
-Consider a standard web application architecture:
-- **Client**: A React application running locally on host `192.168.1.5`, using ephemeral port `8000`.
-- **Server**: An Express.js backend hosted in AWS Cloud at IP `10.0.0.1`, listening on port `80`.
+Let's say you have a React application running on your laptop at `192.168.1.5`, and an Express server running somewhere in the cloud (AWS or any other provider) at `10.0.0.1` on port `80`.
 
-When a user triggers an HTTP request from the React frontend to the Express backend, HTTP relies on TCP at Layer 4 under the hood. Before a single byte of HTTP business logic payload (e.g. `GET /api/v1/users`) can be sent, the client OS kernel automatically initiates a TCP 3-way handshake with the server OS kernel.
+Whenever the React app makes an HTTP request to the Express server, remember: **HTTP runs on top of TCP under the hood**. So before any actual application data (the real business logic payload, like an HTTP request) can be sent from the client to the server, we first have to create some kind of connection between them.
+
+This connection establishment always happens first, before any data is sent. So how exactly does this connection get created?
 
 ---
 
-## Step-by-Step Mechanism of the 3-Way Handshake
+## The Setup
 
-The 3-way handshake consists of three directional TCP segment transmissions between client and server.
+- **Client**: A React (or Angular) application running on `192.168.1.5`, port `8000`.
+- **Server**: A Node.js and Express server running on `10.0.0.1`, port `80`.
+
+The client wants to send an HTTP request to the server, and since HTTP relies on TCP, a TCP connection must be established before the client can send any HTTP-related data to the server.
+
+Since the client is the one that wants to send data, **the client initiates the TCP connection**. It does this by sending a **SYN packet**, a TCP segment, to the server.
+
+This TCP segment travels inside an IP packet, exactly like every other protocol (TCP, UDP, HTTP, WebSockets) that needs to talk to another host over the network. That IP packet carries the TCP segment, and the TCP segment itself deals with source and destination ports, along with some information about the client.
+
+If you recall the **[anatomy of a UDP datagram](/networking/ch14-anatomy-of-a-udp-datagram-and-checksum)**, a UDP datagram is made up of headers plus a payload (Source Port, Destination Port, Length, Checksum). A TCP segment works the same way: headers plus a payload. The payload is whatever the TCP segment is carrying as a vehicle (an HTTP request, a WebSocket handshake, an SMTP payload, and so on), and the headers are what make TCP actually function correctly, things like the sequence number, the window size, and control flags such as SYN and ACK.
+
+We'll go through exactly what these header fields mean and how they work in future posts. For now, all we need to know is that this information about the client (and later the server) lives inside the TCP segment's headers.
+
+---
+
+## Step 1: Client Sends a SYN
+
+The client sends a TCP segment with its information (its sequence number starting point, its window size, and so on) to the server, with the **SYN** flag set.
+
+This is an **empty segment**, its data/payload portion is empty, because at this point the client hasn't sent any actual application data yet. It's simply establishing a TCP connection, so there's nothing to include as a payload.
 
 ```mermaid
 sequenceDiagram
@@ -119,129 +58,58 @@ sequenceDiagram
     participant Wire as IP Network Wire
     actor Server as Server OS (10.0.0.1:80)
 
-    Note over Server: State: LISTEN
-
-    Note over Client, Server: Step 1: Client initiates connection with SYN
-    Client->>Wire: TCP SYN Segment (Flags: SYN=1, ACK=0)<br/>SrcPort: 8000, DstPort: 80<br/>Seq: ISN_client, WinSize: 64240<br/>Payload: 0 Bytes
-    Note over Client: State: SYN-SENT
+    Note over Client, Server: Step 1: Client sends SYN with its own info
+    Client->>Wire: TCP SYN Segment (empty payload)
     Wire->>Server: Deliver SYN Segment
 
-    Note over Server: State: SYN-RCVD
-    Note over Server: Step 2: Server acknowledges and sends SYN (Merged SYN-ACK)
-    Server->>Wire: TCP SYN-ACK Segment (Flags: SYN=1, ACK=1)<br/>SrcPort: 80, DstPort: 8000<br/>Seq: ISN_server, Ack: ISN_client + 1<br/>WinSize: 65535, Payload: 0 Bytes
+    Note over Client, Server: Step 2: Server acknowledges the SYN,<br/>and sends its own SYN in the same segment
+    Server->>Wire: TCP SYN-ACK Segment (empty payload)
     Wire->>Client: Deliver SYN-ACK Segment
 
-    Note over Client: State: ESTABLISHED
-    Note over Client, Server: Step 3: Client acknowledges Server's SYN
-    Client->>Wire: TCP ACK Segment (Flags: SYN=0, ACK=1)<br/>SrcPort: 8000, DstPort: 80<br/>Seq: ISN_client + 1, Ack: ISN_server + 1<br/>Payload: 0 Bytes (or HTTP Data)
+    Note over Client, Server: Step 3: Client acknowledges the server's SYN
+    Client->>Wire: TCP ACK Segment
     Wire->>Server: Deliver ACK Segment
 
-    Note over Server: State: ESTABLISHED
-    Note over Client, Server: Connection Established! Application Data Transfer Begins.
+    Note over Client, Server: Connection established. Application data can now be sent.
 ```
 
-### Step 1: The SYN Segment (Client to Server)
+---
 
-The client initiates connection establishment by sending a TCP segment with the **SYN (Synchronize)** control flag set to `1`.
+## Step 2: Server Acknowledges and Sends Its Own SYN
 
-- **Encapsulation**: The TCP segment is encapsulated inside an IP packet.
-  - Source IP: `192.168.1.5` | Destination IP: `10.0.0.1`
-  - Source Port: `8000` | Destination Port: `80`
-- **Header Parameters**:
-  - **Sequence Number (`Seq`)**: Set to a randomly generated Initial Sequence Number (`ISN_client`), e.g., `1000`.
-  - **Window Size**: Advertises the client's receive buffer capacity (e.g., `64240` bytes).
-  - **Control Flags**: `SYN = 1, ACK = 0`.
-- **Payload**: In a standard handshake, this initial SYN segment carries **0 bytes of application data**. The payload section is empty.
-- **Client State Transition**: The client operating system moves from `CLOSED` state to `SYN-SENT` state.
+As soon as the server receives this SYN request from the client, it notes down the client's information carried in the TCP segment's headers, and it acknowledges it: "I noted your information, and I acknowledge it."
 
-### Step 2: The SYN-ACK Segment (Server to Client)
+Now here's the important part: **TCP is smart about this**. Instead of the server sending two separate packets, one just to acknowledge the client's SYN, and another separate SYN packet to share its own information with the client, it merges both into a **single segment**. This merged segment says: "I acknowledge your SYN, and here's my own information too."
 
-When the server kernel receives the SYN segment on its listening port (`80`), it extracts and stores the client's parameters in memory.
-
-Instead of sending two separate packets (one to acknowledge the client's SYN and another to request synchronization from the server), TCP performs an **optimization called piggybacking**: it merges the acknowledgment and synchronization into a single **SYN-ACK** segment.
-
-- **Header Parameters**:
-  - **Sequence Number (`Seq`)**: Set to the server's own randomly generated Initial Sequence Number (`ISN_server`), e.g., `5000`.
-  - **Acknowledgment Number (`Ack`)**: Set to `ISN_client + 1` (e.g., `1001`), informing the client that the server received its SYN and expects sequence `1001` next.
-  - **Window Size**: Advertises the server's receive buffer capacity (e.g., `65535` bytes).
-  - **Control Flags**: `SYN = 1, ACK = 1`.
-- **Payload**: Contains **0 bytes of application data**.
-- **Server State Transition**: The server kernel moves from `LISTEN` state to `SYN-RCVD` (SYN Received) state.
-
-### Step 3: The ACK Segment (Client to Server)
-
-Upon receiving the SYN-ACK segment, the client learns the server's sequence number (`ISN_server`) and window size. The client immediately responds with a final **ACK (Acknowledgment)** segment.
-
-- **Header Parameters**:
-  - **Sequence Number (`Seq`)**: `ISN_client + 1` (e.g., `1001`).
-  - **Acknowledgment Number (`Ack`)**: `ISN_server + 1` (e.g., `5001`), confirming receipt of the server's SYN.
-  - **Control Flags**: `SYN = 0, ACK = 1`.
-- **Client State Transition**: Client moves from `SYN-SENT` to `ESTABLISHED`.
-- **Server State Transition**: Upon receiving this ACK, the server moves from `SYN-RCVD` to `ESTABLISHED`.
-
-Both endpoints now share a fully synchronized, stateful TCP connection.
+Just like the client's SYN, this is also an **empty segment**, there's no data being carried, since this is still part of setting up the connection, not sending actual data.
 
 ---
 
-## Summary of Handshake Segment Flags and Parameters
+## Step 3: Client Acknowledges the Server's SYN
 
-| Step | Segment Name | Sender | Control Flags | Sequence Number (`Seq`) | Acknowledgment (`Ack`) | Payload Size |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **1** | `SYN` | Client | `SYN=1, ACK=0` | `ISN_client` | N/A (0) | 0 Bytes |
-| **2** | `SYN-ACK` | Server | `SYN=1, ACK=1` | `ISN_server` | `ISN_client + 1` | 0 Bytes |
-| **3** | `ACK` | Client | `SYN=0, ACK=1` | `ISN_client + 1` | `ISN_server + 1` | 0 Bytes (or Data) |
+Once the client receives this segment from the server, it sends a request back saying: "I received your SYN, I've noted your information, and I acknowledge it."
 
----
+Let's recap what just happened:
+1. The client sent a SYN request with its own information.
+2. The server noted it and acknowledged it, and merged its own SYN into that same response.
+3. The client received the server's SYN, and acknowledged it.
 
-## Connection States Machine
+Notice that we sent **three requests** in total. That's exactly why this is called the **TCP 3-Way Handshake**. You may also see it referred to as **SYN, SYN-ACK, ACK**, since the second step merges a SYN and an ACK into one segment.
 
-TCP maintains connection states on both host machines throughout the handshake lifecycle:
-
-```mermaid
-stateDiagram-v2
-    [*] --> CLOSED
-    CLOSED --> LISTEN: Server binds & listens on port
-    CLOSED --> SYN_SENT: Client sends SYN
-
-    LISTEN --> SYN_RCVD: Server receives SYN, sends SYN-ACK
-    SYN_SENT --> ESTABLISHED: Client receives SYN-ACK, sends ACK
-
-    SYN_RCVD --> ESTABLISHED: Server receives ACK from Client
-
-    ESTABLISHED --> [*]: Data transfer & 4-Way Teardown (FIN)
-```
-
-1. **`CLOSED`**: Fictional starting state when no connection exists.
-2. **`LISTEN`**: Server passive state waiting for incoming SYN requests on a specific port.
-3. **`SYN-SENT`**: Client active state after sending SYN, waiting for matching SYN-ACK.
-4. **`SYN-RCVD`**: Server state after receiving SYN and sending SYN-ACK, waiting for final ACK.
-5. **`ESTABLISHED`**: Connection fully open; bidirectionally ready for application payload transfer.
+Once this exchange completes, the connection is established, and now the client and server can actually communicate.
 
 ---
 
-## Technical Edge Cases and Optimizations
+## Why TCP Is Called a "Stateful" Protocol
 
-### 1. TCP Fast Open (TFO)
+During this handshake, the client shared some information about itself with the server, and the server shared some information about itself with the client. Both sides stored that information so they could create and maintain the connection.
 
-In standard TCP handshakes, the first SYN segment carries 0 bytes of application data. Data transfer only begins after the 3-way handshake completes (costing 1 full Round Trip Time, or 1 RTT).
-
-**TCP Fast Open (TFO)** is an extension (RFC 7413) that allows a client to include application payload directly inside the initial SYN segment on subsequent reconnections to a server.
-- During an initial handshake, the server sends a cryptographic **TFO Cookie** to the client.
-- On subsequent connections, the client sends `SYN + TFO Cookie + Data Payload` in the very first packet.
-- This eliminates 1 RTT of latency, enabling instant HTTP data request processing.
-
-### 2. SYN Flood Denial-of-Service Attack
-
-Because the server transitions to `SYN-RCVD` state and allocates memory buffers upon receiving a SYN segment, it is vulnerable to a **SYN Flood Attack**.
-
-An attacker spoofing thousands of fake source IP addresses sends a flood of SYN segments without responding to SYN-ACKs. The server's memory buffer fills up with half-open connections, preventing legitimate users from connecting.
-
-**Mitigation (SYN Cookies)**: The server avoids allocating memory buffers in `SYN-RCVD` state. Instead, it encodes connection parameters directly into the server's Initial Sequence Number (`ISN_server`) as a cryptographic cookie. Memory is allocated only when a valid final ACK returning the cookie is received.
+This connection stays alive, and this stored information keeps getting tracked, for as long as the client and server need to communicate. That's exactly why TCP is called a **stateful protocol**: both machines maintain some state about each other, based on the information exchanged during this handshake, for the life of the connection.
 
 ---
 
 ## What Comes Next?
 
-Now that we understand how the 3-way handshake synchronizes state parameters between client and server, the next logical question is: **what specific fields inside the TCP segment header enable this tracking?**
+In this post, we focused purely on **what** happens during the 3-way handshake and **why** it's called that, three requests exchanged so client and server become aware of each other's state.
 
-In the next post, we will inspect the **Anatomy of a TCP Segment Header**, exploring sequence numbers, acknowledgment numbers, window sizes, flags (URG, ACK, PSH, RST, SYN, FIN), and MSS in detail.
+We deliberately didn't get into what exactly goes inside those TCP segment headers, sequence numbers, acknowledgment numbers, window sizes, and so on, since that's a bit tangential to understanding how the connection itself gets established. We cover those header fields in detail in later posts: **[TCP Sequence and Acknowledgment Numbers](/networking/ch18-tcp-sequence-and-acknowledgment-numbers)** and the **[Anatomy of a TCP Segment](/networking/ch19-anatomy-of-a-tcp-segment)**. We'll also look at how a TCP connection gets torn down in **[TCP Connection Termination (4-Way Handshake)](/networking/ch17-tcp-connection-termination-four-way-handshake)**.
