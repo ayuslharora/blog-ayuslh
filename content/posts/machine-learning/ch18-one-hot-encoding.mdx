@@ -327,6 +327,8 @@ X_train_new.shape
 (72, 7)
 ```
 
+> **What if the test set has a category the encoder never saw?** By default, `OneHotEncoder` uses `handle_unknown='error'`, so calling `.transform()` on data with a category that wasn't in `X_train` (say, a `fuel` value of `Electric`) raises a `ValueError`. Setting `handle_unknown='ignore'` instead encodes that row as all `0`s across the dummy columns for that feature, the same encoding as the dropped reference category, rather than crashing.
+
 ### Step 4: Combining the Encoded Columns Back In
 
 `ohe.transform()` only returns the encoded `fuel` and `owner` columns; it drops everything else. To get a complete input matrix, we have to manually stitch the untouched columns (`brand`, `km_driven`) back together with the newly encoded ones:
