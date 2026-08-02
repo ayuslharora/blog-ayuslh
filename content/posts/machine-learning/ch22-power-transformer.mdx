@@ -81,6 +81,14 @@ Where:
 
 You'll never need to type this formula out by hand, `PowerTransformer` handles picking `λ` and applying the right case automatically, but knowing it explains exactly why Yeo-Johnson doesn't choke on the zeros and negatives that break Box-Cox.
 
+> **Couldn't you just shift negative data into positive territory yourself, and skip Yeo-Johnson entirely?** It's a fair question, and the earlier `+0.001` fix for Box-Cox's zero-valued columns is basically a tiny version of exactly that idea. In principle, you could go further: subtract your column's minimum value and add `1`, so the smallest number in the column becomes exactly `1` and everything else lines up strictly positive behind it, then run ordinary Box-Cox on that. It would work, for the data sitting in front of you right now.
+>
+> The catch shows up the moment new data arrives. That shift amount was measured off your training data's specific minimum. It's like sliding a ruler to the right just far enough that your smallest known measurement lands on `1`, then gluing the ruler down. The moment a smaller measurement comes along later, at prediction time, on data your pipeline has never seen, it falls off the left edge of that ruler again, back into negative territory, and Box-Cox breaks exactly the way it did before you "fixed" it.
+>
+> There's a second, quieter problem too: since the shift depends on your training data's minimum, two people running the same Box-Cox idea on two slightly different samples of the same underlying data would end up sliding their rulers by different amounts, and land on two different "best" lambdas for what should be the same kind of column. The fitted lambda stops being a property of the data's shape and starts being an artifact of wherever you happened to glue the ruler down.
+>
+> Yeo-Johnson sidesteps both problems by never gluing a ruler down in the first place. Instead of shifting the whole column by some dataset-specific amount and hoping nothing smaller ever shows up, it simply has a second formula built in, from the start, for whatever falls below zero. That second formula doesn't care what your particular training data's minimum was; it works the same way for any negative number, forever. That's the real reason it's the default: not that the shifting trick is wrong, but that baking the negative-number handling into the formula itself removes an entire category of "what if new data breaks my shift" bugs before they can happen.
+
 <div className="overflow-x-auto my-8">
   <table className="w-full text-left border-collapse">
     <thead>
