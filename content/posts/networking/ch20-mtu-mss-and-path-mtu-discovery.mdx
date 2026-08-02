@@ -37,7 +37,7 @@ Exceeding the MTU forces the network stack to fragment the packet, and fragmenta
 
 ## IP Fragmentation
 
-Say your network's MTU is 1500 bytes, but the original IP packet you need to send is **1600 bytes**: a 20-byte IP header plus a 1580-byte TCP segment. Since 1600 exceeds the 1500 MTU, the TCP/IP stack **fragments** the packet into two independent IP packets.
+Say your network's MTU is 1500 bytes, but the original IP packet you need to send is **1600 bytes**: a 20-byte IP header plus a 1580-byte TCP segment. Note that the 20-byte IP header only ever carries the **source and destination IP addresses**, ports are a transport-layer concept and never appear there. The 1580-byte "payload" is really the **entire TCP segment**: its own header (which is where the source/destination ports actually live) plus the real application data. From IP's point of view, that whole TCP segment is just an opaque blob it's carrying, it doesn't look inside it at all. Since 1600 exceeds the 1500 MTU, the TCP/IP stack **fragments** the packet into two independent IP packets.
 
 ```mermaid
 flowchart TB
