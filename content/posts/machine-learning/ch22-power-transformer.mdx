@@ -1,0 +1,255 @@
+---
+title: "Ch.22: Power Transformer: Letting Math Pick the Best Transform for You"
+description: "How scikit-learn's PowerTransformer automatically searches for the best exponent to reshape a skewed column toward a normal distribution, using Box-Cox and Yeo-Johnson, and why Yeo-Johnson also handles zero and negative values that Box-Cox can't."
+date: "2026-08-02T08:00"
+tags: ["machine-learning", "feature-engineering", "feature-transformation", "power-transformer", "box-cox", "yeo-johnson", "scikit-learn", "python"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=lV_Z4HbNAx0)
+
+The last post covered **Mathematical Transformations**: reshaping a skewed column with a fixed formula like Log or Square Root, using `FunctionTransformer`. Those formulas work, but you have to guess which one fits your data and try each by hand. This post covers a class that skips the guessing: **`PowerTransformer`**. Instead of applying one fixed formula, it searches for the exact exponent that makes your column look as close to a bell curve as possible, then applies it. It comes with two techniques baked in: **Box-Cox** and **Yeo-Johnson**.
+
+---
+
+## A Quick Recap: Why Reshape Data At All?
+
+Some models, like Linear Regression and Logistic Regression, work best when the numbers going into them are roughly **normally distributed**, meaning most values cluster near the middle and taper off evenly on both sides, like a bell curve. Real columns are rarely built that way. A column of house prices, salaries, or ingredient quantities usually has a long tail of large values dragging it off to one side. That's called being **skewed**.
+
+Tree-based models like Decision Tree and Random Forest don't care about any of this, so everything in this post only matters if you're using a statistical model like Linear or Logistic Regression.
+
+---
+
+## What Makes Power Transformer Different
+
+`FunctionTransformer` with `np.log1p` applies exactly one formula: log, to every value, no matter what. That's fine, but log isn't always the best fit. Maybe your column would look more normal if you raised it to the power of `0.3`, or `1.5`, or some other number entirely. Trying every possible exponent by hand isn't practical.
+
+`PowerTransformer` automates that search. Think of it like this: for a given column, it tries out a range of possible exponents, or "powers", checks how normal-looking the result is at each one, and keeps whichever exponent gave the best result. That best exponent is usually called **lambda**. Once it finds lambda, it raises every value in that column to that power. Every column gets its own lambda, tuned specifically for that column's shape.
+
+In fact, Log Transform and Square Root Transform from the last post aren't really separate ideas: they're just two specific lambda values inside this same general family. Log is roughly what you get at lambda equal to `0`, and Square Root is roughly what you get at lambda equal to `0.5`. `PowerTransformer` doesn't force you to pick one of these ahead of time. It tries out the range and lets the data decide.
+
+---
+
+## Box-Cox: The Original Version
+
+**Box-Cox** is the first of the two techniques `PowerTransformer` supports, named after the two statisticians who came up with it. The idea: search across a range of lambda values, roughly from `-5` to `5`, and for each one, check how close the transformed column gets to a normal distribution. Whichever lambda produces the best-looking bell curve is the one Box-Cox keeps.
+
+There's one important restriction to remember: **Box-Cox only works on strictly positive numbers.** Every value in the column has to be greater than zero. Feed it a column that contains a zero, or a negative number, and it breaks. That rules out a lot of real-world columns, since it's common for a numerical column to legitimately contain zeros.
+
+> **How does it actually find the best lambda?** The short answer is a method called Maximum Likelihood Estimation, a statistical technique that shows up again and again once you get into models like Logistic Regression. There's also a separate branch of statistics, Bayesian inference, that can solve the same kind of problem differently. Both are deep topics on their own. For using `PowerTransformer`, you don't need to know the internal math, just that scikit-learn's implementation is doing this search for you automatically.
+
+---
+
+## Yeo-Johnson: Box-Cox Without the Restrictions
+
+**Yeo-Johnson** is a newer technique, developed by two other statisticians, built specifically to remove Box-Cox's two restrictions. It can handle zero values and negative values, in addition to positive ones. Everything else about it works the same way as Box-Cox: it searches for the best lambda for each column and applies that power.
+
+Because it works on a wider range of data without needing any workarounds, Yeo-Johnson is the default method scikit-learn's `PowerTransformer` uses if you don't specify one.
+
+<div className="overflow-x-auto my-8">
+  <table className="w-full text-left border-collapse">
+    <thead>
+      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
+        <th className="py-3 px-4 font-bold">Property</th>
+        <th className="py-3 px-4 font-bold">Box-Cox</th>
+        <th className="py-3 px-4 font-bold">Yeo-Johnson</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-black/5 dark:divide-white/5">
+      <tr>
+        <td className="py-3 px-4 font-semibold">Works On</td>
+        <td className="py-3 px-4">Strictly positive numbers only</td>
+        <td className="py-3 px-4">Positive, zero, and negative numbers</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">scikit-learn Default</td>
+        <td className="py-3 px-4">No</td>
+        <td className="py-3 px-4">Yes</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">If Your Column Has Zeros</td>
+        <td className="py-3 px-4">Needs a small workaround, like adding a tiny constant first</td>
+        <td className="py-3 px-4">Works as-is</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">How It Picks Lambda</td>
+        <td className="py-3 px-4">Maximum Likelihood Estimation</td>
+        <td className="py-3 px-4">Maximum Likelihood Estimation</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+---
+
+## Hands-On Walkthrough
+
+The example dataset here is about concrete: given the amounts of different ingredients, cement, blast furnace slag, fly ash, water, superplasticizer, coarse aggregate, fine aggregate, and the age of the concrete, predict its compressive strength. It's a regression problem, so the model used is Linear Regression.
+
+This dataset was picked deliberately because several of its columns are visibly not normally distributed, which makes the effect of the transform easy to see.
+
+### Step 1: Check for Missing Values and Bad Ranges
+
+```python
+df.isnull().sum()
+```
+
+No missing values here, which is good, since a transform can't run on missing data. But checking the minimum value of each column turns up something worth noting: `blast furnace slag`, `fly ash`, and `superplasticizer` all have a minimum value of `0`. Nothing is negative, but those zeros will matter once Box-Cox comes into play.
+
+### Step 2: Establish a Baseline
+
+Before touching any transform, train a plain Linear Regression on the untouched data:
+
+```python
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import cross_val_score
+
+lr = LinearRegression()
+lr.fit(X_train, y_train)
+lr.score(X_test, y_test)  # a single R2 score, roughly in the 0.6 range
+```
+
+A single train/test split can be misleading, so cross-validation gives a more honest baseline:
+
+```python
+cross_val_score(lr, X, y, cv=10, scoring='r2').mean()
+```
+
+The cross-validated score came in a little lower and less stable than the single split, a reminder that one split alone doesn't tell the whole story.
+
+### Step 3: Look at the Distributions
+
+Plotting each input column (leaving out `age` for now) shows a mixed picture. Some columns, like `cement` and `water`, are already reasonably close to a bell shape. Others, like `superplasticizer`, are clearly skewed. The worst offender by far is `age`: a lot of concrete samples are tested young, and a much smaller number are tested very old, so the column is heavily lopsided rather than bell-shaped.
+
+> **Outliers were left untouched on purpose.** No outlier removal was done before comparing "with transform" against "without transform". That was intentional: the goal here is to isolate the effect of the transform itself, not mix it with the effect of outlier handling.
+
+### Step 4: Apply Box-Cox
+
+Since Box-Cox needs every value to be strictly positive, the columns with zeros (`blast furnace slag`, `fly ash`, `superplasticizer`) need a tiny nudge first, adding a very small constant so the zeros become just barely positive without meaningfully changing the data:
+
+```python
+X_train['blast_furnace_slag'] = X_train['blast_furnace_slag'] + 0.001
+# same small addition applied to the other zero-containing columns
+
+from sklearn.preprocessing import PowerTransformer
+
+pt = PowerTransformer(method='box-cox')
+X_train_transformed = pt.fit_transform(X_train)
+X_test_transformed = pt.transform(X_test)
+```
+
+Retraining Linear Regression on this transformed data gives a noticeably better R2 score than the untouched baseline, both on a single split and under cross-validation. The improvement isn't dramatic, but it's consistent and real.
+
+### Step 5: Apply Yeo-Johnson
+
+Because Yeo-Johnson doesn't care about zeros, this version skips the small-constant workaround entirely:
+
+```python
+pt2 = PowerTransformer()  # method='yeo-johnson' is the default
+X_train_transformed2 = pt2.fit_transform(X_train)
+X_test_transformed2 = pt2.transform(X_test)
+```
+
+Retraining again on this version gives a further improvement over the Box-Cox result, at least in this example. That lines up with what you'd generally expect: Yeo-Johnson is the more flexible, more modern of the two, and it's what most recent guidance defaults to.
+
+> **`PowerTransformer` standardizes for you.** By default, `standardize=True`, meaning the output isn't just reshaped, it also comes back with a mean of `0` and a standard deviation of `1`, the same thing `StandardScaler` normally does. You don't need to add a separate scaling step afterward.
+
+### Step 6: Inspect the Lambda Values
+
+Every column gets fit with its own lambda, and it's worth looking at what the transform actually decided:
+
+```python
+pt2.lambdas_
+```
+
+Each number in this list lines up with one input column, in order. A lambda close to `1` means "barely any change was needed", while a lambda far from `1` (closer to `0`, or negative) means that column needed a much stronger reshaping to look normal. In this dataset, columns like `cement` came out with a lambda not too far from typical log-like values, while the more heavily skewed columns needed a more aggressive adjustment.
+
+### Step 7: Compare the Distributions Visually
+
+Plotting each column's distribution before and after the transform makes the effect obvious. `age`, the worst-skewed column going in, comes out looking dramatically more like a bell curve. Columns that were already close to normal, like `cement` and `water`, barely change, which makes sense: there wasn't much left to fix. `superplasticizer` shows a moderate improvement. `coarse aggregate` and `fine aggregate`, which were reasonably well-behaved to begin with, stay about the same.
+
+---
+
+## Box-Cox vs. Yeo-Johnson: Which One Should You Use?
+
+The practical rule from this walkthrough: if every value in your column is strictly greater than zero, either technique is worth trying. If any value is zero or negative, skip straight to Yeo-Johnson rather than patching Box-Cox with workarounds. When in doubt, try both and let cross-validation tell you which one actually helped.
+
+> **This isn't a replacement for trying Log or Square Root.** `PowerTransformer` usually performs at least as well as the simpler formulas from the last post, often a bit better, since it's tuning itself to your exact data instead of using a one-size-fits-all formula. But "usually" isn't "always". Trying both `FunctionTransformer` and `PowerTransformer` and comparing cross-validated results is still the safest way to know which one wins on your dataset.
+
+---
+
+## The Big Takeaway
+
+1. `PowerTransformer` automatically finds the best exponent (lambda) to reshape each column toward a normal distribution, instead of you guessing a fixed formula.
+2. **Box-Cox** is the original technique, but only works on strictly positive data.
+3. **Yeo-Johnson** does the same job but also handles zero and negative values, which is why it's scikit-learn's default.
+4. The output is standardized automatically (mean `0`, standard deviation `1`), so there's no need for a separate scaling step.
+5. This only matters for statistical models like Linear and Logistic Regression. Tree-based models don't need any of this.
+6. Always confirm an improvement with cross-validation, not a single train/test split, before trusting that a transform actually helped.
+
+---
+
+## Summary Cheat Sheet
+
+<div className="overflow-x-auto my-8">
+  <table className="w-full text-left border-collapse">
+    <thead>
+      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
+        <th className="py-3 px-4 font-bold">Property / Aspect</th>
+        <th className="py-3 px-4 font-bold">Detail</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-black/5 dark:divide-white/5">
+      <tr>
+        <td className="py-3 px-4 font-semibold">Used For</td>
+        <td className="py-3 px-4">Automatically finding and applying the best power transform to make a column more normal</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Import</td>
+        <td className="py-3 px-4"><code>sklearn.preprocessing.PowerTransformer</code></td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Two Methods</td>
+        <td className="py-3 px-4"><code>method='box-cox'</code> and <code>method='yeo-johnson'</code> (default)</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Box-Cox Restriction</td>
+        <td className="py-3 px-4">Requires strictly positive values; fails on zero or negative data</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Yeo-Johnson Advantage</td>
+        <td className="py-3 px-4">Works on positive, zero, and negative values</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">How Lambda Is Chosen</td>
+        <td className="py-3 px-4">Searched across a range (roughly -5 to 5) using Maximum Likelihood Estimation</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Inspecting Lambdas</td>
+        <td className="py-3 px-4"><code>.lambdas_</code> attribute, one value per input column</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Standardization</td>
+        <td className="py-3 px-4">Automatic by default (<code>standardize=True</code>); no separate <code>StandardScaler</code> needed</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Helps</td>
+        <td className="py-3 px-4">Statistical models: Linear Regression, Logistic Regression</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Doesn't Help</td>
+        <td className="py-3 px-4">Tree-based models: Decision Tree, Random Forest</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Key Best Practice</td>
+        <td className="py-3 px-4">Try both Box-Cox/Yeo-Johnson and the simpler Log/Square Root transforms, verify improvement with cross-validation</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+---
+
+## What's Next?
+
+Ch.21 covered `FunctionTransformer` and the four hand-picked formulas: Log, Reciprocal, Square, and Square Root. This post covered `PowerTransformer`, which searches for the best exponent automatically using Box-Cox or Yeo-Johnson. Together, these close out the mathematical transformations part of this feature engineering series. Based on how this series has progressed so far, from encoding to scaling to reshaping, the next logical stop is likely **Binning and Discretization**: grouping a continuous numerical column into a smaller number of buckets, another common feature engineering step worth knowing before moving on to more advanced topics.

@@ -1,0 +1,260 @@
+---
+title: "Ch.21: Function Transformer: Reshaping Skewed Data with Math"
+description: "A beginner-friendly guide to mathematical feature transformations in scikit-learn: why some models want normally distributed data, how to check if a column is skewed, and how to fix it with Log, Reciprocal, Square, and Square Root transforms using FunctionTransformer."
+date: "2026-08-02T07:15"
+tags: ["machine-learning", "feature-engineering", "feature-transformation", "function-transformer", "log-transform", "scikit-learn", "python"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=cTjj3LE8E90)
+
+So far in this feature engineering series, we've filled in missing values, scaled numbers, and encoded categories. This post covers a different kind of fix: **Mathematical Transformations**. The idea is simple: take a column of numbers, run it through a math formula like a log or a square root, and get back a reshaped version of the same column. The goal of doing this is almost always the same: making a lopsided column look more like a **bell curve**.
+
+---
+
+## Why Would You Want to Reshape Your Data?
+
+A **Normal Distribution** is the classic bell-shaped curve: most values cluster around the middle, and fewer and fewer values show up the further you get from that middle in either direction. Height and exam scores are common real-world examples.
+
+Most real datasets don't naturally look like this. A column might be **skewed**, with a long tail of large values stretching off to one side. Whether that matters depends entirely on which model you're using:
+
+- **Linear Regression and Logistic Regression** lean on statistical assumptions that work best when the input data is roughly normally distributed. Feed them skewed data, and they tend to underperform.
+- **Tree-based models**, like Decision Tree and Random Forest, don't care about the shape of the data at all. They split on thresholds ("is `Fare` greater than 50?"), and that logic works identically no matter how skewed the column is.
+
+So the practical rule is: if you're using a statistical model like Linear or Logistic Regression, and one of your numerical columns is skewed, reshaping it toward a normal distribution can genuinely help. If you're using a tree-based model, don't bother, it won't move the needle.
+
+---
+
+## How Do You Know If a Column Is "Normal Enough"?
+
+Three ways to check, from quickest to most reliable:
+
+1. **Plot it and eyeball it.** A distribution plot (`sns.kdeplot` or similar) draws the shape of the column. If it looks like a bell, it's close to normal. If it has a long tail on one side, it's skewed.
+2. **Check the skew value.** `df['column'].skew()` returns a single number: `0` means symmetric (normal-ish), positive means a long tail stretching to the *right* (**right-skewed**), negative means a long tail stretching to the *left* (**left-skewed**).
+3. **Draw a Q-Q plot.** This is the most reliable method. It compares your data's actual quantiles against the quantiles a perfect normal distribution would have, then plots them against a 45-degree reference line. The closer your points hug that line, the closer your data is to normal. Points that curve away from the line at the ends are a giveaway for skew.
+
+> **Reading a Q-Q plot in one sentence:** the more your data's dots sit on that diagonal line, the more normal your data is; the more they drift away from it, the more skewed it is.
+
+---
+
+## Meet `FunctionTransformer`
+
+scikit-learn's `FunctionTransformer` is the tool that applies a math function to a column. You hand it a function (a built-in one from NumPy, or your own custom one), and it applies that function to every value:
+
+```python
+from sklearn.preprocessing import FunctionTransformer
+import numpy as np
+
+log_transformer = FunctionTransformer(np.log1p)
+X_train_transformed = log_transformer.fit_transform(X_train[['Fare']])
+```
+
+That's the entire API. The interesting part is choosing *which* function to use, and *which* columns actually need it.
+
+---
+
+## Four Transforms, in Plain English
+
+<div className="overflow-x-auto my-8">
+  <table className="w-full text-left border-collapse">
+    <thead>
+      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
+        <th className="py-3 px-4 font-bold">Transform</th>
+        <th className="py-3 px-4 font-bold">Formula</th>
+        <th className="py-3 px-4 font-bold">Best For</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-black/5 dark:divide-white/5">
+      <tr>
+        <td className="py-3 px-4 font-semibold">Log</td>
+        <td className="py-3 px-4"><code>log(x)</code></td>
+        <td className="py-3 px-4">Right-skewed data (a few huge values, many small ones)</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Reciprocal</td>
+        <td className="py-3 px-4"><code>1 / x</code></td>
+        <td className="py-3 px-4">Flipping which values count as "big" and "small"; used less often</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Square</td>
+        <td className="py-3 px-4"><code>x&sup2;</code></td>
+        <td className="py-3 px-4">Left-skewed data</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Square Root</td>
+        <td className="py-3 px-4"><code>&radic;x</code></td>
+        <td className="py-3 px-4">A gentler version of Log; worth trying alongside it</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+**Log Transform** is the one you'll reach for most. Picture four values: `1`, `10`, `100`, `1000`. On a normal scale, they're wildly far apart. Take the log of each, and they become `0`, `1`, `2`, `3`, evenly spaced. That's the whole trick: log squashes large values down much more than it squashes small values, which pulls in a long right tail and makes the data look more symmetric.
+
+Two catches with Log Transform:
+
+- **It can't handle negative numbers**, since the log of a negative number is undefined.
+- **It struggles with zero.** `log(0)` is undefined too. That's why you'll almost always see `np.log1p(x)` instead of plain `np.log(x)`, since `log1p` computes `log(1 + x)`, which quietly sidesteps the zero problem (`log1p(0) = log(1) = 0`) without changing the shape of the transformation in any meaningful way.
+
+**Reciprocal Transform** (`1/x`) flips the ordering of magnitude: small values become large, and large values become small. It's used far less often than Log, but worth trying if Log doesn't help. Watch out for zeros here too, since dividing by zero breaks the formula; a common workaround is `1 / (x + 0.001)`.
+
+**Square Transform** (`x²`) is the mirror image of Log: instead of pulling in a long right tail, it stretches values apart, which helps when the data is left-skewed instead.
+
+**Square Root Transform** (`√x`) sits somewhere between doing nothing and applying a full Log transform. It's worth trying alongside Log rather than instead of it, since it sometimes works better on data that isn't skewed as heavily.
+
+> **You can pass in literally any function.** `FunctionTransformer` isn't limited to these four. You can hand it a custom function, even something unconventional like `np.sin`, and it will apply it the same way. Whether an unusual function actually *helps* is a different question entirely, and the only way to know is to try it and measure the result.
+
+---
+
+## Hands-On Walkthrough
+
+Using the Titanic dataset, keeping only three columns: `Age`, `Fare`, and the target `Survived`.
+
+```python
+X_train['Age'].fillna(X_train['Age'].mean(), inplace=True)
+X_test['Age'].fillna(X_test['Age'].mean(), inplace=True)
+```
+
+`Age` has some missing values, and a transform can't run on missing data, so those get filled with the column mean first.
+
+### Step 1: Check Which Columns Are Actually Skewed
+
+Plotting the distribution and Q-Q plot for both numerical columns shows two very different pictures:
+
+- **`Age`** is already fairly close to a bell curve. Not perfect, but its Q-Q plot mostly hugs the diagonal line.
+- **`Fare`** is heavily right-skewed. This makes intuitive sense: most Titanic passengers paid a modest fare, while a small handful paid a lot for premium tickets. Its Q-Q plot drifts noticeably away from the line.
+
+That difference matters a lot for what comes next.
+
+### Step 2: Establish a Baseline
+
+Before transforming anything, train both a `LogisticRegression` and a `DecisionTreeClassifier` on the untouched data, and check the accuracy:
+
+```python
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score
+
+lr = LogisticRegression()
+dtc = DecisionTreeClassifier()
+
+lr.fit(X_train, y_train)
+dtc.fit(X_train, y_train)
+
+accuracy_score(y_test, lr.predict(X_test))   # roughly 64%
+accuracy_score(y_test, dtc.predict(X_test))  # roughly 68.72%
+```
+
+### Step 3: Transform Both Columns and Compare
+
+```python
+trf = FunctionTransformer(np.log1p)
+
+X_train_transformed = trf.fit_transform(X_train)
+X_test_transformed = trf.transform(X_test)
+
+lr.fit(X_train_transformed, y_train)
+dtc.fit(X_train_transformed, y_train)
+```
+
+Applying `np.log1p` to *both* `Age` and `Fare` gives Logistic Regression a small accuracy bump, exactly as expected for a model that's sensitive to distribution shape. Decision Tree's accuracy barely moves, also exactly as expected, since it doesn't care about distribution at all.
+
+> **Don't trust a single train/test split.** A single split can make an improvement look bigger (or smaller) than it really is. Running the same comparison with 10-fold cross-validation (`cross_val_score(model, X, y, cv=10)`) confirms the same pattern holds up: Logistic Regression benefits, Decision Tree doesn't.
+
+### Step 4: Transform Only the Column That Needs It
+
+Here's the twist worth remembering: transforming `Age` didn't help, because `Age` wasn't skewed to begin with. Applying Log to a column that's already close to normal can actually make things slightly *worse*, not better.
+
+The fix is to only transform `Fare`, and leave `Age` alone, using a `ColumnTransformer`:
+
+```python
+from sklearn.compose import ColumnTransformer
+
+trf2 = ColumnTransformer([
+    ('log_fare', FunctionTransformer(np.log1p), ['Fare'])
+], remainder='passthrough')
+
+X_train_transformed2 = trf2.fit_transform(X_train)
+X_test_transformed2 = trf2.transform(X_test)
+```
+
+`remainder='passthrough'` keeps `Age` untouched instead of transforming it needlessly. Retraining on this version gives Logistic Regression an even better result than transforming both columns did, since `Age` is no longer being pushed away from a shape it already had.
+
+### Step 5: Compare the Other Transforms
+
+Swapping `np.log1p` for the other transforms on `Fare` alone shows how differently each one behaves on the same right-skewed column:
+
+- **Reciprocal** (`1/x`) made accuracy noticeably worse. It's simply the wrong tool for a right-skewed column like `Fare`.
+- **Square Root** (`np.sqrt`) gave a small improvement over the untransformed baseline, but nowhere close to what Log achieved.
+- **Square** (`x**2`) also underperformed Log, unsurprising since Square is meant for left-skewed data, and `Fare` is the opposite.
+
+---
+
+## The Big Takeaway
+
+There's no single formula that works on every dataset. What actually works here is a process:
+
+1. Check each numerical column's skew (plot, `skew()`, or a Q-Q plot).
+2. Only bother transforming columns that are actually skewed, leave the rest passed through untouched.
+3. Use Log for right-skewed data and Square for left-skewed data as a starting guess, but Square Root is always worth a quick try too.
+4. Measure the result with cross-validation, not a single train/test split, before deciding a transform actually helped.
+5. Remember this whole exercise is irrelevant if you're using a tree-based model.
+
+---
+
+## Summary Cheat Sheet
+
+<div className="overflow-x-auto my-8">
+  <table className="w-full text-left border-collapse">
+    <thead>
+      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
+        <th className="py-3 px-4 font-bold">Property / Aspect</th>
+        <th className="py-3 px-4 font-bold">Detail</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-black/5 dark:divide-white/5">
+      <tr>
+        <td className="py-3 px-4 font-semibold">Used For</td>
+        <td className="py-3 px-4">Reshaping a skewed numerical column toward a normal distribution</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Import</td>
+        <td className="py-3 px-4"><code>sklearn.preprocessing.FunctionTransformer</code></td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Helps</td>
+        <td className="py-3 px-4">Statistical models: Linear Regression, Logistic Regression</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Doesn't Help</td>
+        <td className="py-3 px-4">Tree-based models: Decision Tree, Random Forest</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Checking Skew</td>
+        <td className="py-3 px-4">Distribution plot, <code>.skew()</code>, or (most reliable) a Q-Q plot</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Right-Skewed Fix</td>
+        <td className="py-3 px-4"><code>np.log1p</code> (safe with zeros; plain <code>log</code> fails on negatives and zero)</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Left-Skewed Fix</td>
+        <td className="py-3 px-4">Square (<code>x**2</code>)</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Also Worth Trying</td>
+        <td className="py-3 px-4">Square Root, Reciprocal (<code>1/x</code>, watch for division by zero)</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Key Best Practice</td>
+        <td className="py-3 px-4">Transform only the columns that are actually skewed; verify improvement with cross-validation</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+---
+
+## What's Next?
+
+In this post, we covered why some models want normally distributed data, how to check whether a column has that shape, and how `FunctionTransformer` fixes skewed columns with Log, Reciprocal, Square, and Square Root transforms. The next post moves on to **Power Transformer**, covering two more advanced transforms, **Box-Cox** and **Yeo-Johnson**, that go a step further than the simple formulas covered here.
