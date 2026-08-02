@@ -136,7 +136,7 @@ The fix isn't to guess: it's to **discover the smallest MTU along the entire pat
 
 ### The mechanism: the Don't Fragment (DF) flag
 
-The IP header contains a single-bit flag called **DF (Don't Fragment)**. When a sender sets `DF = 1` on a packet, it's telling every router along the path: "you are not allowed to fragment this packet." If a router's MTU is smaller than the packet and DF is set, the router **cannot fragment it, so it drops the packet instead** and notifies the sender via an **ICMP "Fragmentation Needed" message** containing its own MTU.
+The IP header contains a single-bit flag called **DF (Don't Fragment)**. When a sender sets `DF = 1` on a packet, it's telling every router along the path: "you are not allowed to fragment this packet." If a router's MTU is smaller than the packet and DF is set, the router **cannot fragment it, so it drops the packet instead** and notifies the sender via an **[ICMP](/networking/ch12-icmp-ping-and-traceroute) "Fragmentation Needed" message** containing its own MTU.
 
 ```mermaid
 sequenceDiagram
