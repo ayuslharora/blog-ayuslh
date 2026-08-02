@@ -1,0 +1,239 @@
+---
+title: "Ch.19: ColumnTransformer: Applying Multiple Preprocessing Steps in One Shot"
+description: "How scikit-learn's ColumnTransformer replaces the tedious manual work of imputing, encoding, and reassembling columns one at a time, with a hands-on comparison of the manual approach vs. a single ColumnTransformer call."
+date: "2026-07-31T06:10"
+tags: ["machine-learning", "feature-engineering", "column-transformer", "scikit-learn", "python", "preprocessing"]
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=5TVj6iEBR4I)
+
+Over the last few posts, we've covered a handful of feature engineering techniques: Standardization, Normalization, Ordinal Encoding, Label Encoding, and One-Hot Encoding. Each of these techniques applies to a single column at a time. In this post, we tackle the problem that shows up the moment a real dataset needs more than one of these techniques at once: **`ColumnTransformer`**, the scikit-learn class that applies different transformations to different columns in a single step.
+
+---
+
+## The Problem with Handling Columns One at a Time
+
+Real datasets rarely need the same treatment for every column. Consider a small patient dataset with 100 rows and these columns:
+
+<div className="overflow-x-auto my-8">
+  <table className="w-full text-left border-collapse">
+    <thead>
+      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
+        <th className="py-3 px-4 font-bold">Column</th>
+        <th className="py-3 px-4 font-bold">Type</th>
+        <th className="py-3 px-4 font-bold">Issue</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-black/5 dark:divide-white/5">
+      <tr>
+        <td className="py-3 px-4 font-semibold">age</td>
+        <td className="py-3 px-4">Numerical</td>
+        <td className="py-3 px-4">None, already usable as-is</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">gender</td>
+        <td className="py-3 px-4">Nominal</td>
+        <td className="py-3 px-4">Needs One-Hot Encoding</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">fever</td>
+        <td className="py-3 px-4">Numerical</td>
+        <td className="py-3 px-4">10 missing values, needs imputing</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">cough</td>
+        <td className="py-3 px-4">Ordinal (Mild, Strong)</td>
+        <td className="py-3 px-4">Needs Ordinal Encoding</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">city</td>
+        <td className="py-3 px-4">Nominal (4 cities)</td>
+        <td className="py-3 px-4">Needs One-Hot Encoding</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+Four different columns, three different problems: missing values in `fever`, an ordinal relationship in `cough`, and nominal categories in `gender` and `city`. `age` needs nothing at all. Handling each of these separately means writing a `fit_transform()` call per column, then manually stitching every result back together into one array before it can be fed into a model. That manual work is exactly what `ColumnTransformer` exists to remove.
+
+---
+
+## Doing It the Hard Way
+
+Before reaching for `ColumnTransformer`, it's worth seeing what the manual version actually looks like, so the improvement is obvious.
+
+**Step 1: Impute the missing values in `fever`.**
+
+```python
+from sklearn.impute import SimpleImputer
+
+si = SimpleImputer()
+X_train_fever = si.fit_transform(X_train[['fever']])
+X_test_fever = si.transform(X_test[['fever']])
+
+X_train_fever.shape
+```
+
+```
+(90, 1)
+```
+
+**Step 2: Ordinal encode `cough`.**
+
+```python
+from sklearn.preprocessing import OrdinalEncoder
+
+oe = OrdinalEncoder(categories=[['Mild', 'Strong']])
+X_train_cough = oe.fit_transform(X_train[['cough']])
+X_test_cough = oe.transform(X_test[['cough']])
+
+X_train_cough.shape
+```
+
+```
+(90, 1)
+```
+
+**Step 3: One-hot encode `gender` and `city` together.**
+
+```python
+from sklearn.preprocessing import OneHotEncoder
+
+ohe = OneHotEncoder(sparse_output=False, drop='first')
+X_train_gender_city = ohe.fit_transform(X_train[['gender', 'city']])
+X_test_gender_city = ohe.transform(X_test[['gender', 'city']])
+
+X_train_gender_city.shape
+```
+
+```
+(90, 4)
+```
+
+`gender` has 2 categories, `city` has 4. With `drop='first'` on each, that's `(2 - 1) + (4 - 1) = 4` columns.
+
+**Step 4: Pull out `age`, which needs no transformation at all.**
+
+```python
+X_train_age = X_train[['age']].values
+X_train_age.shape
+```
+
+```
+(90, 1)
+```
+
+**Step 5: Glue everything back together.**
+
+```python
+import numpy as np
+
+X_train_transformed = np.concatenate(
+    (X_train_age, X_train_fever, X_train_gender_city, X_train_cough), axis=1
+)
+X_train_transformed.shape
+```
+
+```
+(90, 7)
+```
+
+`1` (age) `+ 1` (fever) `+ 4` (gender + city) `+ 1` (cough) `= 7` columns, matching what we'd expect. This works, but for only four columns it already took five separate transformer objects, five separate `fit_transform`/`transform` calls, and one manual concatenation step at the end. Every time the dataset gains another column that needs its own treatment, this pattern gets worse.
+
+> **Why this doesn't scale.** With more columns needing more kinds of preprocessing, you end up tracking more transformer objects, more intermediate arrays, and more chances to concatenate them in the wrong order between the training and test sets.
+
+---
+
+## Doing It the Easy Way with `ColumnTransformer`
+
+`ColumnTransformer` collapses all five steps above into a single object. It takes a list of `(name, transformer, columns)` tuples, one per group of columns that needs the same treatment, and applies them all in one `fit_transform()` call.
+
+```python
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
+
+transformer = ColumnTransformer(
+    transformers=[
+        ('tm1', SimpleImputer(), ['fever']),
+        ('tm2', OrdinalEncoder(categories=[['Mild', 'Strong']]), ['cough']),
+        ('tm3', OneHotEncoder(sparse_output=False, drop='first'), ['gender', 'city']),
+    ],
+    remainder='passthrough'
+)
+```
+
+Each tuple names a transformer, the transformer object itself, and the list of columns it applies to. `tm1` imputes `fever`, `tm2` ordinal-encodes `cough`, and `tm3` one-hot encodes `gender` and `city` together. `age` isn't mentioned in any tuple, so `remainder='passthrough'` tells `ColumnTransformer` to carry it through unchanged instead of dropping it. Setting `remainder='drop'` (the default) would silently discard any column not listed in `transformers`.
+
+```python
+X_train_new = transformer.fit_transform(X_train)
+X_test_new = transformer.transform(X_test)
+
+X_train_new.shape
+```
+
+```
+(90, 7)
+```
+
+Same result as the manual version, same 7 columns, but instead of five transformer objects and a manual concatenation, it's one object and one `fit_transform()` call. Fitting on `X_train` and only calling `.transform()` on `X_test` still keeps us safe from Data Leakage, exactly as with any individual encoder.
+
+```python
+print(X_train_new[:3])
+```
+
+```
+[[98.0 65 0.0 0.0 1.0 0.0 0.0]
+ [104.0 42 1.0 1.0 0.0 0.0 0.0]
+ [101.0 12 0.0 0.0 0.0 1.0 0.0]]
+```
+
+The column order in the output follows the order the transformers were listed in: `fever`, `cough`, `gender`/`city`, then `age` last since it was passed through as the remainder.
+
+---
+
+## Summary Cheat Sheet
+
+<div className="overflow-x-auto my-8">
+  <table className="w-full text-left border-collapse">
+    <thead>
+      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
+        <th className="py-3 px-4 font-bold">Property / Aspect</th>
+        <th className="py-3 px-4 font-bold">Detail</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-black/5 dark:divide-white/5">
+      <tr>
+        <td className="py-3 px-4 font-semibold">Used For</td>
+        <td className="py-3 px-4">Applying different preprocessing to different columns in one step</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Import</td>
+        <td className="py-3 px-4"><code>sklearn.compose.ColumnTransformer</code></td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Core Argument</td>
+        <td className="py-3 px-4"><code>transformers</code>: a list of <code>(name, transformer, columns)</code> tuples</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Unlisted Columns</td>
+        <td className="py-3 px-4"><code>remainder='drop'</code> (default) discards them; <code>remainder='passthrough'</code> keeps them unchanged</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Fitting</td>
+        <td className="py-3 px-4">Fit ONLY on <code>X_train</code>, then call <code>.transform()</code> on <code>X_test</code></td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Replaces</td>
+        <td className="py-3 px-4">Manual per-column <code>fit_transform()</code> calls plus manual concatenation</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+---
+
+## What's Next?
+
+In this post, we saw why handling each column's preprocessing separately becomes unwieldy as a dataset grows, walked through that manual process end to end, and then replaced all of it with a single `ColumnTransformer`. The next post will introduce **Pipelines**, which combine with `ColumnTransformer` to chain preprocessing and modeling steps together into one streamlined workflow.
