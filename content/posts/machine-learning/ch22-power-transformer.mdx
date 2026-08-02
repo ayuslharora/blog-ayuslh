@@ -36,6 +36,22 @@ In fact, Log Transform and Square Root Transform from the last post aren't reall
 
 There's one important restriction to remember: **Box-Cox only works on strictly positive numbers.** Every value in the column has to be greater than zero. Feed it a column that contains a zero, or a negative number, and it breaks. That rules out a lot of real-world columns, since it's common for a numerical column to legitimately contain zeros.
 
+### The Box-Cox Formula
+
+For every individual value `x` in a column, and a given lambda `λ`, the transformed value `x'` is computed as:
+
+```
+x' = (x^λ - 1) / λ      if λ ≠ 0
+x' = ln(x)              if λ = 0
+```
+
+Where:
+* `x`: The original value, which must be strictly greater than `0`.
+* `λ`: The exponent `PowerTransformer` searches for, tried across a range (roughly `-5` to `5`) to find whichever value makes the column look most normal.
+* `ln(x)`: The natural logarithm, used as a special case exactly when `λ` lands on `0`, since `(x^0 - 1) / 0` is undefined.
+
+This is why Log Transform from the last post isn't really a separate technique: it's just what Box-Cox becomes at the specific case of `λ = 0`.
+
 > **How does it actually find the best lambda?** The short answer is a method called Maximum Likelihood Estimation, a statistical technique that shows up again and again once you get into models like Logistic Regression. There's also a separate branch of statistics, Bayesian inference, that can solve the same kind of problem differently. Both are deep topics on their own. For using `PowerTransformer`, you don't need to know the internal math, just that scikit-learn's implementation is doing this search for you automatically.
 
 ---
@@ -45,6 +61,25 @@ There's one important restriction to remember: **Box-Cox only works on strictly 
 **Yeo-Johnson** is a newer technique, developed by two other statisticians, built specifically to remove Box-Cox's two restrictions. It can handle zero values and negative values, in addition to positive ones. Everything else about it works the same way as Box-Cox: it searches for the best lambda for each column and applies that power.
 
 Because it works on a wider range of data without needing any workarounds, Yeo-Johnson is the default method scikit-learn's `PowerTransformer` uses if you don't specify one.
+
+### The Yeo-Johnson Formula
+
+Yeo-Johnson extends the same idea as Box-Cox, but splits into four cases instead of two, one pair of cases for non-negative values and one pair for negative values:
+
+```
+x' = ((x + 1)^λ - 1) / λ           if λ ≠ 0, x ≥ 0
+x' = ln(x + 1)                     if λ = 0, x ≥ 0
+x' = -((-x + 1)^(2-λ) - 1) / (2-λ) if λ ≠ 2, x < 0
+x' = -ln(-x + 1)                   if λ = 2, x < 0
+```
+
+Where:
+* `x`: The original value, positive, negative, or zero, all are valid here.
+* `λ`: The same kind of exponent Box-Cox searches for, tuned separately for this formula.
+* The `+ 1` inside the non-negative cases is what lets `x = 0` through safely, the same trick `log1p` used back in the last post, `ln(0 + 1) = ln(1) = 0` instead of the undefined `ln(0)`.
+* The negative-value cases mirror the positive ones, working with `-x` instead of `x` and `2 - λ` instead of `λ`, which is what lets the formula stay well-defined below zero.
+
+You'll never need to type this formula out by hand, `PowerTransformer` handles picking `λ` and applying the right case automatically, but knowing it explains exactly why Yeo-Johnson doesn't choke on the zeros and negatives that break Box-Cox.
 
 <div className="overflow-x-auto my-8">
   <table className="w-full text-left border-collapse">
