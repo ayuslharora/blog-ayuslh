@@ -28,7 +28,7 @@ A few things worth nailing down:
 
 * **MTU includes the IP header, the TCP/UDP header, and the data payload combined.** In simple terms: how large can a single IP packet be for a given link?
 * You can check your own network's MTU under your Wi-Fi or Ethernet adapter's hardware settings. Most home networks show a **standard MTU of 1500 bytes**.
-* **The Ethernet frame header is not part of the MTU.** The 14-byte Ethernet header (source MAC, destination MAC) that gets attached at the data link layer sits outside this calculation entirely. The 1500 bytes you see refers strictly to the IP packet's size.
+* **The Ethernet frame header is not part of the MTU.** The 14-byte Ethernet header (source MAC, destination MAC) that gets attached at the [data link layer](/networking/ch10-osi-vs-tcp-ip-model) sits outside this calculation entirely. The 1500 bytes you see refers strictly to the IP packet's size.
 * **Different links can have different MTUs.** 1500 is common but not universal. Datacenter interfaces (AWS, Azure) frequently use **jumbo frames** with an MTU of around 9000 bytes, roughly six times larger than a typical home router.
 
 Exceeding the MTU forces the network stack to fragment the packet, and fragmentation, as we'll see next, always costs you extra bytes.
@@ -57,6 +57,8 @@ flowchart TB
 Add up the two fragments: `1500 + 120 = 1620 bytes`, sent over the wire to deliver data that was originally only 1600 bytes. That extra **20 bytes is the duplicated IP header**, required because each fragment must be independently routable and therefore needs its own complete header.
 
 This is exactly why **fragmentation should be avoided wherever possible**: it inflates the amount of data transferred over the network for no benefit. It also has downsides beyond overhead: fragmented traffic is more complex to reassemble correctly and is generally considered less secure. (How a receiver actually detects and reassembles fragments is a detail encoded in the IP header itself, which we'll cover when we dissect IP packet anatomy.)
+
+> **Teardrop attack:** a classic real-world example of fragmentation's security risk. The attacker sends deliberately malformed fragments with **overlapping offsets**, so when the receiving stack tries to reassemble them, the byte ranges don't line up cleanly. Older TCP/IP implementations (Windows 95/NT, early Linux kernels) didn't handle this overlap correctly and would **crash or hang** while trying to reassemble the packet, a pure denial-of-service exploit. Modern stacks patch against it, but it's a good illustration of why reassembly logic is a meaningful attack surface, not just a performance cost.
 
 ---
 
