@@ -31,7 +31,38 @@ Three ways to check, from quickest to most reliable:
 
 1. **Plot it and eyeball it.** A distribution plot (`sns.kdeplot` or similar) draws the shape of the column. If it looks like a bell, it's close to normal. If it has a long tail on one side, it's skewed.
 2. **Check the skew value.** `df['column'].skew()` returns a single number: `0` means symmetric (normal-ish), positive means a long tail stretching to the *right* (**right-skewed**), negative means a long tail stretching to the *left* (**left-skewed**).
-3. **Draw a Q-Q plot.** This is the most reliable method. It compares your data's actual quantiles against the quantiles a perfect normal distribution would have, then plots them against a 45-degree reference line. The closer your points hug that line, the closer your data is to normal. Points that curve away from the line at the ends are a giveaway for skew.
+3. **Draw a Q-Q plot.** This is the most reliable method, and worth understanding properly rather than just eyeballing a shape.
+
+### How a Q-Q Plot Actually Works
+
+A **quantile** is just a cutoff point in sorted data. If you've heard of a percentile, that's the same idea: the 50th percentile (the median) is the value with half your data below it and half above it. A Q-Q plot ("Quantile-Quantile" plot) compares quantiles from two different sources, side by side, one dot per quantile:
+
+1. **Sort your actual column** from smallest to largest.
+2. **Generate that same number of values from a perfect, textbook normal distribution**, also sorted from smallest to largest.
+3. **Pair them up rank by rank.** The smallest real value gets paired with the smallest theoretical value, the value at your data's 10th percentile gets paired with the theoretical distribution's 10th percentile, and so on, all the way up to the largest of each.
+4. **Plot each pair as one dot**, with the theoretical value on the x-axis and your real value on the y-axis.
+
+If your column really were perfectly normal, every pair would match almost exactly, since a normal distribution's own sorted values would line up with themselves. That's why a perfect match traces a clean 45-degree line: it's the line where "theoretical value" equals "real value" at every rank.
+
+Skew shows up as a specific kind of mismatch at the extremes. Take a right-skewed column like `Fare`: most fares are modest, but a handful are unusually large. At the high end, your data's largest values (the actual top fares) are *much* bigger than what a normal distribution would ever produce at that same rank, so those dots land well above the line. At the low end, a normal distribution expects a symmetric spread of small values below the middle, but a right-skewed column doesn't have as much room down there since it's crowded near the low end instead, so those dots tend to sit slightly below the line. That combination, sagging below the line early and curving sharply above it later, is the visual fingerprint of a right skew.
+
+Here's what that actually looks like, using the real `Age` and `Fare` columns from the Titanic dataset used later in this post:
+
+<img src="/images/ch21-qq-normal-vs-skewed.png" alt="Q-Q plot comparison of Age, which sits close to the reference line, versus Fare, which sags below the line early and curves sharply above it" className="w-full h-auto rounded-lg my-8" />
+
+Both charts share the same 45-degree reference line (drawn in red by `scipy`) described above. `Age`, on the left, stays close to it for most of its range, that's what "close to normal" looks like. `Fare`, on the right, traces exactly the "sags low, then curves high" pattern just walked through: a cluster of points below the line on the left, then a sharp break upward at the top, that spike is a small handful of passengers who paid a fare far larger than everyone else.
+
+`scipy.stats` draws one for you in a single call:
+
+```python
+import scipy.stats as stats
+import pylab
+
+stats.probplot(df['Fare'], dist='norm', plot=pylab)
+pylab.show()
+```
+
+`probplot` plots your column's sorted values against the values a perfect normal distribution would produce, then adds the reference line automatically. `dist='norm'` tells it which theoretical distribution to compare against, normal, in this case.
 
 > **Reading a Q-Q plot in one sentence:** the more your data's dots sit on that diagonal line, the more normal your data is; the more they drift away from it, the more skewed it is.
 
@@ -119,10 +150,36 @@ X_test['Age'].fillna(X_test['Age'].mean(), inplace=True)
 
 ### Step 1: Check Which Columns Are Actually Skewed
 
-Plotting the distribution and Q-Q plot for both numerical columns shows two very different pictures:
+Plotting the distribution and Q-Q plot for both numerical columns shows two very different pictures. A small helper function makes it easy to check both columns the same way:
 
-- **`Age`** is already fairly close to a bell curve. Not perfect, but its Q-Q plot mostly hugs the diagonal line.
-- **`Fare`** is heavily right-skewed. This makes intuitive sense: most Titanic passengers paid a modest fare, while a small handful paid a lot for premium tickets. Its Q-Q plot drifts noticeably away from the line.
+```python
+import matplotlib.pyplot as plt
+import scipy.stats as stats
+
+def plot_distribution_and_qq(df, column):
+    plt.figure(figsize=(12, 4))
+
+    plt.subplot(1, 2, 1)
+    df[column].hist()
+    plt.title(column)
+
+    plt.subplot(1, 2, 2)
+    stats.probplot(df[column], dist='norm', plot=plt)
+
+    plt.show()
+
+plot_distribution_and_qq(X_train, 'Age')
+plot_distribution_and_qq(X_train, 'Fare')
+```
+
+**Output:**
+
+<img src="/images/ch21-age-distribution-qq.png" alt="Histogram and Q-Q plot of the Age column, showing a roughly bell-shaped distribution close to the reference line" className="w-full h-auto rounded-lg my-6" />
+
+<img src="/images/ch21-fare-distribution-qq.png" alt="Histogram and Q-Q plot of the Fare column, showing a heavily right-skewed distribution with a long thin tail" className="w-full h-auto rounded-lg my-6" />
+
+- **`Age`** is already fairly close to a bell curve. Not perfect, its Q-Q plot even shows a flat little plateau in the middle, that's the exact rows where the missing values got filled in with the column mean, all landing on the same value at once, but overall it mostly hugs the diagonal line.
+- **`Fare`** is heavily right-skewed. This makes intuitive sense: most Titanic passengers paid a modest fare, while a small handful paid a lot for premium tickets, visible as the sharp break of dots at the very top of its Q-Q plot. Its Q-Q plot drifts noticeably away from the line, curving below it at the low end and above it at the high end, the classic signature of a right skew.
 
 That difference matters a lot for what comes next.
 
@@ -179,6 +236,17 @@ X_test_transformed2 = trf2.transform(X_test)
 ```
 
 `remainder='passthrough'` keeps `Age` untouched instead of transforming it needlessly. Retraining on this version gives Logistic Regression an even better result than transforming both columns did, since `Age` is no longer being pushed away from a shape it already had.
+
+A Q-Q plot is the easiest way to confirm this visually, comparing `Fare` before and after the log transform:
+
+```python
+plot_distribution_and_qq(X_train, 'Fare')                       # before
+plot_distribution_and_qq(pd.DataFrame(X_train_transformed2, columns=X_train.columns), 'Fare')  # after
+```
+
+<img src="/images/ch21-fare-log-transform-qq.png" alt="Q-Q plot of Fare before and after the log1p transform, showing the points moving noticeably closer to the reference line after the transform" className="w-full h-auto rounded-lg my-8" />
+
+Before the transform, `Fare`'s Q-Q plot curves sharply away from the reference line. After it, the middle of the distribution sits much closer to that diagonal, visual confirmation that the column is genuinely closer to normal, not just that the accuracy number happened to move. The handful of extreme fares at the very top still break away from the line even after the transform, a log doesn't erase outliers entirely, it just shrinks how far they stand out.
 
 ### Step 5: Compare the Other Transforms
 
