@@ -16,6 +16,7 @@ import IpConverter from '../../../components/IpConverter';
 import Mermaid from '../../../components/Mermaid';
 import TcpHeaderTable from '../../../components/TcpHeaderTable';
 import UdpHeaderTable from '../../../components/UdpHeaderTable';
+import MtuMssDiagram from '../../../components/MtuMssDiagram';
 import TableOfContents from '../../../components/TableOfContents';
 import RelatedPosts from '../../../components/RelatedPosts';
 
@@ -122,6 +123,7 @@ export default async function PostPage({
             IpConverter,
             TcpHeaderTable,
             UdpHeaderTable,
+            MtuMssDiagram,
             pre: (props: any) => {
               const child = props.children;
               if (child && child.type === 'code' && child.props.className === 'language-mermaid') {
