@@ -150,7 +150,39 @@ This dataset was picked deliberately because several of its columns are visibly 
 df.isnull().sum()
 ```
 
-No missing values here, which is good, since a transform can't run on missing data. But checking the minimum value of each column turns up something worth noting: `blast furnace slag`, `fly ash`, and `superplasticizer` all have a minimum value of `0`. Nothing is negative, but those zeros will matter once Box-Cox comes into play.
+```
+cement                0
+blast_furnace_slag    0
+fly_ash               0
+water                 0
+superplasticizer      0
+coarse_aggregate      0
+fine_aggregate        0
+age                   0
+strength              0
+dtype: int64
+```
+
+No missing values here, which is good, since a transform can't run on missing data. But checking the minimum value of each column turns up something worth noting:
+
+```python
+df.min()
+```
+
+```
+cement                102.000000
+blast_furnace_slag      0.000000
+fly_ash                 0.000000
+water                 121.750000
+superplasticizer        0.000000
+coarse_aggregate      801.000000
+fine_aggregate        594.000000
+age                     1.000000
+strength                2.331808
+dtype: float64
+```
+
+`blast_furnace_slag`, `fly_ash`, and `superplasticizer` all have a minimum value of `0`. Nothing is negative, but those zeros will matter once Box-Cox comes into play.
 
 ### Step 2: Establish a Baseline
 
