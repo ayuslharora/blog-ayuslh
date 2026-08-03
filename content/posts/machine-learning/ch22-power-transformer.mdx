@@ -207,7 +207,35 @@ The cross-validated score came in a little lower and less stable than the single
 
 ### Step 3: Look at the Distributions
 
-Plotting each input column (leaving out `age` for now) shows a mixed picture. Some columns, like `cement` and `water`, are already reasonably close to a bell shape. Others, like `superplasticizer`, are clearly skewed. The worst offender by far is `age`: a lot of concrete samples are tested young, and a much smaller number are tested very old, so the column is heavily lopsided rather than bell-shaped.
+```python
+cols = ['cement', 'blast_furnace_slag', 'fly_ash', 'water',
+        'superplasticizer', 'coarse_aggregate', 'fine_aggregate']
+
+fig, axes = plt.subplots(2, 4, figsize=(16, 8))
+axes = axes.flatten()
+for i, col in enumerate(cols):
+    axes[i].hist(df[col], bins=25)
+    axes[i].set_title(col)
+axes[7].axis('off')
+plt.tight_layout()
+plt.show()
+```
+
+<img src="/images/ch22-input-distributions.png" alt="Histograms of seven concrete ingredient columns, showing cement and water reasonably close to a bell shape while blast furnace slag, fly ash, and superplasticizer are heavily skewed with a large spike at zero" className="w-full h-auto rounded-lg my-6" />
+
+Plotting each input column (leaving out `age` for now) shows a mixed picture. Some columns, like `cement` and `water`, are already reasonably close to a bell shape. Others, like `superplasticizer`, `blast_furnace_slag`, and `fly_ash`, are clearly skewed, each with a tall spike at `0` and a long tail stretching right.
+
+`age` is skewed enough that it's worth plotting on its own:
+
+```python
+df['age'].hist(bins=30)
+plt.title('age')
+plt.show()
+```
+
+<img src="/images/ch22-age-distribution.png" alt="Histogram of the age column, showing a heavy concentration of young samples and a long thin tail of much older ones" className="w-full h-auto rounded-lg my-6" />
+
+The worst offender by far is `age`: a lot of concrete samples are tested young, and a much smaller number are tested very old, so the column is heavily lopsided rather than bell-shaped. Its skew value backs that up, `df['age'].skew()` comes out to roughly `3.27`, by far the largest of any column here.
 
 > **Outliers were left untouched on purpose.** No outlier removal was done before comparing "with transform" against "without transform". That was intentional: the goal here is to isolate the effect of the transform itself, not mix it with the effect of outlier handling.
 
