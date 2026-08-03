@@ -254,6 +254,30 @@ X_train_transformed = pt.fit_transform(X_train)
 X_test_transformed = pt.transform(X_test)
 ```
 
+Retrain on the transformed data and check a single split first:
+
+```python
+lr.fit(X_train_transformed, y_train)
+lr.score(X_test_transformed, y_test)  # single-split R2, noticeably higher than the untouched baseline
+```
+
+Then confirm it with cross-validation, the same way the baseline was checked in Step 2. Since `PowerTransformer` has to be fit fresh on each cross-validation fold, not just once on `X_train`, it needs to go inside a `Pipeline` so `cross_val_score` can refit it correctly on every fold:
+
+```python
+from sklearn.pipeline import Pipeline
+
+zero_cols = ['blast_furnace_slag', 'fly_ash', 'superplasticizer']
+X_shifted = X.copy()
+X_shifted[zero_cols] = X_shifted[zero_cols] + 0.001
+
+box_cox_pipe = Pipeline([
+    ('power_transform', PowerTransformer(method='box-cox')),
+    ('linear_reg', LinearRegression()),
+])
+
+cross_val_score(box_cox_pipe, X_shifted, y, cv=10, scoring='r2').mean()
+```
+
 Retraining Linear Regression on this transformed data gives a noticeably better R2 score than the untouched baseline, both on a single split and under cross-validation. The improvement isn't dramatic, but it's consistent and real.
 
 ### Step 5: Apply Yeo-Johnson
