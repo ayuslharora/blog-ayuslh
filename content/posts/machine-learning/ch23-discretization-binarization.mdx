@@ -36,42 +36,41 @@ Binning gives you two concrete benefits:
 
 ## Three Categories of Binning
 
-<div className="overflow-x-auto my-8">
-  <table className="w-full text-left border-collapse">
-    <thead>
-      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
-        <th className="py-3 px-4 font-bold">Category</th>
-        <th className="py-3 px-4 font-bold">Technique</th>
-        <th className="py-3 px-4 font-bold">How Bins Are Decided</th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-black/5 dark:divide-white/5">
-      <tr>
-        <td className="py-3 px-4 font-semibold" rowSpan={3}>Unsupervised</td>
-        <td className="py-3 px-4">Equal Width (Uniform)</td>
-        <td className="py-3 px-4">Bins of identical width, based only on the min and max of the column</td>
-      </tr>
-      <tr>
-        <td className="py-3 px-4">Equal Frequency (Quantile)</td>
-        <td className="py-3 px-4">Bins sized so each one holds roughly the same number of rows</td>
-      </tr>
-      <tr>
-        <td className="py-3 px-4">K-Means</td>
-        <td className="py-3 px-4">Bins based on natural clusters found in the data</td>
-      </tr>
-      <tr>
-        <td className="py-3 px-4 font-semibold">Supervised</td>
-        <td className="py-3 px-4">Decision Tree Binning</td>
-        <td className="py-3 px-4">Uses the target column to decide the cut points</td>
-      </tr>
-      <tr>
-        <td className="py-3 px-4 font-semibold">Custom</td>
-        <td className="py-3 px-4">Domain Knowledge Binning</td>
-        <td className="py-3 px-4">You decide the cut points yourself, based on business knowledge</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+```mermaid
+flowchart TD
+    Root["Binning<br>(Discretization)"]
+
+    subgraph Uns ["Unsupervised"]
+        direction TB
+        U1["Equal Width (Uniform)<br><i>Bins of identical width,<br>based only on min &amp; max</i>"]
+        U2["Equal Frequency (Quantile)<br><i>Bins sized so each holds<br>roughly the same row count</i>"]
+        U3["K-Means<br><i>Bins based on natural<br>clusters in the data</i>"]
+    end
+
+    subgraph Sup ["Supervised"]
+        direction TB
+        S1["Decision Tree Binning<br><i>Uses the target column<br>to decide the cut points</i>"]
+    end
+
+    subgraph Cus ["Custom"]
+        direction TB
+        C1["Domain Knowledge Binning<br><i>You decide the cut points<br>yourself, from business knowledge</i>"]
+    end
+
+    Root --> Uns
+    Root --> Sup
+    Root --> Cus
+
+    style Root fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style Uns fill:#0f172a,stroke:#3f3f46,color:#fff
+    style Sup fill:#0f172a,stroke:#3f3f46,color:#fff
+    style Cus fill:#0f172a,stroke:#3f3f46,color:#fff
+    style U1 fill:#1e3a5f,stroke:#60a5fa,color:#fff
+    style U2 fill:#1e3a5f,stroke:#60a5fa,color:#fff
+    style U3 fill:#1e3a5f,stroke:#60a5fa,color:#fff
+    style S1 fill:#14532d,stroke:#86efac,color:#fff
+    style C1 fill:#7c2d12,stroke:#fdba74,color:#fff
+```
 
 This post focuses on the three unsupervised techniques, plus a quick look at custom binning. Decision Tree binning uses the target column to pick cut points, which is a big enough topic to deserve its own dedicated post later.
 
