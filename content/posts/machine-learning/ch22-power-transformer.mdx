@@ -329,7 +329,40 @@ Each number lines up with one input column, in order. A lambda close to `1` mean
 
 ### Step 7: Compare the Distributions Visually
 
-Plotting each column's distribution before and after the transform makes the effect obvious. `age`, the worst-skewed column going in, comes out looking dramatically more like a bell curve. Columns that were already close to normal, like `cement` and `water`, barely change, which makes sense: there wasn't much left to fix. `superplasticizer` shows a moderate improvement. `coarse aggregate` and `fine aggregate`, which were reasonably well-behaved to begin with, stay about the same.
+```python
+X_train_t2_df = pd.DataFrame(X_train_transformed2, columns=X_train.columns)
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+axes[0].hist(X_train['age'], bins=30)
+axes[0].set_title('age: before')
+axes[1].hist(X_train_t2_df['age'], bins=30)
+axes[1].set_title('age: after Yeo-Johnson')
+plt.tight_layout()
+plt.show()
+```
+
+<img src="/images/ch22-age-before-after.png" alt="Histogram of age before and after the Yeo-Johnson transform, showing the heavily right-skewed original distribution reshaped into something far closer to a bell curve" className="w-full h-auto rounded-lg my-6" />
+
+`age`, the worst-skewed column going in, comes out looking dramatically more like a bell curve. The long thin tail of old samples is gone, replaced by a distribution that actually spreads out on both sides of its center.
+
+The same before/after comparison for the rest of the columns:
+
+```python
+cols = ['cement', 'water', 'superplasticizer', 'coarse_aggregate', 'fine_aggregate']
+
+fig, axes = plt.subplots(len(cols), 2, figsize=(9, 3 * len(cols)))
+for i, col in enumerate(cols):
+    axes[i, 0].hist(X_train[col], bins=25)
+    axes[i, 0].set_title(f'{col}: before')
+    axes[i, 1].hist(X_train_t2_df[col], bins=25)
+    axes[i, 1].set_title(f'{col}: after Yeo-Johnson')
+plt.tight_layout()
+plt.show()
+```
+
+<img src="/images/ch22-other-columns-before-after.png" alt="Before and after histograms for cement, water, superplasticizer, coarse aggregate, and fine aggregate, showing varying degrees of improvement after the Yeo-Johnson transform" className="w-full h-auto rounded-lg my-6" />
+
+Columns that were already close to normal, like `cement` and `water`, barely change shape, which makes sense: there wasn't much left to fix, `PowerTransformer` mostly just rescales them. `superplasticizer` shows a moderate improvement: the spike of zero-valued rows is still there (a transform can't erase that many identical values), but the rest of the distribution spreads out more evenly instead of trailing off in one long tail. `coarse_aggregate` and `fine_aggregate`, which were reasonably well-behaved to begin with, stay about the same shape, just rescaled to a standardized range.
 
 ---
 
