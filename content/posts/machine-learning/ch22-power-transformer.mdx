@@ -302,7 +302,30 @@ Every column gets fit with its own lambda, and it's worth looking at what the tr
 pt2.lambdas_
 ```
 
-Each number in this list lines up with one input column, in order. A lambda close to `1` means "barely any change was needed", while a lambda far from `1` (closer to `0`, or negative) means that column needed a much stronger reshaping to look normal. In this dataset, columns like `cement` came out with a lambda not too far from typical log-like values, while the more heavily skewed columns needed a more aggressive adjustment.
+```
+array([ 0.17428121,  0.01571083, -0.16144864,  0.7725385 ,  0.25361555,
+        1.12996936,  1.78299001,  0.0198852 ])
+```
+
+Lining these up against `X_train.columns` makes them easier to read:
+
+```python
+pd.Series(pt2.lambdas_, index=X_train.columns)
+```
+
+```
+cement                0.174281
+blast_furnace_slag    0.015711
+fly_ash              -0.161449
+water                 0.772538
+superplasticizer      0.253616
+coarse_aggregate      1.129969
+fine_aggregate        1.782990
+age                   0.019885
+dtype: float64
+```
+
+Each number lines up with one input column, in order. A lambda close to `1` means "barely any change was needed", while a lambda far from `1` (closer to `0`, or negative) means that column needed a much stronger reshaping to look normal. That tracks with what Step 3 already showed: `coarse_aggregate` (`1.13`) and `water` (`0.77`) were already close to normal and got lambdas near `1`, while `age` (`0.02`) and `fly_ash` (`-0.16`), the most visibly skewed columns, got pulled down toward the log-like end of the scale to fix that.
 
 ### Step 7: Compare the Distributions Visually
 
