@@ -253,6 +253,41 @@ Sometimes the best bin edges aren't statistical at all, they come from what you 
 
 There's no ready-made scikit-learn class for this. You define the bin edges yourself, typically with `pandas.cut()` or a small custom function, rather than reaching for `KBinsDiscretizer`.
 
+```python
+import pandas as pd
+
+bins = [0, 18, 60, 100]
+labels = ['Child', 'Working Age', 'Retirement']
+df['AgeGroup'] = pd.cut(df['Age'], bins=bins, labels=labels)
+
+df[['Age', 'AgeGroup']].sample(5, random_state=42)
+```
+
+```text
+      Age     AgeGroup
+149  42.0  Working Age
+407   3.0        Child
+53   29.0  Working Age
+369  24.0  Working Age
+818  43.0  Working Age
+```
+
+`bins` gives the cut points and `labels` names each resulting interval, `Age` values from `0` up to (and including) `18` fall into `Child`, `18` to `60` into `Working Age`, and `60` to `100` into `Retirement`. `pandas.cut()` bins are left-open/right-closed by default, so a value sitting exactly on a cut point like `18` lands in the lower bin, not the upper one.
+
+```python
+df['AgeGroup'].value_counts()
+```
+
+```text
+AgeGroup
+Working Age    553
+Child          139
+Retirement      22
+Name: count, dtype: int64
+```
+
+On the real Titanic `Age` column this produces a heavily lopsided split, most passengers land in `Working Age`, which is exactly the kind of thing to check after any custom binning: if one bucket swallows almost all the data, the cut points probably need adjusting for the dataset at hand.
+
 ---
 
 ## Binarization
