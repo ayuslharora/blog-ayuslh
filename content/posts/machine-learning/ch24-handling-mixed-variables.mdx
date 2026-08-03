@@ -30,7 +30,7 @@ flowchart TD
     Ex2["Example: family_count column<br>where solo travelers are 'Alone'<br>instead of 0"]
 
     Fix1["Fix: extract two new columns<br>with regex / string slicing"]
-    Fix2["Fix: split rows into two new columns<br>with pd.to_numeric + np.where"]
+    Fix2["Fix: route each row into one of<br>two new columns with pd.to_numeric + np.where"]
 
     Root --> T1 --> Ex1 --> Fix1
     Root --> T2 --> Ex2 --> Fix2
