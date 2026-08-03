@@ -119,7 +119,17 @@ K-Means works like this:
 3. Move each centroid to the actual mean position of the points assigned to it.
 4. Repeat steps 2 and 3. Points get reassigned to whichever centroid is now closest, centroids shift again, and this continues until nothing changes anymore.
 
-Once it settles, each centroid represents one bin, and every point belongs to the bin of its nearest centroid.
+Once it settles, each centroid represents one bin, and every point belongs to the bin of its nearest centroid. The bin edges themselves fall at the midpoint between each pair of neighboring centroids.
+
+Here's that process on a synthetic column with three natural clumps of values (150, 400, and 100 points respectively, with real gaps between them): three centroids are dropped in randomly, then K-Means reassigns points and slides the centroids to the mean of their group until nothing moves anymore.
+
+<img src="/images/ch23-kmeans-binning-steps.png" alt="Two scatter panels: the first shows three randomly placed centroids over a column of clustered data, the second shows the converged centroids after K-Means, colored by cluster, with dotted bin-edge lines sitting in the gaps between clusters" className="w-full h-auto rounded-lg my-6" />
+
+Notice where the final dotted bin-edge lines land: right in the empty gaps between clusters, not through the middle of any of them. That's the key difference from Equal Width or Quantile binning, which don't know anything about where the data actually clusters:
+
+<img src="/images/ch23-binning-strategy-comparison.png" alt="Three stacked histograms of the same clustered column, each with a different binning strategy's edges overlaid: Equal Width and Quantile both cut an edge through the middle cluster, while K-Means places both edges cleanly in the gaps between clusters" className="w-full h-auto rounded-lg my-6" />
+
+Equal Width slices a bin edge straight through the middle cluster because it only looks at min and max, it has no idea that a cluster boundary sits nearby. Quantile does a little better but still drops both of its edges inside that same middle cluster, since it's just chasing an equal row count per bin and that cluster happens to hold most of the data. K-Means is the only one of the three that actually looks at the shape of the data and lands its edges in the natural gaps, which is exactly why it's the strategy to reach for when a column looks clustered rather than smoothly spread out.
 
 K-Means binning is most useful when your data naturally clumps into groups, with visible gaps between clusters rather than one smooth spread. If the data doesn't have that clustered shape, Equal Width or Quantile binning generally does a fine job on their own.
 
@@ -159,7 +169,35 @@ from sklearn.preprocessing import KBinsDiscretizer
 
 kbin = KBinsDiscretizer(n_bins=10, encode='ordinal', strategy='quantile')
 X_train_binned = kbin.fit_transform(X_train[['Age', 'Fare']])
+
+X_train[['Age', 'Fare']].sample(5, random_state=42)
 ```
+
+```text
+      Age     Fare
+254  41.0  20.2125
+278   7.0  29.1250
+869   4.0  11.1333
+539  22.0  49.5000
+391  21.0   7.7958
+```
+
+```python
+import pandas as pd
+
+pd.DataFrame(X_train_binned, columns=['Age', 'Fare'], index=X_train.index).sample(5, random_state=42)
+```
+
+```text
+     Age  Fare
+254  7.0   5.0
+278  0.0   7.0
+869  0.0   3.0
+539  3.0   7.0
+391  2.0   1.0
+```
+
+Same five rows, before and after. `Age` and `Fare` go from raw continuous values to a bin index between `0` and `9`. Row 254, for instance, had an `Age` of `41.0`, one of the older passengers in the training set, and it landed in bin `7`, near the top end of the 10 age bins.
 
 `encode='ordinal'` is the more common choice: each row gets a single integer telling you which bin it landed in (`0`, `1`, `2`, ...), rather than expanding into a full set of one-hot columns.
 
