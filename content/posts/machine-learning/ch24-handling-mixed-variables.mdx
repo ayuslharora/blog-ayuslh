@@ -197,13 +197,39 @@ df['Ticket'].sample(10, random_state=5).tolist()
  '347077', '111361', '315088']
 ```
 
-Some tickets are pure numbers. Others have a category prefix glued onto a number (`'STON/O 2. 3101273'`). There's no fixed pattern like "first letter, then digits", the prefix can be almost any length. The same two-column idea still applies, just with a slightly more careful regex:
+Some tickets are pure numbers. Others have a category prefix glued onto a number (`'STON/O 2. 3101273'`). There's no fixed pattern like "first letter, then digits", the prefix can be almost any length. The same two-column idea still applies, just with a slightly more careful regex.
+
+Before looking at the full code, it helps to know what the regex pattern `\d+$` actually means, since it's doing most of the work:
+
+- **`\d`** means "a digit" (any single character `0`-`9`).
+- **`+`** means "one or more of whatever came right before it", so `\d+` means "one or more digits in a row", i.e. a whole number.
+- **`$`** anchors the match to the **end** of the string. Without it, `\d+` would grab the *first* run of digits it finds, which breaks on something like `'STON/O 2. 3101273'` (it would stop at the `2` in `O 2.` instead of the real ticket number at the end).
+
+So `\d+$` reads as: "the run of digits sitting at the very end of the string." That's exactly the ticket number, since every ticket, whatever comes before it, always ends in the number.
+
+With that in mind, here's what each line of the code does, one at a time, using `'STON/O 2. 3101273'` as the running example:
 
 ```python
 df['ticket_num'] = df['Ticket'].str.extract(r'(\d+)$')
-ticket_cat_raw = df['Ticket'].str.replace(r'(\d+)$', '', regex=True).str.strip()
-df['ticket_cat'] = ticket_cat_raw.replace('', 'NONE')
+```
 
+This pulls out just that trailing number and puts it in a new column. For `'STON/O 2. 3101273'`, `ticket_num` becomes `'3101273'`.
+
+```python
+ticket_cat_raw = df['Ticket'].str.replace(r'(\d+)$', '', regex=True).str.strip()
+```
+
+This does the opposite: it finds that same trailing number and deletes it (`.str.replace(..., '')`), leaving whatever text came before it. `.str.strip()` then trims any leftover space at the end. For `'STON/O 2. 3101273'`, that leaves `'STON/O 2.'`. For a ticket that was pure digits like `'370372'`, deleting the number leaves nothing, an empty string `''`.
+
+```python
+df['ticket_cat'] = ticket_cat_raw.replace('', 'NONE')
+```
+
+Those empty strings from pure-numeric tickets get relabeled `'NONE'` here, so the category column always has something readable in it instead of a blank.
+
+Running all three lines and sampling the results:
+
+```python
 df[['Ticket', 'ticket_num', 'ticket_cat']].sample(10, random_state=5)
 ```
 
@@ -221,7 +247,7 @@ df[['Ticket', 'ticket_num', 'ticket_cat']].sample(10, random_state=5)
 349             315088     315088       NONE
 ```
 
-`r'(\d+)$'` anchors the digit capture to the **end** of the string, since the number always comes last, whatever precedes it (if anything) is the category. Stripping that trailing number out and trimming whitespace leaves the prefix behind; tickets that were pure numbers end up with an empty prefix, which gets relabeled `'NONE'` rather than left blank.
+Row `590` is the one worth checking by hand: `'STON/O 2. 3101273'` splits into `ticket_num = '3101273'` (the trailing number) and `ticket_cat = 'STON/O 2.'` (everything before it, trimmed). Every other row here was a plain number to begin with, so it has no real prefix, `ticket_num` just repeats the whole value, and `ticket_cat` falls back to `'NONE'`.
 
 The payoff is a large drop in cardinality:
 
