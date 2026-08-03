@@ -326,6 +326,19 @@ X_test.drop(columns=['SibSp', 'Parch'], inplace=True)
 `Family` being `0` means nobody else in that count is aboard, the passenger is traveling alone. Any value greater than `0` means at least one family member is aboard. That's a perfect fit for binarization with a threshold of `0`:
 
 ```python
+X_train[['Age', 'Fare', 'Family']].sample(5, random_state=42)
+```
+
+```text
+      Age     Fare  Family
+254  41.0  20.2125       2
+278   7.0  29.1250       5
+869   4.0  11.1333       2
+539  22.0  49.5000       2
+391  21.0   7.7958       0
+```
+
+```python
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import Binarizer
 
@@ -335,7 +348,20 @@ trf = ColumnTransformer([
 
 X_train_trf = trf.fit_transform(X_train)
 X_test_trf = trf.transform(X_test)
+
+pd.DataFrame(X_train_trf, columns=trf.get_feature_names_out(), index=X_train.index).sample(5, random_state=42)
 ```
+
+```text
+     bin_family__Family  remainder__Age  remainder__Fare
+254                 1.0            41.0          20.2125
+278                 1.0             7.0          29.1250
+869                 1.0             4.0          11.1333
+539                 1.0            22.0          49.5000
+391                 0.0            21.0           7.7958
+```
+
+Same five rows as before. Row 391, which had a `Family` count of `0`, comes out as `0` after binarizing, meaning they're traveling alone. Every other row here had a `Family` count of `2` or more, so they all collapse to `1`. The verbose `bin_family__Family` / `remainder__Age` column names come straight from `ColumnTransformer`'s own naming scheme, prefixing each column with the name of the transformer step that produced it.
 
 After this runs, `Family` is no longer a raw headcount, it's a clean `0`/`1` flag for "traveling alone or not." Retraining the Decision Tree on this version gave accuracy in roughly the same range as before, another reminder that not every transformation moves the needle on every dataset. The value of Binarization here isn't a guaranteed accuracy jump, it's turning a slightly awkward numerical column into a feature that's easier for the model, and for a human reading the code later, to reason about.
 
