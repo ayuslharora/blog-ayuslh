@@ -18,6 +18,7 @@ export type PostMeta = {
   tags: string[];
   draft: boolean;
   source?: PostSource;
+  subtopic?: string;
 };
 
 export type Post = PostMeta & { content: string };
@@ -61,6 +62,7 @@ function parsePost(series: string, slug: string, raw: string): Post {
     tags: data.tags ?? [],
     draft: data.draft ?? false,
     source: data.source ?? undefined,
+    subtopic: data.subtopic ?? undefined,
     content: content.trim(),
   };
 }

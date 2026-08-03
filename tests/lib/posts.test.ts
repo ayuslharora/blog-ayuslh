@@ -10,6 +10,7 @@ describe('getAllPosts', () => {
     expect(posts.map((p) => p.slug)).toEqual([
       'ch4-leading-blank-line',
       'ch1-only-post',
+      'ch5-with-subtopic',
       'ch2-second-post',
       'ch1-first-post',
     ]);
@@ -31,6 +32,7 @@ describe('getPostsBySeries', () => {
       'ch1-first-post',
       'ch2-second-post',
       'ch4-leading-blank-line',
+      'ch5-with-subtopic',
     ]);
   });
 
@@ -62,6 +64,20 @@ describe('getPostBySlug', () => {
 describe('getAllSeries', () => {
   it('returns unique series names sorted alphabetically', () => {
     expect(getAllSeries(FIXTURES)).toEqual(['seriesa', 'seriesb']);
+  });
+});
+
+describe('subtopic field', () => {
+  it('parses the subtopic field when present', () => {
+    const posts = getPostsBySeries('seriesa', FIXTURES);
+    const post = posts.find((p) => p.slug === 'ch5-with-subtopic');
+    expect(post?.subtopic).toBe('Testing Subtopics');
+  });
+
+  it('is undefined when the frontmatter has no subtopic field', () => {
+    const posts = getPostsBySeries('seriesa', FIXTURES);
+    const post = posts.find((p) => p.slug === 'ch1-first-post');
+    expect(post?.subtopic).toBeUndefined();
   });
 });
 
