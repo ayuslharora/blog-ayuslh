@@ -123,9 +123,21 @@ With cwnd starting at 128 (having just switched over from Slow Start), and 128 t
 | 64th | ~128.48 | + 1/128 | 128.5 |
 | 128th | ~128.99 | + 1/128 | **129** |
 
+> **Note:** TCP can only ever send whole bytes/segments, never a fractional one, so `cwnd` values like `128.015` aren't literally usable as-is. In real implementations, cwnd is tracked internally as a byte count plus an accumulating fraction; the sender only gains one additional MSS of sending capacity once that internal fraction has accumulated enough to round up to a full segment. The fractional values above are the conceptual math behind that gradual growth, not bytes TCP actually puts on the wire.
+
 It takes all 128 ACKs, a full round trip's worth of acknowledgments, for cwnd to climb by just 1 MSS, from 128 to 129. Compare that to what Slow Start would have done with the same 128 ACKs in one round trip: `cwnd + 128 = 256`, almost double. That contrast is the entire point of Congestion Avoidance: it deliberately trades speed for caution once the network is already carrying a substantial load, growing the window "just enough" to probe for more capacity without aggressively flooding the path.
 
-TCP uses both algorithms, just at different times: Slow Start to ramp up quickly from a cold start, then Congestion Avoidance to creep upward more carefully once there's real traffic to be careful about.
+TCP uses both algorithms, just at different times: Slow Start to ramp up quickly from a cold start, then Congestion Avoidance to creep upward more carefully once there's real traffic to be careful about. Plotting cwnd against round trips makes the handoff obvious: a sharp exponential curve up to `ssthresh`, followed by a near-flat linear climb after it.
+
+```mermaid
+xychart-beta
+    title "cwnd growth: Slow Start vs. Congestion Avoidance"
+    x-axis ["RTT 0", "RTT 1", "RTT 2", "RTT 3", "RTT 4", "RTT 5", "RTT 6", "RTT 7", "RTT 8"]
+    y-axis "cwnd (bytes)" 0 --> 133
+    line [1, 2, 4, 8, 16, 32, 64, 128, 129]
+```
+
+Everything up to `RTT 7` (cwnd = 128, hitting `ssthresh`) is Slow Start's exponential doubling; the crawl from 128 to 129 that takes an entire additional round trip is Congestion Avoidance already taking over.
 
 ---
 
