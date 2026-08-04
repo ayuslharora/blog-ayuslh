@@ -233,6 +233,8 @@ If instead that same 800-byte congestion window experiences a **timeout**:
 
 A timeout is treated as a serious problem, so TCP doesn't just back off, it restarts from the very beginning with **Slow Start**, climbing exponentially again from cwnd = 1. The difference from a fresh connection is that `ssthresh` is no longer at its original value, it's now 400, so this time Slow Start only runs until cwnd reaches 400 (instead of the original 128) before switching over to Congestion Avoidance.
 
+> **Note:** The new `ssthresh` isn't always lower than the old one, it's simply `cwnd / 2` at the moment congestion is detected, so whether it ends up higher or lower than the previous `ssthresh` depends entirely on how large `cwnd` had grown by that point. In this walkthrough, the original `ssthresh` was deliberately set low (128 MSS) for the sake of demonstrating the Slow Start -> Congestion Avoidance switch early. Congestion didn't actually hit until `cwnd` had climbed to 800 MSS, well past that original threshold, so the recalculated `ssthresh` (400) ends up *higher* than the original 128, not lower.
+
 | Detection method | Severity | New ssthresh | New cwnd | Algorithm after |
 |---|---|---|---|---|
 | Triple duplicate ACK | Mild | cwnd / 2 | cwnd / 2 | Congestion Avoidance (continues) |
