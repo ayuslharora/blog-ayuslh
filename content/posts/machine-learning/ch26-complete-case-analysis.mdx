@@ -117,12 +117,19 @@ dtype: float64
 
 Four columns are well past the 5% line: `company_type` (32%), `company_size` (31%), `gender` (23.5%), and `major_discipline` (14.7%). CCA on any of those would mean losing a fifth to a third of the entire dataset, and that's before accounting for whatever other columns are *also* missing in the surviving rows. Those columns are not CCA candidates.
 
-Five columns sit comfortably under 5%: `training_hours` (4.0%), `city_development_index` (2.5%), `education_level` (2.4%), `enrolled_university` (2.0%), and `experience` (0.3%). Those five are what this post applies CCA to.
+Five columns sit comfortably under 5%: `training_hours` (4.0%), `city_development_index` (2.5%), `education_level` (2.4%), `enrolled_university` (2.0%), and `experience` (0.3%). Those five are what this post applies CCA to, picked out with a list comprehension instead of typing the names by hand, so the same line still works if the dataset's columns change:
 
 ```python
-cols = ['training_hours', 'city_development_index', 'education_level',
-        'enrolled_university', 'experience']
+cols = [col for col in df.columns if 0 < df[col].isnull().mean() < 0.05]
+cols
+```
 
+```text
+['city_development_index', 'enrolled_university', 'education_level',
+ 'experience', 'training_hours']
+```
+
+```python
 new_df = df[cols].dropna()
 ```
 
