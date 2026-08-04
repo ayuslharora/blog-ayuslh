@@ -224,6 +224,16 @@ Say cwnd had grown to 800 bytes (still using the 1-byte-segment simplification, 
 
 Because this isn't a severe problem, just one lost segment or an early warning, TCP doesn't restart from scratch. It halves cwnd, sets the new ssthresh to that same halved value, and **skips Slow Start entirely**, continuing directly with Congestion Avoidance from 400. For the ECN case specifically, the sender also sends `CWR = 1` on its next outgoing segment to confirm the reduction back to the receiver.
 
+```mermaid
+xychart-beta
+    title "cwnd after Triple Duplicate ACK / ECN: a shallow V"
+    x-axis ["RTT 0", "RTT 1", "RTT 2", "RTT 3", "RTT 4", "RTT 5", "RTT 6", "RTT 7", "Congestion (800)", "New ssthresh (400)", "RTT +1", "RTT +2"]
+    y-axis "cwnd (bytes)" 0 --> 800
+    line [1, 2, 4, 8, 16, 32, 64, 128, 800, 400, 420, 440]
+```
+
+Notice the shape: cwnd only drops halfway, to 400, and immediately resumes climbing from there with Congestion Avoidance's gentle linear growth. It never touches Slow Start again.
+
 ### Retransmission timeout: start over
 
 If instead that same 800-byte congestion window experiences a **timeout**:
@@ -234,6 +244,16 @@ If instead that same 800-byte congestion window experiences a **timeout**:
 A timeout is treated as a serious problem, so TCP doesn't just back off, it restarts from the very beginning with **Slow Start**, climbing exponentially again from cwnd = 1. The difference from a fresh connection is that `ssthresh` is no longer at its original value, it's now 400, so this time Slow Start only runs until cwnd reaches 400 (instead of the original 128) before switching over to Congestion Avoidance.
 
 > **Note:** The new `ssthresh` isn't always lower than the old one, it's simply `cwnd / 2` at the moment congestion is detected, so whether it ends up higher or lower than the previous `ssthresh` depends entirely on how large `cwnd` had grown by that point. In this walkthrough, the original `ssthresh` was deliberately set low (128 MSS) for the sake of demonstrating the Slow Start -> Congestion Avoidance switch early. Congestion didn't actually hit until `cwnd` had climbed to 800 MSS, well past that original threshold, so the recalculated `ssthresh` (400) ends up *higher* than the original 128, not lower.
+
+```mermaid
+xychart-beta
+    title "cwnd after Retransmission Timeout: a deep U"
+    x-axis ["RTT 0", "RTT 1", "RTT 2", "RTT 3", "RTT 4", "RTT 5", "RTT 6", "RTT 7", "Timeout (800->1)", "RTT +1", "RTT +2", "RTT +3", "RTT +4", "RTT +5", "RTT +6", "RTT +7", "New ssthresh (400)"]
+    y-axis "cwnd (bytes)" 0 --> 800
+    line [1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128, 400]
+```
+
+Compare the shape to the triple-duplicate-ACK/ECN case above: instead of a shallow dip to half, cwnd crashes all the way down to 1 MSS and has to climb the entire exponential Slow Start curve over again, this time stopping at the new ssthresh of 400 (instead of the original 128) before handing off to Congestion Avoidance.
 
 | Detection method | Severity | New ssthresh | New cwnd | Algorithm after |
 |---|---|---|---|---|
