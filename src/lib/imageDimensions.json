@@ -1,4 +1,12 @@
 {
+  "/images/ch27-mean-median-distribution.png": {
+    "width": 1950,
+    "height": 825
+  },
+  "/images/ch27-variance-comparison.png": {
+    "width": 1500,
+    "height": 900
+  },
   "/images/batch-vs-online-learning.png": {
     "width": 1650,
     "height": 970
