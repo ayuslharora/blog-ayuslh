@@ -56,7 +56,7 @@ flowchart LR
     SalaryDom --> Result["Salary completely dwarfs Age!<br/>Model behaves as if Age does not exist."]
 ```
 
-<img src="/images/ch15-distance-term-dominance.png" alt="Bar chart on a log scale comparing the squared Age term (400) against the squared Salary term (3.6 billion)" className="w-full h-auto" />
+<MdxImage src="/images/ch15-distance-term-dominance.png" alt="Bar chart on a log scale comparing the squared Age term (400) against the squared Salary term (3.6 billion)" className="w-full h-auto" />
 
 Because the salary difference is measured in tens of thousands while age difference is measured in tens, the distance calculation is entirely dominated by salary. The model effectively ignores age during nearest-neighbor evaluation.
 
@@ -241,11 +241,11 @@ flowchart LR
 
 1. **Scatter Plot**: The relative positions of data points in a scatter plot before and after scaling are identical. Only the coordinate numbers on the X and Y axes change.
 
-<img src="/images/ch15-scatter-before-after.png" alt="Side-by-side scatter plots of Age versus Salary before and after standardization, showing the identical point layout on different axis scales" className="w-full h-auto" />
+<MdxImage src="/images/ch15-scatter-before-after.png" alt="Side-by-side scatter plots of Age versus Salary before and after standardization, showing the identical point layout on different axis scales" className="w-full h-auto" />
 
 2. **Distribution PDF Plot**: Before scaling, plotting `Age` (0-60) and `Salary` (15k-150k) on the same density plot produces a distorted chart where `Age` appears as a sharp spike and `Salary` looks completely flat. After standardization, both KDE curves share a common X-axis range (-3 to +3), allowing direct visual comparison of feature distributions.
 
-<img src="/images/ch15-kde-before-after.png" alt="KDE density plots of Age and Salary before scaling, where Age is flattened by Salary's scale, and after scaling, where both distributions share a common range" className="w-full h-auto" />
+<MdxImage src="/images/ch15-kde-before-after.png" alt="KDE density plots of Age and Salary before scaling, where Age is flattened by Salary's scale, and after scaling, where both distributions share a common range" className="w-full h-auto" />
 
 ---
 
@@ -304,7 +304,7 @@ print("Decision Tree Accuracy WITH Standardization:", accuracy_score(y_test, pre
 
 Decision Trees show **zero difference** in accuracy! Tree-based algorithms evaluate axis-aligned threshold splits sequentially (for example, `Age > 35` vs `Age_scaled > -0.28`). Monotonic feature scaling does not alter split ordering or tree structure.
 
-<img src="/images/ch15-accuracy-comparison.png" alt="Grouped bar chart comparing Logistic Regression and Decision Tree accuracy with and without standardization" className="w-full h-auto" />
+<MdxImage src="/images/ch15-accuracy-comparison.png" alt="Grouped bar chart comparing Logistic Regression and Decision Tree accuracy with and without standardization" className="w-full h-auto" />
 
 ---
 
@@ -321,7 +321,7 @@ flowchart LR
     OutlierScaled --> Conclusion["Outlier remains an outlier!<br/>Standardization does NOT remove outliers."]
 ```
 
-<img src="/images/ch15-outlier-standardization.png" alt="Scatter plots showing a salary outlier at $350,000 before scaling and its still-extreme scaled position after standardization" className="w-full h-auto" />
+<MdxImage src="/images/ch15-outlier-standardization.png" alt="Scatter plots showing a salary outlier at $350,000 before scaling and its still-extreme scaled position after standardization" className="w-full h-auto" />
 
 Because mean μ and standard deviation σ are themselves highly sensitive to outliers, extreme values distort both μ and σ. If your dataset contains prominent outliers, consider using `RobustScaler` (which uses Median and Interquartile Range) or handle outliers prior to scaling.
 

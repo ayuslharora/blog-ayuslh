@@ -11,6 +11,7 @@ import { buildBlogPostingJsonLd, serializeJsonLd } from '../../../lib/jsonLd';
 import ChatWidget from '../../../components/ChatWidget';
 import IpConverter from '../../../components/IpConverter';
 import Mermaid from '../../../components/Mermaid';
+import MdxImage from '../../../components/MdxImage';
 
 export const dynamicParams = false;
 
@@ -123,6 +124,8 @@ export default async function TilPostPage({
           options={{ mdxOptions: { rehypePlugins: [rehypeSlug] } }}
           components={{
             IpConverter,
+            img: MdxImage,
+            MdxImage,
             pre: (props: any) => {
               const child = props.children;
               if (child && child.type === 'code' && child.props.className === 'language-mermaid') {

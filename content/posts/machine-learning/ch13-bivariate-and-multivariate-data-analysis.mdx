@@ -77,7 +77,7 @@ plt.ylabel("Tip ($)")
 plt.show()
 ```
 
-<img src="/images/ch13-scatter-bill-tip.png" alt="Scatter plot of total bill versus tip amount" className="w-full h-auto" />
+<MdxImage src="/images/ch13-scatter-bill-tip.png" alt="Scatter plot of total bill versus tip amount" className="w-full h-auto" />
 
 #### Key Observation:
 The plot reveals a clear **positive linear relationship**: as `total_bill` increases, `tip` increases proportionally. Higher bills generally lead to higher tips.
@@ -99,7 +99,7 @@ plt.title("Multivariate Analysis of Restaurant Tipping Behavior")
 plt.show()
 ```
 
-<img src="/images/ch13-scatter-multivariate.png" alt="Scatter plot encoding total bill, tip, gender, smoker status, and party size" className="w-full h-auto" />
+<MdxImage src="/images/ch13-scatter-multivariate.png" alt="Scatter plot encoding total bill, tip, gender, smoker status, and party size" className="w-full h-auto" />
 
 ```mermaid
 flowchart LR
@@ -134,7 +134,7 @@ plt.ylabel("Total Passengers")
 plt.show()
 ```
 
-<img src="/images/ch13-lineplot-flights.png" alt="Line plot of annual US airline passenger volume from 1949 to 1960" className="w-full h-auto" />
+<MdxImage src="/images/ch13-lineplot-flights.png" alt="Line plot of annual US airline passenger volume from 1949 to 1960" className="w-full h-auto" />
 
 #### Key Observation:
 Line plots clearly highlight continuous temporal trends, demonstrating steady linear growth in commercial air travel throughout the 1950s.
@@ -154,7 +154,7 @@ sns.pairplot(iris, hue='species')
 plt.show()
 ```
 
-<img src="/images/ch13-pairplot-iris.png" alt="Pair plot grid of Iris features color-coded by species" className="w-full h-auto" />
+<MdxImage src="/images/ch13-pairplot-iris.png" alt="Pair plot grid of Iris features color-coded by species" className="w-full h-auto" />
 
 #### Grid Anatomy of a Pair Plot:
 * **Off-Diagonal Cells**: Display bivariate scatter plots comparing feature row `i` against feature column `j`.
@@ -183,7 +183,7 @@ plt.ylabel("Average Age")
 plt.show()
 ```
 
-<img src="/images/ch13-barplot-pclass-age.png" alt="Bar plot of average passenger age across ticket classes with confidence interval error bars" className="w-full h-auto" />
+<MdxImage src="/images/ch13-barplot-pclass-age.png" alt="Bar plot of average passenger age across ticket classes with confidence interval error bars" className="w-full h-auto" />
 
 #### Understanding Bar Plot Error Bars:
 The thin vertical black lines at the top of each bar represent **Confidence Intervals** (or standard error). They indicate the statistical uncertainty surrounding the calculated mean.
@@ -198,7 +198,7 @@ plt.title("Average Ticket Fare by Class and Gender")
 plt.show()
 ```
 
-<img src="/images/ch13-barplot-pclass-fare-sex.png" alt="Bar plot of average ticket fare by passenger class, split by gender" className="w-full h-auto" />
+<MdxImage src="/images/ch13-barplot-pclass-fare-sex.png" alt="Bar plot of average ticket fare by passenger class, split by gender" className="w-full h-auto" />
 
 #### Key Insights:
 * Passengers in Class 1 paid a drastically higher average fare (~$80+) compared to Class 2 (~$20) and Class 3 (~$13).
@@ -217,7 +217,7 @@ plt.ylabel("Age")
 plt.show()
 ```
 
-<img src="/images/ch13-boxplot-sex-age-survived.png" alt="Box plot of age distribution split by gender and survival status" className="w-full h-auto" />
+<MdxImage src="/images/ch13-boxplot-sex-age-survived.png" alt="Box plot of age distribution split by gender and survival status" className="w-full h-auto" />
 
 #### Key Insights:
 * **Male Passengers**: Surviving males recorded a lower median age than non-surviving males, illustrating that young boys were given priority in lifeboats ("women and children first").
@@ -239,7 +239,7 @@ plt.legend()
 plt.show()
 ```
 
-<img src="/images/ch13-kde-survival-overlay.png" alt="Overlaid KDE curves of age probability density for survived versus died passengers" className="w-full h-auto" />
+<MdxImage src="/images/ch13-kde-survival-overlay.png" alt="Overlaid KDE curves of age probability density for survived versus died passengers" className="w-full h-auto" />
 
 ```mermaid
 flowchart LR
@@ -288,7 +288,7 @@ plt.ylabel("Passenger Class")
 plt.show()
 ```
 
-<img src="/images/ch13-heatmap-crosstab.png" alt="Heatmap of passenger class versus survival count" className="w-full h-auto" />
+<MdxImage src="/images/ch13-heatmap-crosstab.png" alt="Heatmap of passenger class versus survival count" className="w-full h-auto" />
 
 #### Normalizing Contingency Tables to Percentages:
 Raw counts can be misleading if category sample sizes are unbalanced. Normalizing by rows computes exact survival percentages per class:
@@ -320,7 +320,7 @@ plt.title("Hierarchical Clustering of Monthly Flight Volumes")
 plt.show()
 ```
 
-<img src="/images/ch13-clustermap-flights.png" alt="Cluster map of monthly flight volumes with hierarchical clustering dendrograms" className="w-full h-auto" />
+<MdxImage src="/images/ch13-clustermap-flights.png" alt="Cluster map of monthly flight volumes with hierarchical clustering dendrograms" className="w-full h-auto" />
 
 ```mermaid
 flowchart LR

@@ -122,7 +122,7 @@ df = wine.frame[['alcohol', 'malic_acid', 'target']]
 df.head()
 ```
 
-<img src="/images/ch16-wine-head-output.png" alt="DataFrame output showing the first five rows of the Wine dataset with alcohol, malic_acid, and target columns" className="w-full h-auto" />
+<MdxImage src="/images/ch16-wine-head-output.png" alt="DataFrame output showing the first five rows of the Wine dataset with alcohol, malic_acid, and target columns" className="w-full h-auto" />
 
 ### Inspecting Feature Distributions Before Scaling
 
@@ -139,9 +139,9 @@ plt.title("Malic Acid Distribution (Before Scaling)")
 plt.show()
 ```
 
-<img src="/images/ch16-alcohol-distribution.png" alt="Histogram with KDE curve showing the Alcohol distribution before scaling" className="w-full h-auto" />
+<MdxImage src="/images/ch16-alcohol-distribution.png" alt="Histogram with KDE curve showing the Alcohol distribution before scaling" className="w-full h-auto" />
 
-<img src="/images/ch16-malic-acid-distribution.png" alt="Histogram with KDE curve showing the Malic Acid distribution before scaling, with a strong right skew" className="w-full h-auto" />
+<MdxImage src="/images/ch16-malic-acid-distribution.png" alt="Histogram with KDE curve showing the Malic Acid distribution before scaling, with a strong right skew" className="w-full h-auto" />
 
 We can also visualize how the two classes separate using a scatter plot:
 
@@ -151,7 +151,7 @@ plt.title("Alcohol vs Malic Acid, Colored by Wine Class")
 plt.show()
 ```
 
-<img src="/images/ch16-scatter-classes.png" alt="Scatter plot of Alcohol versus Malic Acid, colored by wine class, before any scaling is applied" className="w-full h-auto" />
+<MdxImage src="/images/ch16-scatter-classes.png" alt="Scatter plot of Alcohol versus Malic Acid, colored by wine class, before any scaling is applied" className="w-full h-auto" />
 
 ### Train-Test Split Before Scaling (Same Rule as Standardization)
 
@@ -223,11 +223,11 @@ The transformed training columns confirm the guarantee: minimum is always exactl
 If you re-plot the scatter plot and the individual distributions after scaling, you will notice:
 * **Scatter Plot**: The relative structure between `alcohol` and `malic_acid` looks almost identical, only the axis numbers change, now bounded within `[0, 1]`. This confirms the "squeezed into a unit square" geometric intuition from earlier.
 
-<img src="/images/ch16-scatter-before-after.png" alt="Side-by-side scatter plots of Alcohol versus Malic Acid before scaling and after Min-Max scaling, showing the same relative structure squeezed into a unit square" className="w-full h-auto" />
+<MdxImage src="/images/ch16-scatter-before-after.png" alt="Side-by-side scatter plots of Alcohol versus Malic Acid before scaling and after Min-Max scaling, showing the same relative structure squeezed into a unit square" className="w-full h-auto" />
 
 * **Distribution Shape**: Unlike Standardization (which is a pure linear shift-and-scale that always preserves distribution shape), Min-Max Scaling can occasionally produce a slightly different-looking density curve, especially near the boundaries, since the entire distribution gets compressed into a fixed `[0, 1]` window.
 
-<img src="/images/ch16-distribution-before-after.png" alt="KDE plots of Alcohol and Malic Acid before scaling, showing separated raw ranges, and after Min-Max scaling, showing both sharing a common 0 to 1 range" className="w-full h-auto" />
+<MdxImage src="/images/ch16-distribution-before-after.png" alt="KDE plots of Alcohol and Malic Acid before scaling, showing separated raw ranges, and after Min-Max scaling, showing both sharing a common 0 to 1 range" className="w-full h-auto" />
 
 > **Outlier Caveat:** Because Min-Max Scaling forces every value into a fixed `[0, 1]` range, a single extreme outlier can compress all the "normal" data points into a tiny sliver of that range near `0`, while the outlier alone sits near `1`. This is one of the biggest downsides of Min-Max Scaling: it is highly sensitive to outliers.
 

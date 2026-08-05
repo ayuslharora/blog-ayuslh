@@ -222,7 +222,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-<img src="/images/ch22-input-distributions.png" alt="Histograms of seven concrete ingredient columns, showing cement and water reasonably close to a bell shape while blast furnace slag, fly ash, and superplasticizer are heavily skewed with a large spike at zero" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch22-input-distributions.png" alt="Histograms of seven concrete ingredient columns, showing cement and water reasonably close to a bell shape while blast furnace slag, fly ash, and superplasticizer are heavily skewed with a large spike at zero" className="w-full h-auto rounded-lg my-6" />
 
 Plotting each input column (leaving out `age` for now) shows a mixed picture. Some columns, like `cement` and `water`, are already reasonably close to a bell shape. Others, like `superplasticizer`, `blast_furnace_slag`, and `fly_ash`, are clearly skewed, each with a tall spike at `0` and a long tail stretching right.
 
@@ -234,7 +234,7 @@ plt.title('age')
 plt.show()
 ```
 
-<img src="/images/ch22-age-distribution.png" alt="Histogram of the age column, showing a heavy concentration of young samples and a long thin tail of much older ones" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch22-age-distribution.png" alt="Histogram of the age column, showing a heavy concentration of young samples and a long thin tail of much older ones" className="w-full h-auto rounded-lg my-6" />
 
 The worst offender by far is `age`: a lot of concrete samples are tested young, and a much smaller number are tested very old, so the column is heavily lopsided rather than bell-shaped. Its skew value backs that up, `df['age'].skew()` comes out to roughly `3.27`, by far the largest of any column here.
 
@@ -342,7 +342,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-<img src="/images/ch22-age-before-after.png" alt="Histogram of age before and after the Yeo-Johnson transform, showing the heavily right-skewed original distribution reshaped into something far closer to a bell curve" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch22-age-before-after.png" alt="Histogram of age before and after the Yeo-Johnson transform, showing the heavily right-skewed original distribution reshaped into something far closer to a bell curve" className="w-full h-auto rounded-lg my-6" />
 
 `age`, the worst-skewed column going in, comes out looking dramatically more like a bell curve. The long thin tail of old samples is gone, replaced by a distribution that actually spreads out on both sides of its center.
 
@@ -361,7 +361,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-<img src="/images/ch22-other-columns-before-after.png" alt="Before and after histograms for cement, water, superplasticizer, coarse aggregate, and fine aggregate, showing varying degrees of improvement after the Yeo-Johnson transform" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch22-other-columns-before-after.png" alt="Before and after histograms for cement, water, superplasticizer, coarse aggregate, and fine aggregate, showing varying degrees of improvement after the Yeo-Johnson transform" className="w-full h-auto rounded-lg my-6" />
 
 Columns that were already close to normal, like `cement` and `water`, barely change shape, which makes sense: there wasn't much left to fix, `PowerTransformer` mostly just rescales them. `superplasticizer` shows a moderate improvement: the spike of zero-valued rows is still there (a transform can't erase that many identical values), but the rest of the distribution spreads out more evenly instead of trailing off in one long tail. `coarse_aggregate` and `fine_aggregate`, which were reasonably well-behaved to begin with, stay about the same shape, just rescaled to a standardized range.
 

@@ -49,7 +49,7 @@ Skew shows up as a specific kind of mismatch at the extremes. Take a right-skewe
 
 Here's what that actually looks like, using the real `Age` and `Fare` columns from the Titanic dataset used later in this post:
 
-<img src="/images/ch21-qq-normal-vs-skewed.png" alt="Q-Q plot comparison of Age, which sits close to the reference line, versus Fare, which sags below the line early and curves sharply above it" className="w-full h-auto rounded-lg my-8" />
+<MdxImage src="/images/ch21-qq-normal-vs-skewed.png" alt="Q-Q plot comparison of Age, which sits close to the reference line, versus Fare, which sags below the line early and curves sharply above it" className="w-full h-auto rounded-lg my-8" />
 
 Both charts share the same 45-degree reference line (drawn in red by `scipy`) described above. `Age`, on the left, stays close to it for most of its range, that's what "close to normal" looks like. `Fare`, on the right, traces exactly the "sags low, then curves high" pattern just walked through: a cluster of points below the line on the left, then a sharp break upward at the top, that spike is a small handful of passengers who paid a fare far larger than everyone else.
 
@@ -175,9 +175,9 @@ plot_distribution_and_qq(X_train, 'Fare')
 
 **Output:**
 
-<img src="/images/ch21-age-distribution-qq.png" alt="Histogram and Q-Q plot of the Age column, showing a roughly bell-shaped distribution close to the reference line" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch21-age-distribution-qq.png" alt="Histogram and Q-Q plot of the Age column, showing a roughly bell-shaped distribution close to the reference line" className="w-full h-auto rounded-lg my-6" />
 
-<img src="/images/ch21-fare-distribution-qq.png" alt="Histogram and Q-Q plot of the Fare column, showing a heavily right-skewed distribution with a long thin tail" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch21-fare-distribution-qq.png" alt="Histogram and Q-Q plot of the Fare column, showing a heavily right-skewed distribution with a long thin tail" className="w-full h-auto rounded-lg my-6" />
 
 - **`Age`** is already fairly close to a bell curve. Not perfect, its Q-Q plot even shows a flat little plateau in the middle, that's the exact rows where the missing values got filled in with the column mean, all landing on the same value at once, but overall it mostly hugs the diagonal line.
 - **`Fare`** is heavily right-skewed. This makes intuitive sense: most Titanic passengers paid a modest fare, while a small handful paid a lot for premium tickets, visible as the sharp break of dots at the very top of its Q-Q plot. Its Q-Q plot drifts noticeably away from the line, curving below it at the low end and above it at the high end, the classic signature of a right skew.
@@ -245,7 +245,7 @@ plot_distribution_and_qq(X_train, 'Fare')                       # before
 plot_distribution_and_qq(pd.DataFrame(X_train_transformed2, columns=X_train.columns), 'Fare')  # after
 ```
 
-<img src="/images/ch21-fare-log-transform-qq.png" alt="Q-Q plot of Fare before and after the log1p transform, showing the points moving noticeably closer to the reference line after the transform" className="w-full h-auto rounded-lg my-8" />
+<MdxImage src="/images/ch21-fare-log-transform-qq.png" alt="Q-Q plot of Fare before and after the log1p transform, showing the points moving noticeably closer to the reference line after the transform" className="w-full h-auto rounded-lg my-8" />
 
 Before the transform, `Fare`'s Q-Q plot curves sharply away from the reference line. After it, the middle of the distribution sits much closer to that diagonal, visual confirmation that the column is genuinely closer to normal, not just that the accuracy number happened to move. The handful of extreme fares at the very top still break away from the line even after the transform, a log doesn't erase outliers entirely, it just shrinks how far they stand out.
 

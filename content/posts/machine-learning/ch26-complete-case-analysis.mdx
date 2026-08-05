@@ -113,7 +113,7 @@ target                      0.00
 dtype: float64
 ```
 
-<img src="/images/ch26-missing-by-column.png" alt="Bar chart showing percent missing data per column in the data science job dataset, with columns under 5% missing highlighted in orange as eligible for Complete Case Analysis, and columns over 5% missing shown in blue as ineligible" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch26-missing-by-column.png" alt="Bar chart showing percent missing data per column in the data science job dataset, with columns under 5% missing highlighted in orange as eligible for Complete Case Analysis, and columns over 5% missing shown in blue as ineligible" className="w-full h-auto rounded-lg my-6" />
 
 Four columns are well past the 5% line: `company_type` (32%), `company_size` (31%), `gender` (23.5%), and `major_discipline` (14.7%). CCA on any of those would mean losing a fifth to a third of the entire dataset, and that's before accounting for whatever other columns are *also* missing in the surviving rows. Those columns are not CCA candidates.
 
@@ -184,7 +184,7 @@ Phd                0.022
 Primary School     0.017
 ```
 
-<img src="/images/ch26-before-after-cca.png" alt="Two-panel chart: left panel shows overlapping histograms of training hours before and after Complete Case Analysis, nearly identical in shape; right panel shows a grouped bar chart of education level category proportions before and after CCA, with matching bar heights across all five categories" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch26-before-after-cca.png" alt="Two-panel chart: left panel shows overlapping histograms of training hours before and after Complete Case Analysis, nearly identical in shape; right panel shows a grouped bar chart of education level category proportions before and after CCA, with matching bar heights across all five categories" className="w-full h-auto rounded-lg my-6" />
 
 Both checks agree. The `training_hours` histogram overlaps itself almost perfectly, blue (original) and orange (after CCA) barely diverge anywhere along the range. The `education_level` proportions move by less than half a percentage point in every category, `Graduate` stays at 62.0%, `Masters` goes from 23.3% to 23.4%, and so on. Neither shows the kind of shift that would suggest the missing values were tied to any particular group. That's the evidence needed to call this data MCAR, and it's what makes CCA a reasonable choice here.
 

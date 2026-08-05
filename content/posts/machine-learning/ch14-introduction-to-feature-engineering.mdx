@@ -128,7 +128,7 @@ flowchart LR
 
 To prevent model distortion, we detect outliers using statistical techniques (IQR bounds, Z-scores) and cap or remove them prior to model training.
 
-<img src="/images/ch14-outlier-regression-impact.png" alt="Side-by-side regression plots showing a fitted line skewed by outliers versus a clean fit after removing them" className="w-full h-auto" />
+<MdxImage src="/images/ch14-outlier-regression-impact.png" alt="Side-by-side regression plots showing a fitted line skewed by outliers versus a clean fit after removing them" className="w-full h-auto" />
 
 ### 4. Feature Scaling
 When features exist on vastly different numeric scales, distance-based algorithms struggle. For instance, consider a dataset containing `Age` (ranging from 0 to 100) and `Salary` (ranging from $10,000 to $1,000,000).
@@ -173,7 +173,7 @@ Furthermore, we can transform `Family_Size` into categorical bins:
 
 Surviving passenger rates often correlate strongly with broader family structures rather than isolated counts of spouses versus children. Feature construction translates human domain insight into predictive variables.
 
-<img src="/images/ch14-family-size-output.png" alt="DataFrame output showing SibSp, Parch, the constructed Family_Size column, and the binned Family_Type column" className="w-full h-auto" />
+<MdxImage src="/images/ch14-family-size-output.png" alt="DataFrame output showing SibSp, Parch, the constructed Family_Size column, and the binned Family_Type column" className="w-full h-auto" />
 
 ---
 
@@ -196,7 +196,7 @@ The outer boundary pixels across all 784 columns remain almost universally white
 
 By applying **Feature Selection**, we eliminate zero-variance boundary pixels and retain only the central region of pixels where digit strokes actually occur. This speeds up training and reduces the curse of dimensionality.
 
-<img src="/images/ch14-mnist-pixel-variance.png" alt="A sample MNIST digit next to a heatmap of per-pixel variance, showing near-zero variance at the border and high variance at the center" className="w-full h-auto" />
+<MdxImage src="/images/ch14-mnist-pixel-variance.png" alt="A sample MNIST digit next to a heatmap of per-pixel variance, showing near-zero variance at the border and high variance at the center" className="w-full h-auto" />
 
 ---
 
@@ -224,7 +224,7 @@ flowchart LR
 
 Feature extraction is especially vital when processing high-dimensional data such as image embeddings, audio signals, and text vectors.
 
-<img src="/images/ch14-pca-iris.png" alt="Scatter plot of the Iris dataset projected from 4 original features onto 2 principal components via PCA, colored by species" className="w-full h-auto" />
+<MdxImage src="/images/ch14-pca-iris.png" alt="Scatter plot of the Iris dataset projected from 4 original features onto 2 principal components via PCA, colored by species" className="w-full h-auto" />
 
 ---
 

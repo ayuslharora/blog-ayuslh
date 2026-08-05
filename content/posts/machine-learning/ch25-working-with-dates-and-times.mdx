@@ -156,7 +156,7 @@ df[['pickup', 'pickup_day_name', 'is_weekend']].sample(5, random_state=42)
 
 Across the full dataset, trips break down by day like this:
 
-<img src="/images/ch25-pickups-by-day.png" alt="Bar chart of NYC taxi trip counts by day of the week, extracted with pickup.dt.day_name(), with Saturday and Sunday bars highlighted in orange to show the weekend split" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch25-pickups-by-day.png" alt="Bar chart of NYC taxi trip counts by day of the week, extracted with pickup.dt.day_name(), with Saturday and Sunday bars highlighted in orange to show the weekend split" className="w-full h-auto rounded-lg my-6" />
 
 Friday is the single busiest day (1,115 trips), and Saturday isn't far behind (1,046). Monday is the quietest (708). The `is_weekend` flag alone captures a real chunk of that pattern: weekends (Saturday + Sunday combined) account for 1,914 trips versus 4,519 on weekdays.
 
@@ -269,7 +269,7 @@ df[['pickup', 'pickup_time_only']].sample(5, random_state=42)
 
 The hour alone is enough to see a real daily rhythm in the data:
 
-<img src="/images/ch25-pickups-by-hour.png" alt="Bar chart of NYC taxi trip counts by hour of day, extracted with pickup.dt.hour, showing a dip overnight between 3 AM and 5 AM and peaks around midday and again from 5 PM to 7 PM" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch25-pickups-by-hour.png" alt="Bar chart of NYC taxi trip counts by hour of day, extracted with pickup.dt.hour, showing a dip overnight between 3 AM and 5 AM and peaks around midday and again from 5 PM to 7 PM" className="w-full h-auto rounded-lg my-6" />
 
 Pickups bottom out around 4-5 AM (50-57 trips) and climb steadily through the day, peaking at 6 PM with 417 trips, right in line with the evening rush hour a New Yorker would expect. This is exactly the kind of pattern a raw timestamp string can't expose, but `.dt.hour` makes trivial to compute and trivial for a model to use.
 

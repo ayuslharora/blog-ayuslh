@@ -1,0 +1,234 @@
+{
+  "/images/batch-vs-online-learning.png": {
+    "width": 1650,
+    "height": 970
+  },
+  "/images/ch12-boxplot-age.png": {
+    "width": 934,
+    "height": 534
+  },
+  "/images/ch12-countplot-pclass.png": {
+    "width": 934,
+    "height": 614
+  },
+  "/images/ch12-countplot-survived.png": {
+    "width": 934,
+    "height": 614
+  },
+  "/images/ch12-histogram-age.png": {
+    "width": 934,
+    "height": 614
+  },
+  "/images/ch12-kde-age.png": {
+    "width": 934,
+    "height": 614
+  },
+  "/images/ch12-output-descriptive-stats.png": {
+    "width": 1184,
+    "height": 400
+  },
+  "/images/ch12-output-skew-value.png": {
+    "width": 1184,
+    "height": 192
+  },
+  "/images/ch12-piechart-survived.png": {
+    "width": 741,
+    "height": 774
+  },
+  "/images/ch12-skewness-comparison.png": {
+    "width": 2212,
+    "height": 697
+  },
+  "/images/ch12-valuecounts-bar-pclass.png": {
+    "width": 934,
+    "height": 614
+  },
+  "/images/ch13-barplot-pclass-age.png": {
+    "width": 934,
+    "height": 614
+  },
+  "/images/ch13-barplot-pclass-fare-sex.png": {
+    "width": 934,
+    "height": 614
+  },
+  "/images/ch13-boxplot-sex-age-survived.png": {
+    "width": 1014,
+    "height": 694
+  },
+  "/images/ch13-clustermap-flights.png": {
+    "width": 1258,
+    "height": 983
+  },
+  "/images/ch13-heatmap-crosstab.png": {
+    "width": 832,
+    "height": 694
+  },
+  "/images/ch13-kde-survival-overlay.png": {
+    "width": 1014,
+    "height": 694
+  },
+  "/images/ch13-lineplot-flights.png": {
+    "width": 1094,
+    "height": 694
+  },
+  "/images/ch13-pairplot-iris.png": {
+    "width": 1781,
+    "height": 1634
+  },
+  "/images/ch13-scatter-bill-tip.png": {
+    "width": 934,
+    "height": 694
+  },
+  "/images/ch13-scatter-multivariate.png": {
+    "width": 1093,
+    "height": 774
+  },
+  "/images/ch14-family-size-output.png": {
+    "width": 994,
+    "height": 579
+  },
+  "/images/ch14-mnist-pixel-variance.png": {
+    "width": 1535,
+    "height": 727
+  },
+  "/images/ch14-outlier-regression-impact.png": {
+    "width": 1894,
+    "height": 694
+  },
+  "/images/ch14-pca-iris.png": {
+    "width": 1094,
+    "height": 854
+  },
+  "/images/ch15-accuracy-comparison.png": {
+    "width": 1101,
+    "height": 781
+  },
+  "/images/ch15-distance-term-dominance.png": {
+    "width": 1013,
+    "height": 695
+  },
+  "/images/ch15-kde-before-after.png": {
+    "width": 1894,
+    "height": 694
+  },
+  "/images/ch15-outlier-standardization.png": {
+    "width": 1894,
+    "height": 774
+  },
+  "/images/ch15-scatter-before-after.png": {
+    "width": 1894,
+    "height": 773
+  },
+  "/images/ch16-alcohol-distribution.png": {
+    "width": 1014,
+    "height": 646
+  },
+  "/images/ch16-distribution-before-after.png": {
+    "width": 1894,
+    "height": 694
+  },
+  "/images/ch16-malic-acid-distribution.png": {
+    "width": 1014,
+    "height": 646
+  },
+  "/images/ch16-scatter-before-after.png": {
+    "width": 1894,
+    "height": 774
+  },
+  "/images/ch16-scatter-classes.png": {
+    "width": 1093,
+    "height": 854
+  },
+  "/images/ch16-wine-head-output.png": {
+    "width": 1024,
+    "height": 416
+  },
+  "/images/ch17-customer-data-head.png": {
+    "width": 1332,
+    "height": 379
+  },
+  "/images/ch21-age-distribution-qq.png": {
+    "width": 1100,
+    "height": 450
+  },
+  "/images/ch21-fare-distribution-qq.png": {
+    "width": 1100,
+    "height": 450
+  },
+  "/images/ch21-fare-log-transform-qq.png": {
+    "width": 1100,
+    "height": 450
+  },
+  "/images/ch21-qq-normal-vs-skewed.png": {
+    "width": 1100,
+    "height": 450
+  },
+  "/images/ch22-age-before-after.png": {
+    "width": 1000,
+    "height": 400
+  },
+  "/images/ch22-age-distribution.png": {
+    "width": 700,
+    "height": 450
+  },
+  "/images/ch22-cwnd-retransmission-timeout.png": {
+    "width": 1879,
+    "height": 1019
+  },
+  "/images/ch22-cwnd-slow-start-vs-avoidance.png": {
+    "width": 1872,
+    "height": 1019
+  },
+  "/images/ch22-cwnd-triple-dup-ack-ecn.png": {
+    "width": 1878,
+    "height": 1019
+  },
+  "/images/ch22-input-distributions.png": {
+    "width": 1600,
+    "height": 800
+  },
+  "/images/ch22-other-columns-before-after.png": {
+    "width": 900,
+    "height": 1500
+  },
+  "/images/ch23-binning-strategy-comparison.png": {
+    "width": 1334,
+    "height": 1205
+  },
+  "/images/ch23-kmeans-binning-steps.png": {
+    "width": 1635,
+    "height": 623
+  },
+  "/images/ch24-cabin-deck-distribution.png": {
+    "width": 1200,
+    "height": 750
+  },
+  "/images/ch24-ticket-category-reduction.png": {
+    "width": 1650,
+    "height": 750
+  },
+  "/images/ch25-pickups-by-day.png": {
+    "width": 1500,
+    "height": 900
+  },
+  "/images/ch25-pickups-by-hour.png": {
+    "width": 1650,
+    "height": 900
+  },
+  "/images/ch26-before-after-cca.png": {
+    "width": 1950,
+    "height": 825
+  },
+  "/images/ch26-missing-by-column.png": {
+    "width": 1500,
+    "height": 900
+  },
+  "/images/diagram.png": {
+    "width": 800,
+    "height": 450
+  },
+  "/images/overfitting-diagram.png": {
+    "width": 1024,
+    "height": 1024
+  }
+}

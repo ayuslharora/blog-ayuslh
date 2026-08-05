@@ -101,7 +101,7 @@ G     4
 T     1
 ```
 
-<img src="/images/ch24-cabin-deck-distribution.png" alt="Bar chart of passenger counts per deck letter extracted from the Cabin column, showing deck C with the most passengers (59), followed by B, D, E, A, F, G, and T" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch24-cabin-deck-distribution.png" alt="Bar chart of passenger counts per deck letter extracted from the Cabin column, showing deck C with the most passengers (59), followed by B, D, E, A, F, G, and T" className="w-full h-auto rounded-lg my-6" />
 
 Deck `C` has the most passengers with a known cabin, followed by `B`. That's a genuinely usable categorical feature, something the raw `Cabin` string never gave a model a fair shot at.
 
@@ -272,7 +272,7 @@ Row `590` is the one worth checking by hand: `'STON/O 2. 3101273'` splits into `
 
 The payoff is a large drop in cardinality:
 
-<img src="/images/ch24-ticket-category-reduction.png" alt="Two panels: a bar chart showing unique value count dropping from 681 raw tickets to 45 extracted ticket categories, and a horizontal bar chart of the top ticket category prefixes such as PC, C.A., and STON/O 2." className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch24-ticket-category-reduction.png" alt="Two panels: a bar chart showing unique value count dropping from 681 raw tickets to 45 extracted ticket categories, and a horizontal bar chart of the top ticket category prefixes such as PC, C.A., and STON/O 2." className="w-full h-auto rounded-lg my-6" />
 
 681 unique raw ticket strings collapse into 45 categories once the trailing number is stripped out, most of them (`661`) landing in `'NONE'` because they were plain numeric tickets to begin with. `PC` is the largest real prefix at 60 passengers, followed by `C.A.` at 27. That's a column a model can actually make use of, compared to 681 near-unique strings that mostly just add noise.
 

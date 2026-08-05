@@ -129,7 +129,7 @@ It takes all 128 ACKs, a full round trip's worth of acknowledgments, for cwnd to
 
 TCP uses both algorithms, just at different times: Slow Start to ramp up quickly from a cold start, then Congestion Avoidance to creep upward more carefully once there's real traffic to be careful about. Plotting cwnd against round trips makes the handoff obvious: a sharp exponential curve up to `ssthresh`, followed by a near-flat linear climb after it.
 
-<img src="/images/ch22-cwnd-slow-start-vs-avoidance.png" alt="Line chart of cwnd against round trip number, showing exponential growth from 1 to 128 during Slow Start, then a flat, near-linear crawl from 128 to 129 during Congestion Avoidance, with a dotted reference line marking ssthresh at 128" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch22-cwnd-slow-start-vs-avoidance.png" alt="Line chart of cwnd against round trip number, showing exponential growth from 1 to 128 during Slow Start, then a flat, near-linear crawl from 128 to 129 during Congestion Avoidance, with a dotted reference line marking ssthresh at 128" className="w-full h-auto rounded-lg my-6" />
 
 Everything up to `RTT 7`, where the blue cwnd curve meets the dotted `ssthresh` line, is Slow Start's exponential doubling; the crawl from 128 to 129 that takes an entire additional round trip is Congestion Avoidance already taking over.
 
@@ -230,7 +230,7 @@ Say cwnd had grown to 800 bytes (still using the 1-byte-segment simplification, 
 
 Because this isn't a severe problem, just one lost segment or an early warning, TCP doesn't restart from scratch. It halves cwnd, sets the new ssthresh to that same halved value, and **skips Slow Start entirely**, continuing directly with Congestion Avoidance from 400. For the ECN case specifically, the sender also sends `CWR = 1` on its next outgoing segment to confirm the reduction back to the receiver.
 
-<img src="/images/ch22-cwnd-triple-dup-ack-ecn.png" alt="Line chart of cwnd against round trip number, climbing exponentially to 128 then linearly to 800 where congestion is detected, dropping sharply to 400, then resuming a gentle climb, with a dotted reference line marking ssthresh stepping from 128 to 400 at the congestion point" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch22-cwnd-triple-dup-ack-ecn.png" alt="Line chart of cwnd against round trip number, climbing exponentially to 128 then linearly to 800 where congestion is detected, dropping sharply to 400, then resuming a gentle climb, with a dotted reference line marking ssthresh stepping from 128 to 400 at the congestion point" className="w-full h-auto rounded-lg my-6" />
 
 The dotted `ssthresh` line steps from its original 128 up to the recalculated 400 the moment congestion hits. Notice the shape: cwnd only drops halfway, to 400, and immediately resumes climbing from there with Congestion Avoidance's gentle linear growth. It never touches Slow Start again.
 
@@ -245,7 +245,7 @@ A timeout is treated as a serious problem, so TCP doesn't just back off, it rest
 
 > **Note:** The new `ssthresh` isn't always lower than the old one, it's simply `cwnd / 2` at the moment congestion is detected, so whether it ends up higher or lower than the previous `ssthresh` depends entirely on how large `cwnd` had grown by that point. In this walkthrough, the original `ssthresh` was deliberately set low (128 MSS) for the sake of demonstrating the Slow Start -> Congestion Avoidance switch early. Congestion didn't actually hit until `cwnd` had climbed to 800 MSS, well past that original threshold, so the recalculated `ssthresh` (400) ends up *higher* than the original 128, not lower.
 
-<img src="/images/ch22-cwnd-retransmission-timeout.png" alt="Line chart of cwnd against round trip number, climbing exponentially to 128 then linearly to 800 as in the previous chart, but this time crashing all the way down to 1 on timeout and reclimbing the full exponential Slow Start curve up to a dotted reference line marking the new ssthresh of 400" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch22-cwnd-retransmission-timeout.png" alt="Line chart of cwnd against round trip number, climbing exponentially to 128 then linearly to 800 as in the previous chart, but this time crashing all the way down to 1 on timeout and reclimbing the full exponential Slow Start curve up to a dotted reference line marking the new ssthresh of 400" className="w-full h-auto rounded-lg my-6" />
 
 The dotted `ssthresh` line steps from 128 to 400 the instant the timeout crashes cwnd back to 1. Compare the shape to the triple-duplicate-ACK/ECN case above: cwnd climbs to the same 800 before congestion is detected, but instead of a shallow dip to half, it crashes all the way down to 1 MSS and has to climb the entire exponential Slow Start curve over again, this time stopping at the new ssthresh of 400 (instead of the original 128) before handing off to Congestion Avoidance.
 

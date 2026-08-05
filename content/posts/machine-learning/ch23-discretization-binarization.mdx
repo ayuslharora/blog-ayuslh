@@ -122,11 +122,11 @@ Once it settles, each centroid represents one bin, and every point belongs to th
 
 Here's that process on a synthetic column with three natural clumps of values (150, 400, and 100 points respectively, with real gaps between them): three centroids are dropped in randomly, then K-Means reassigns points and slides the centroids to the mean of their group until nothing moves anymore.
 
-<img src="/images/ch23-kmeans-binning-steps.png" alt="Two scatter panels: the first shows three randomly placed centroids over a column of clustered data, the second shows the converged centroids after K-Means, colored by cluster, with dotted bin-edge lines sitting in the gaps between clusters" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch23-kmeans-binning-steps.png" alt="Two scatter panels: the first shows three randomly placed centroids over a column of clustered data, the second shows the converged centroids after K-Means, colored by cluster, with dotted bin-edge lines sitting in the gaps between clusters" className="w-full h-auto rounded-lg my-6" />
 
 Notice where the final dotted bin-edge lines land: right in the empty gaps between clusters, not through the middle of any of them. That's the key difference from Equal Width or Quantile binning, which don't know anything about where the data actually clusters:
 
-<img src="/images/ch23-binning-strategy-comparison.png" alt="Three stacked histograms of the same clustered column, each with a different binning strategy's edges overlaid: Equal Width and Quantile both cut an edge through the middle cluster, while K-Means places both edges cleanly in the gaps between clusters" className="w-full h-auto rounded-lg my-6" />
+<MdxImage src="/images/ch23-binning-strategy-comparison.png" alt="Three stacked histograms of the same clustered column, each with a different binning strategy's edges overlaid: Equal Width and Quantile both cut an edge through the middle cluster, while K-Means places both edges cleanly in the gaps between clusters" className="w-full h-auto rounded-lg my-6" />
 
 Equal Width slices a bin edge straight through the middle cluster because it only looks at min and max, it has no idea that a cluster boundary sits nearby. Quantile does a little better but still drops both of its edges inside that same middle cluster, since it's just chasing an equal row count per bin and that cluster happens to hold most of the data. K-Means is the only one of the three that actually looks at the shape of the data and lands its edges in the natural gaps, which is exactly why it's the strategy to reach for when a column looks clustered rather than smoothly spread out.
 
