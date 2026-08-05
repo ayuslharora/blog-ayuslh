@@ -135,9 +135,10 @@ xychart-beta
     x-axis ["RTT 0", "RTT 1", "RTT 2", "RTT 3", "RTT 4", "RTT 5", "RTT 6", "RTT 7", "RTT 8"]
     y-axis "cwnd (bytes)" 0 --> 133
     line [1, 2, 4, 8, 16, 32, 64, 128, 129]
+    line [128, 128, 128, 128, 128, 128, 128, 128, 128]
 ```
 
-Everything up to `RTT 7` (cwnd = 128, hitting `ssthresh`) is Slow Start's exponential doubling; the crawl from 128 to 129 that takes an entire additional round trip is Congestion Avoidance already taking over.
+*Orange: cwnd. Violet: `ssthresh` (128).* Everything up to `RTT 7`, where the orange curve meets the flat violet `ssthresh` line, is Slow Start's exponential doubling; the crawl from 128 to 129 that takes an entire additional round trip is Congestion Avoidance already taking over.
 
 ---
 
@@ -230,9 +231,10 @@ xychart-beta
     x-axis ["RTT 0", "RTT 1", "RTT 2", "RTT 3", "RTT 4", "RTT 5", "RTT 6", "RTT 7", "Congestion (800)", "New ssthresh (400)", "RTT +1", "RTT +2"]
     y-axis "cwnd (bytes)" 0 --> 800
     line [1, 2, 4, 8, 16, 32, 64, 128, 800, 400, 420, 440]
+    line [128, 128, 128, 128, 128, 128, 128, 128, 400, 400, 400, 400]
 ```
 
-Notice the shape: cwnd only drops halfway, to 400, and immediately resumes climbing from there with Congestion Avoidance's gentle linear growth. It never touches Slow Start again.
+*Orange: cwnd. Violet: `ssthresh`, stepping from its original 128 up to the recalculated 400 the moment congestion hits.* Notice the shape: cwnd only drops halfway, to 400, and immediately resumes climbing from there with Congestion Avoidance's gentle linear growth. It never touches Slow Start again.
 
 ### Retransmission timeout: start over
 
@@ -251,9 +253,10 @@ xychart-beta
     x-axis ["RTT 0", "RTT 1", "RTT 2", "RTT 3", "RTT 4", "RTT 5", "RTT 6", "RTT 7", "Timeout (800->1)", "RTT +1", "RTT +2", "RTT +3", "RTT +4", "RTT +5", "RTT +6", "RTT +7", "New ssthresh (400)"]
     y-axis "cwnd (bytes)" 0 --> 800
     line [1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128, 400]
+    line [128, 128, 128, 128, 128, 128, 128, 128, 400, 400, 400, 400, 400, 400, 400, 400, 400]
 ```
 
-Compare the shape to the triple-duplicate-ACK/ECN case above: instead of a shallow dip to half, cwnd crashes all the way down to 1 MSS and has to climb the entire exponential Slow Start curve over again, this time stopping at the new ssthresh of 400 (instead of the original 128) before handing off to Congestion Avoidance.
+*Orange: cwnd. Violet: `ssthresh`, stepping from 128 to 400 the instant the timeout crashes cwnd back to 1.* Compare the shape to the triple-duplicate-ACK/ECN case above: instead of a shallow dip to half, cwnd crashes all the way down to 1 MSS and has to climb the entire exponential Slow Start curve over again, this time stopping at the new ssthresh of 400 (instead of the original 128) before handing off to Congestion Avoidance.
 
 | Detection method | Severity | New ssthresh | New cwnd | Algorithm after |
 |---|---|---|---|---|

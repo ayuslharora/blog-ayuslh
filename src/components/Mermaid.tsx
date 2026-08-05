@@ -36,9 +36,11 @@ export default function Mermaid({ chart }: { chart: string }) {
         noteBorderColor: '#f59e0b',
         sequenceNumberColor: '#ffffff',
         // xychart-beta's line color otherwise falls back to a near-white
-        // default (#FFF4DD), which is invisible against a white card
+        // default (#FFF4DD), which is invisible against a white card.
+        // Second color is for reference/threshold lines (e.g. ssthresh)
+        // plotted as a second series alongside the primary data line.
         xyChart: {
-          plotColorPalette: '#f97316',
+          plotColorPalette: '#f97316,#a78bfa',
         },
       },
       flowchart: {
