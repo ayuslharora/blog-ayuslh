@@ -35,6 +35,11 @@ export default function Mermaid({ chart }: { chart: string }) {
         noteTextColor: '#fbbf24',
         noteBorderColor: '#f59e0b',
         sequenceNumberColor: '#ffffff',
+        // xychart-beta's line color otherwise falls back to a near-white
+        // default (#FFF4DD), which is invisible against a white card
+        xyChart: {
+          plotColorPalette: '#f97316',
+        },
       },
       flowchart: {
         htmlLabels: true,
@@ -42,9 +47,15 @@ export default function Mermaid({ chart }: { chart: string }) {
       },
       securityLevel: 'loose',
     });
-    
+
     mermaid.render(id.current, chart).then((result) => {
-      setSvg(result.svg);
+      // xychart-beta hardcodes its line stroke-width to 2 with no theme
+      // override available, which reads as too thin at chart scale
+      const svg = result.svg.replace(
+        /(class="line-plot-\d+"><path[^>]*stroke-width=")2(")/g,
+        '$13.5$2'
+      );
+      setSvg(svg);
     }).catch((e) => {
       console.error(e);
       setSvg(`<p class="text-red-500 text-sm">Failed to render Mermaid diagram.</p>`);
