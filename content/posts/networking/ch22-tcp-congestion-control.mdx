@@ -182,7 +182,18 @@ Three duplicate ACKs for the same sequence number tells the sender that one spec
 
 ### 3. Explicit Congestion Notification (ECN)
 
-Both of the above only fire *after* a packet is already lost. ECN lets a router warn about congestion **before** it starts dropping anything. Every IP packet header carries a 2-bit ECN field. If a router is getting close to its buffer limit while forwarding a packet, it sets both ECN bits to `1 1` instead of dropping the packet, meaning "I forwarded this one fine, but I'm experiencing congestion, so ease up."
+Both of the above only fire *after* a packet is already lost. ECN lets a router warn about congestion **before** it starts dropping anything, by marking a packet instead of dropping it.
+
+Every IP packet header carries a 2-bit ECN field (part of the same byte that used to be called Type of Service), and those 2 bits hold one of four values:
+
+| Bits | Name | Meaning |
+|---|---|---|
+| `00` | Not-ECT | Sender doesn't support ECN; a congested router has no option but to drop |
+| `10` | ECT(0) | Sender supports ECN: "mark me instead of dropping me if you need to" |
+| `01` | ECT(1) | Same as ECT(0), a second codepoint reserved for experimental use |
+| `11` | CE (Congestion Experienced) | A router along the path marked this packet because it's nearing its buffer limit |
+
+A packet doesn't start out life at `11`. It starts as `00`, unless the sender and receiver both support ECN, in which case the sender marks its outgoing packets `ECT(0)` (`10`) instead. That support isn't assumed, it's **negotiated during the [3-way handshake](/networking/ch16-tcp-three-way-handshake)**, where the SYN and SYN-ACK segments carry the ECE and CWR flags with special handshake-only meanings, each side essentially declaring "I support ECN" before any data flows. Only an ECT-marked packet is eligible to be marked instead of dropped; a router facing congestion from Not-ECT traffic still has to drop it the old-fashioned way.
 
 ```mermaid
 sequenceDiagram
@@ -191,9 +202,10 @@ sequenceDiagram
     participant Router
     actor Receiver
 
-    Sender->>Router: Segment 1 (IP packet)
-    Note over Router: Router nearing buffer limit.<br/>Sets ECN bits = 11
-    Router->>Receiver: Segment 1 (ECN = 11)
+    Note over Sender,Receiver: ECN support already agreed during the 3-way handshake
+    Sender->>Router: Segment 1 (ECN = 10, ECT)
+    Note over Router: Router nearing buffer limit.<br/>Rewrites ECN bits: 10 -> 11 (CE)
+    Router->>Receiver: Segment 1 (ECN = 11, CE)
     Note over Receiver: Router signaled congestion
     Receiver->>Sender: ACK (ECE = 1)
     Note over Sender: Sender learns of<br/>congestion via ECE flag
@@ -201,7 +213,7 @@ sequenceDiagram
     Note over Receiver: Sender confirms it<br/>reduced its congestion window
 ```
 
-The router can only talk to whichever host it's forwarding toward, so it flags the packet heading to the receiver, not the sender. But congestion control is entirely the sender's responsibility, so the receiver needs a way to relay that warning back. That's what the **ECE** (ECN-Echo) flag does: the receiver sets `ECE = 1` on its next ACK back to the sender. Once the sender sees `ECE = 1`, it reduces its congestion window as a precaution and replies with **CWR** (Congestion Window Reduced) set to 1, confirming to the receiver, "acknowledged, I've already reduced my window." Since the network never actually dropped anything, no retransmission is needed at all.
+The router can only talk to whichever host it's forwarding toward, so it rewrites the packet heading to the receiver, not the sender. But congestion control is entirely the sender's responsibility, so the receiver needs a way to relay that warning back. That's what the **ECE** (ECN-Echo) flag does, this time in its data-transfer meaning rather than its handshake one: the receiver sets `ECE = 1` on its next ACK back to the sender. Once the sender sees `ECE = 1`, it reduces its congestion window as a precaution and replies with **CWR** (Congestion Window Reduced) set to 1, confirming to the receiver, "acknowledged, I've already reduced my window." Since the network never actually dropped anything, no retransmission is needed at all, TCP simply reacts to the warning as if it had detected mild congestion on its own.
 
 ---
 
