@@ -55,13 +55,24 @@ Before getting into how a domain actually gets resolved, it's worth being precis
 
 Take `api.example.com`. Most people read this as three parts, but there's a fourth, hiding as an invisible trailing dot that browsers omit from display:
 
-```
-api.example.com.
- |    |     |   |
- |    |     |   +-- Root zone (represented by a single dot, always there, just hidden)
- |    |     +------ Top-level domain (TLD)
- |    +------------ Domain (second-level domain)
- +----------------- Subdomain
+```mermaid
+flowchart TD
+    subgraph FQDN[" "]
+        direction LR
+        Sub["api"] --- D1((".")) --- Dom["example"] --- D2((".")) --- Tld["com"] --- D3((".")) 
+    end
+    Sub -.-> SubL["Subdomain"]
+    Dom -.-> DomL["Domain<br/>(second-level domain)"]
+    Tld -.-> TldL["Top-level domain<br/>(TLD)"]
+    D3 -.-> RootL["Root zone<br/>(single dot, always there, just hidden)"]
+
+    style Sub fill:#78350f,stroke:#f59e0b,color:#fff
+    style Dom fill:#78350f,stroke:#f59e0b,color:#fff
+    style Tld fill:#78350f,stroke:#f59e0b,color:#fff
+    style D1 fill:#27272a,stroke:#71717a,color:#fff
+    style D2 fill:#27272a,stroke:#71717a,color:#fff
+    style D3 fill:#27272a,stroke:#71717a,color:#fff
+    style FQDN fill:transparent,stroke:transparent
 ```
 
 * **Root zone**: the starting point of the entire hierarchy, represented by a single, usually invisible, trailing dot.
