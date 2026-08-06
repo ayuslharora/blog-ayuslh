@@ -123,6 +123,7 @@ For `age`, mean and median are less than a year apart. For `fare`, they're world
 - **Distorts the distribution's shape.** Piling extra mass onto a single value changes the PDF.
 - **Shrinks the variance**, since every filled-in value sits exactly at the center, with zero spread of its own.
 - **Distorts correlation with other columns**, since the filled-in rows contribute a constant instead of a value that actually correlates with the other columns.
+- **Manufactures outliers that weren't there before.** Piling values onto the median squeezes the IQR, so the whiskers of a boxplot pull inward, and real, ordinary values near the old edges now fall outside them.
 
 ### Seeing the Distortion
 
@@ -158,6 +159,29 @@ After Median:    -0.243
 ```
 
 That's the tradeoff CCA doesn't have: dropping rows preserves the shape of what's left, but imputation changes the shape of the column itself. It's an acceptable price only when missingness is low enough that the damage stays small, which is why the same 5% rule from CCA applies here too.
+
+### It Also Manufactures Outliers
+
+A subtler side effect shows up in a boxplot. The IQR-based outlier rule flags anything outside `Q1 - 1.5*IQR` to `Q3 + 1.5*IQR`, and piling ~21% of `age` onto a single median value pulls `Q1` and `Q3` closer together, shrinking the IQR itself:
+
+```python
+def iqr_bounds(s):
+    Q1, Q3 = s.quantile(0.25), s.quantile(0.75)
+    IQR = Q3 - Q1
+    return Q1, Q3, IQR, Q1 - 1.5 * IQR, Q3 + 1.5 * IQR
+
+iqr_bounds(X_train['age'].dropna())
+iqr_bounds(X_train['age_median'])
+```
+
+```text
+Original:      Q1=21.00  Q3=38.25  IQR=17.25  bounds=(-4.88, 64.12)
+After Median:  Q1=23.00  Q3=35.00  IQR=12.00  bounds=(5.00, 53.00)
+```
+
+<MdxImage src="/images/ch27-outlier-boxplot.png" alt="Side-by-side boxplot of age before and after median imputation. The original boxplot has a wider box and only 7 flagged outliers above the upper whisker. The median-imputed boxplot has a visibly narrower box, with 69 points now flagged as outliers on both the low and high ends." className="w-full h-auto rounded-lg my-6" />
+
+The upper bound drops from 64.12 to 53.00, and the lower bound rises from below zero to 5.00. Passengers in their late 50s and early 60s, who were never outliers to begin with, now fall outside the whiskers, and so does anyone genuinely aged under 5. The number of points an IQR rule would flag as outliers jumps from **7 to 69**, none of which are actually anomalies, they're just ordinary values that got squeezed out by a shrinking box. Any downstream step that trims or caps outliers based on this boxplot would now be acting on manufactured noise instead of real ones.
 
 ### The scikit-learn Way
 
