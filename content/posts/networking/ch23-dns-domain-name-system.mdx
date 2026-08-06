@@ -56,45 +56,27 @@ Before getting into how a domain actually gets resolved, it's worth being precis
 Take `api.example.com`. Most people read this as three parts, but there's a fourth, hiding as an invisible trailing dot that browsers omit from display:
 
 ```mermaid
-flowchart LR
-    subgraph G1[" "]
-        direction TB
-        Sub["api"]
-        SubL["Subdomain"]
-        Sub --> SubL
-    end
-    D1((".")) 
-    subgraph G2[" "]
-        direction TB
-        Dom["example"]
-        DomL["Domain<br/>(second-level domain)"]
-        Dom --> DomL
-    end
-    D2((".")) 
-    subgraph G3[" "]
-        direction TB
-        Tld["com"]
-        TldL["Top-level domain<br/>(TLD)"]
-        Tld --> TldL
-    end
-    subgraph G4[" "]
-        direction TB
-        D3((".")) 
-        RootL["Root zone<br/>(single dot, always there, just hidden)"]
-        D3 --> RootL
-    end
-    G1 --- D1 --- G2 --- D2 --- G3 --- G4
+flowchart TD
+    FQDN["api.example.com."]
+    FQDN --> Sub["api"]
+    FQDN --> D1((".")) 
+    FQDN --> Dom["example"]
+    FQDN --> D2((".")) 
+    FQDN --> Tld["com"]
+    FQDN --> D3((".")) 
 
+    Sub --> SubL["Subdomain"]
+    Dom --> DomL["Domain<br/>(second-level domain)"]
+    Tld --> TldL["Top-level domain<br/>(TLD)"]
+    D3 --> RootL["Root zone<br/>(single dot, always there, just hidden)"]
+
+    style FQDN fill:#1e3a5f,stroke:#60a5fa,color:#fff
     style Sub fill:#78350f,stroke:#f59e0b,color:#fff
     style Dom fill:#78350f,stroke:#f59e0b,color:#fff
     style Tld fill:#78350f,stroke:#f59e0b,color:#fff
     style D1 fill:#27272a,stroke:#71717a,color:#fff
     style D2 fill:#27272a,stroke:#71717a,color:#fff
     style D3 fill:#27272a,stroke:#71717a,color:#fff
-    style G1 fill:transparent,stroke:transparent
-    style G2 fill:transparent,stroke:transparent
-    style G3 fill:transparent,stroke:transparent
-    style G4 fill:transparent,stroke:transparent
 ```
 
 * **Root zone**: the starting point of the entire hierarchy, represented by a single, usually invisible, trailing dot.
