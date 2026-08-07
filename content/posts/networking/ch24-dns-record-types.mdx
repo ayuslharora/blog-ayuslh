@@ -210,21 +210,24 @@ Because a domain's `name` field can only ever be a name, never an IP, PTR record
 A missing PTR record doesn't break a website; ordinary A-record resolution doesn't touch PTR records at all. What it *does* affect is **email deliverability**. Mail servers use PTR records as one signal for whether a sender is trustworthy, through a check called **Forward-Confirmed reverse DNS (FCrDNS)**:
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Recv as Receiving mail server
-    participant DNS
+flowchart LR
+    Sender(["Sender<br/>test@example.com"])
+    Recv["Receiver's mailing server"]
+    DNS[("DNS")]
+    Trust["IPs match<br/>trustworthy, continue with<br/>SPF, DKIM, DMARC"]
+    Suspicious["IPs don't match<br/>higher spam score or rejected"]
 
-    Note over Recv: Connection arrives from<br/>sending server's IP
-    Recv->>DNS: PTR record for that IP?
-    DNS-->>Recv: mail.example.com
-    Recv->>DNS: A record for mail.example.com?
-    DNS-->>Recv: Sending server's IP (again)
-    alt both IPs match
-        Recv-->>Recv: Confirmed, proceed to SPF/DKIM/DMARC
-    else IPs don't match
-        Recv-->>Recv: Suspicious, spam-fold or reject
-    end
+    Sender -- "1. from: test@example.com<br/>to: test@gmail.com<br/>sending IP: 14.202.168.11" --> Recv
+    Recv <-- "2. PTR query: 14.202.168.11<br/>PTR response: mail.example.com" --> DNS
+    Recv <-- "3. A query: mail.example.com<br/>4. A response: 14.202.168.11" --> DNS
+    Recv -- "sender IP matches step 4" --> Trust
+    Recv -- "sender IP doesn't match" --> Suspicious
+
+    style Sender fill:#27272a,stroke:#a1a1aa,color:#fff
+    style Recv fill:#78350f,stroke:#f59e0b,color:#fff
+    style DNS fill:#1e3a5f,stroke:#60a5fa,color:#fff
+    style Trust fill:#14532d,stroke:#4ade80,color:#fff
+    style Suspicious fill:#7f1d1d,stroke:#f87171,color:#fff
 ```
 
 The check works even against an attacker who owns their own IP block, and can therefore legitimately set their own PTR record to claim any hostname they like, say, `mail.example.com`. What they *can't* do is control `example.com`'s actual DNS. So the second half of the check, the forward A-record lookup on the hostname the PTR claimed, resolves through the real domain owner's DNS and comes back with the real mail server's IP, not the attacker's. The mismatch is what gives the spoof away: claiming a hostname via PTR is cheap, but making that hostname's own forward record point back to you requires controlling DNS you don't control.
