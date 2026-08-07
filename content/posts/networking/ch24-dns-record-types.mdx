@@ -195,6 +195,8 @@ sequenceDiagram
 
 This is exactly what stops a basic spoofing attempt. An attacker who spins up their own SMTP server and sets the `From` header to `hello@example.com` doesn't control `example.com`'s DNS, so they can't add their own IP to its SPF record. When the receiving server checks the sender's actual IP against the published ranges, it simply isn't there, and the mail gets flagged.
 
+Why doesn't the attacker just spoof the IP itself, forge the source address in the packet, instead of running a server on their own real IP? Two reasons that rule it out. SMTP runs over TCP, and TCP opens with a [three-way handshake](/networking/ch16-tcp-three-way-handshake): SYN, SYN-ACK, ACK. A spoofed SYN gets its SYN-ACK sent back to the *spoofed* address, not to the attacker, so without seeing that reply (and correctly guessing a randomized sequence number) the attacker can never complete the handshake, and no SMTP session, no delivered mail, ever happens. Even before that, most networks won't let a spoofed packet leave in the first place: ISPs and cloud providers widely implement egress filtering (BCP 38), dropping any outbound packet whose source IP doesn't actually belong to that network. So the only workable attack is the one SPF is actually built to catch, a real server, with a real IP, lying only in the mail headers.
+
 ---
 
 ## The PTR record: reverse DNS, and why mail servers care
