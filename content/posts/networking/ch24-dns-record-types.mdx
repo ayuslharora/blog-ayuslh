@@ -203,6 +203,8 @@ Why doesn't the attacker just spoof the IP itself, forge the source address in t
 
 Every record so far starts from a hostname and resolves to something else. A **PTR (Pointer) record** runs the other direction: it's a **reverse DNS lookup**, given an IP, it returns a hostname. It's the mirror image of an A record.
 
+PTR records tend to be the most confusing entry on this list precisely because of that reversal, everything else in DNS points a name at something, this points an IP at a name. Rather than trying to cover every angle of them in the abstract, the rest of this section sticks to one concrete, practical case: how a PTR record gets used during email delivery.
+
 Because a domain's `name` field can only ever be a name, never an IP, PTR records aren't something a domain owner can manage in their own DNS. They're configured by whoever **owns the IP address block**, typically a cloud provider like AWS, not by whoever registered the domain that IP happens to serve.
 
 A missing PTR record doesn't break a website; ordinary A-record resolution doesn't touch PTR records at all. What it *does* affect is **email deliverability**. Mail servers use PTR records as one signal for whether a sender is trustworthy, through a check called **Forward-Confirmed reverse DNS (FCrDNS)**:
