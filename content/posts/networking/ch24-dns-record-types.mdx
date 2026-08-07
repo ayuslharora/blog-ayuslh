@@ -170,6 +170,8 @@ nslookup -type=TXT example.com
 example.com    TXT    "v=spf1 include:securedserver.net -all"
 ```
 
+That trailing `-all` is what makes the policy strict, it's SPF's **hard fail** mechanism. It means only the servers explicitly listed in the policy (here, whatever `include:securedserver.net` resolves to) are authorized to send mail for this domain. Mail from any other server fails the SPF check outright, there's no ambiguity for the receiving server to weigh. A softer `~all` (soft fail) exists too, telling receivers to mark unlisted senders as suspicious rather than reject them outright, but `-all` is the setting that actually closes the door.
+
 A receiving mail server checks this before trusting a message:
 
 ```mermaid
