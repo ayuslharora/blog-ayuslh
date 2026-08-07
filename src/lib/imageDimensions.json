@@ -1,4 +1,16 @@
 {
+  "/images/ch28-saleprice-by-missingness.png": {
+    "width": 1950,
+    "height": 825
+  },
+  "/images/ch28-mode-imputation-distortion.png": {
+    "width": 1950,
+    "height": 825
+  },
+  "/images/ch28-missing-category-comparison.png": {
+    "width": 1500,
+    "height": 900
+  },
   "/images/ch27-outlier-boxplot.png": {
     "width": 1050,
     "height": 900
