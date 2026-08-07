@@ -212,6 +212,40 @@ The check works even against an attacker who owns their own IP block, and can th
 
 ---
 
+## What this looks like on a real domain
+
+Here's the actual exported zone file for this blog's own domain, `ayuslh.in`:
+
+```
+;; NS Records
+ayuslh.in.    86400    IN    NS    chloe.ns.cloudflare.com.
+ayuslh.in.    86400    IN    NS    etienne.ns.cloudflare.com.
+
+;; A Records
+ayuslh.in.    1    IN    A    216.198.79.1
+
+;; CNAME Records
+*.ayuslh.in.    1    IN    CNAME    cname.vercel-dns.com.
+blog.ayuslh.in.    1    IN    CNAME    8b6aeb274124a033.vercel-dns-017.com.
+resume.ayuslh.in.    600    IN    CNAME    68630013e7455ef1.vercel-dns-017.com.
+www.ayuslh.in.    1    IN    CNAME    cname.vercel-dns.com.
+
+;; TXT Records
+ayuslh.in.    3600    IN    TXT    "google-site-verification=8cpoeo730RY5JUHJmJkHusET7ElScWRz3yTA5vq5boQ"
+_dmarc.ayuslh.in.    1    IN    TXT    "v=DMARC1; p=quarantine; adkim=r; aspf=r; rua=mailto:dmarc_rua@onsecureserver.net;"
+_vercel.ayuslh.in.    600    IN    TXT    "vc-domain-verify=resume.ayuslh.in,2a0ede15add6639db876,dc"
+```
+
+Every record type above maps onto something already covered:
+
+* The **NS records** point at Cloudflare, `chloe.ns.cloudflare.com` and `etienne.ns.cloudflare.com`, that's who's authoritative for this zone, entirely separate from wherever the site is actually hosted.
+* The apex **A record** points `ayuslh.in` straight at an IP. No CNAME here, an apex domain can't have one anyway, DNS specs don't allow aliasing a zone's root to another name.
+* The **CNAME records** show a wildcard and its overrides in the same zone: `*.ayuslh.in` catches any subdomain and aliases it to `cname.vercel-dns.com`, but `blog.ayuslh.in` and `resume.ayuslh.in` each carry their own more specific CNAME to a distinct Vercel deployment target. The specific record wins over the wildcard for those two subdomains; everything else falls through to it.
+* The **TXT records** aren't doing mail routing at all here, they're ownership proofs and one security policy: `google-site-verification` proves domain ownership to Google Search Console, `vc-domain-verify` does the same for Vercel, and `_dmarc` is a live **DMARC** record, the third mail-authentication mechanism alongside SPF and DKIM, telling receiving servers to `quarantine` (spam-fold) any mail that fails authentication. DMARC builds directly on SPF and is worth a dedicated post of its own.
+* Notably, there's no **MX record** here at all, this domain isn't configured to receive mail on any custom address, so mail-related records simply don't exist in its zone.
+
+---
+
 ## Summary
 
 * **A record**: maps a hostname to an **IPv4** address. Multiple A records on one hostname enable basic failover or load balancing.
