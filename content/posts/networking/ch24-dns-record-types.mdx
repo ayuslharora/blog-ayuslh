@@ -19,16 +19,16 @@ The [previous post](/networking/ch23-dns-domain-name-system) walked through *how
 
 ## The A record: mapping a hostname to an IPv4 address
 
-An **A record** is the one most people mean when they say "DNS record": it maps a hostname to an **IPv4 address**. When someone types `example.com` into a browser, the browser asks the authoritative name server for its A record and gets back something like `11.22.33.44`.
+An **A record** is the one most people mean when they say "DNS record": it maps a hostname to an **IPv4 address**. When someone types `ayuslh.in` into a browser, the browser asks the authoritative name server for its A record and gets back something like `11.22.33.44`.
 
-An A record can be created against the apex domain (`example.com` itself) or any subdomain (`api.example.com`), each with its own independent A record. A single hostname can also have **multiple A records** at once, this is a common way to get basic failover or load balancing: if a resolver gets back both `11.22.33.44` and `11.22.33.45` for the same hostname, a client can fall back to the second if the first doesn't respond.
+An A record can be created against the apex domain (`ayuslh.in` itself) or any subdomain (`api.ayuslh.in`), each with its own independent A record. A single hostname can also have **multiple A records** at once, this is a common way to get basic failover or load balancing: if a resolver gets back both `11.22.33.44` and `11.22.33.45` for the same hostname, a client can fall back to the second if the first doesn't respond.
 
 ```bash
-nslookup api.example.com
+nslookup api.ayuslh.in
 ```
 
 ```
-Name:    api.example.com
+Name:    api.ayuslh.in
 Address: 11.22.33.44
 Address: 11.22.33.45
 ```
@@ -51,7 +51,7 @@ The name is a size joke, not an arbitrary label. IPv4 addresses are 32 bits; IPv
 
 ## The MX record: routing mail to the right server
 
-An **MX (Mail Exchange) record** tells the internet which servers handle mail for a domain. Buy a domain and want `hello@example.com` to work, and your registrar or email provider will ask you to add MX records pointing at their mail servers.
+An **MX (Mail Exchange) record** tells the internet which servers handle mail for a domain. Buy a domain and want `hello@ayuslh.in` to work, and your registrar or email provider will ask you to add MX records pointing at their mail servers.
 
 Two details make MX records behave differently from an A record:
 
@@ -59,28 +59,28 @@ Two details make MX records behave differently from an A record:
 * **Each MX record carries a priority (also called "preference"), and lower means higher priority.** A domain typically has two or three MX records so mail has somewhere to fall back to if the primary server is down.
 
 ```
-example.com    MX    10    smtp.secureserver.net.
-example.com    MX    20    backup-mail-1.secureserver.net.
-example.com    MX    50    backup-mail-2.secureserver.net.
+ayuslh.in    MX    10    smtp.secureserver.net.
+ayuslh.in    MX    20    backup-mail-1.secureserver.net.
+ayuslh.in    MX    50    backup-mail-2.secureserver.net.
 ```
 
-Here's the full flow when `bob@gmail.com` sends mail to `hello@example.com`, from the initial MX lookup down to the fallback chain:
+Here's the full flow when `bob@gmail.com` sends mail to `hello@ayuslh.in`, from the initial MX lookup down to the fallback chain:
 
 ```mermaid
 flowchart LR
     Sender(["Sender<br/>bob@gmail.com"])
     Gmail["Sender's mailing server<br/>(Gmail)"]
+    DNS[("DNS")]
     S1["smtp.secureserver.net<br/>priority 10"]
     S2["backup-mail-1.secureserver.net<br/>priority 20"]
     S3["backup-mail-2.secureserver.net<br/>priority 50"]
-    DNS[("DNS")]
-    Recipient(["Recipient<br/>hello@example.com"])
+    Recipient(["Recipient<br/>hello@ayuslh.in"])
 
-    Sender -- "1. Send mail<br/>to: hello@example.com" --> Gmail
+    Sender -- "1. Send mail<br/>to: hello@ayuslh.in" --> Gmail
+    Gmail <-- "2. MX query for ayuslh.in<br/>3. MX records returned" --> DNS
     Gmail -- "4. 1st priority (10)<br/>resolve A record, connect" --> S1
     Gmail -- "if smtp fails<br/>(priority 20)" --> S2
     Gmail -- "if backup-mail-1<br/>fails too (priority 50)" --> S3
-    Gmail <-- "2. MX query for example.com<br/>3. MX records returned" --> DNS
     S1 -- "5. Delivered" --> Recipient
     S2 -- "5. Delivered" --> Recipient
     S3 -- "5. Delivered" --> Recipient
@@ -94,7 +94,7 @@ flowchart LR
     style S3 fill:#7f1d1d,stroke:#f87171,color:#fff
 ```
 
-`example.com` itself never appears as a mail server anywhere in that flow, it's purely an identity. The actual delivery happens between Gmail's mail server and whichever of `example.com`'s three SMTP servers it ends up connecting to, entirely found through the MX lookup and the A-record lookup that follows it. Gmail always tries the lowest priority number first (`smtp.secureserver.net`, 10); only if that connection fails does it fall back to 20, then 50. Two MX records at the *same* priority is also valid, and gets used for load balancing, senders pick between them effectively at random. Once the mail lands on `example.com`'s server, it's synced into the actual inbox separately, via IMAP or POP3, a step MX records have no part in.
+`ayuslh.in` itself never appears as a mail server anywhere in that flow, it's purely an identity. The actual delivery happens between Gmail's mail server and whichever of `ayuslh.in`'s three SMTP servers it ends up connecting to, entirely found through the MX lookup and the A-record lookup that follows it. Gmail always tries the lowest priority number first (`smtp.secureserver.net`, 10); only if that connection fails does it fall back to 20, then 50. Two MX records at the *same* priority is also valid, and gets used for load balancing, senders pick between them effectively at random. Once the mail lands on `ayuslh.in`'s server, it's synced into the actual inbox separately, via IMAP or POP3, a step MX records have no part in.
 
 ---
 
@@ -102,7 +102,7 @@ flowchart LR
 
 A **CNAME (Canonical Name) record** maps one hostname to another hostname, not to an IP. It's an alias: "this name isn't the real thing, go look here instead."
 
-Say `blog.example.com` is actually served by a third-party platform at `some-host.network`. Instead of an A record, `blog.example.com` gets a CNAME pointing at `some-host.network`. Resolution then takes two hops:
+Say `blog.ayuslh.in` is actually served by a third-party platform at `some-host.network`. Instead of an A record, `blog.ayuslh.in` gets a CNAME pointing at `some-host.network`. Resolution then takes two hops:
 
 ```mermaid
 sequenceDiagram
@@ -110,7 +110,7 @@ sequenceDiagram
     participant Browser
     participant DNS
 
-    Browser->>DNS: A record for blog.example.com?
+    Browser->>DNS: A record for blog.ayuslh.in?
     DNS-->>Browser: No A record, but CNAME → some-host.network
     Browser->>DNS: A record for some-host.network?
     DNS-->>Browser: 1.2.3.4
@@ -122,7 +122,7 @@ This is why there's a hard rule: **whatever a CNAME points to must itself resolv
 
 ## The NS record: who's authoritative for this zone
 
-An **NS (Name Server) record** is what makes the hierarchy walk from the [previous post](/networking/ch23-dns-domain-name-system#walking-the-hierarchy-root-tld-and-authoritative-servers) actually work. It's how a TLD server answers "who is authoritative for `example.com`?", the TLD server doesn't hand back an IP, it hands back a set of NS records naming the authoritative name servers. Without NS records, a resolver walking the hierarchy would have nowhere to go after the TLD tier; there'd be no way to find where a domain's actual records live.
+An **NS (Name Server) record** is what makes the hierarchy walk from the [previous post](/networking/ch23-dns-domain-name-system#walking-the-hierarchy-root-tld-and-authoritative-servers) actually work. It's how a TLD server answers "who is authoritative for `ayuslh.in`?", the TLD server doesn't hand back an IP, it hands back a set of NS records naming the authoritative name servers. Without NS records, a resolver walking the hierarchy would have nowhere to go after the TLD tier; there'd be no way to find where a domain's actual records live.
 
 A domain usually has more than one NS record, for the same redundancy reason MX records do: if a domain had exactly one authoritative name server and it went down, every DNS query for that domain would fail.
 
@@ -130,21 +130,21 @@ A domain usually has more than one NS record, for the same redundancy reason MX 
 
 NS records aren't limited to a domain's top level, they can be set on a *subdomain*, and that subdomain's queries get delegated to a completely different DNS provider. This is common in larger teams: a frontend on Netlify, a backend infrastructure managed separately on AWS Route 53.
 
-Say `example.com`'s DNS lives on Netlify, but `api.example.com`'s records live on Route 53 instead. Netlify's zone for `example.com` doesn't have an A record for `api.example.com`, it has an NS record delegating that subdomain to Route 53's name servers:
+Say `ayuslh.in`'s DNS lives on Netlify, but `api.ayuslh.in`'s records live on Route 53 instead. Netlify's zone for `ayuslh.in` doesn't have an A record for `api.ayuslh.in`, it has an NS record delegating that subdomain to Route 53's name servers:
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant Resolver
     participant TLD as .com TLD Server
-    participant Netlify as Netlify<br/>(authoritative for example.com)
-    participant Route53 as AWS Route 53<br/>(delegated for api.example.com)
+    participant Netlify as Netlify<br/>(authoritative for ayuslh.in)
+    participant Route53 as AWS Route 53<br/>(delegated for api.ayuslh.in)
 
-    Resolver->>TLD: Who is authoritative for example.com?
+    Resolver->>TLD: Who is authoritative for ayuslh.in?
     TLD-->>Resolver: Netlify's name servers
-    Resolver->>Netlify: A record for api.example.com?
-    Netlify-->>Resolver: No A record, but NS records delegating<br/>api.example.com to Route 53
-    Resolver->>Route53: A record for api.example.com?
+    Resolver->>Netlify: A record for api.ayuslh.in?
+    Netlify-->>Resolver: No A record, but NS records delegating<br/>api.ayuslh.in to Route 53
+    Resolver->>Route53: A record for api.ayuslh.in?
     Route53-->>Resolver: 5.6.7.8
 ```
 
@@ -163,11 +163,11 @@ Originally this was just for human-readable notes. Today, TXT records are the ba
 SPF answers one question: *is this mail server actually allowed to send mail on behalf of this domain?* It works by publishing a TXT record listing the IP ranges authorized to send mail for that domain, in CIDR notation.
 
 ```bash
-nslookup -type=TXT example.com
+nslookup -type=TXT ayuslh.in
 ```
 
 ```
-example.com    TXT    "v=spf1 include:securedserver.net -all"
+ayuslh.in    TXT    "v=spf1 include:securedserver.net -all"
 ```
 
 That trailing `-all` is what makes the policy strict, it's SPF's **hard fail** mechanism. It means only the servers explicitly listed in the policy (here, whatever `include:securedserver.net` resolves to) are authorized to send mail for this domain. Mail from any other server fails the SPF check outright, there's no ambiguity for the receiving server to weigh. A softer `~all` (soft fail) exists too, telling receivers to mark unlisted senders as suspicious rather than reject them outright, but `-all` is the setting that actually closes the door.
@@ -180,8 +180,8 @@ sequenceDiagram
     participant Recv as Receiving mail server
     participant DNS
 
-    Note over Recv: Mail claiming to be from<br/>hello@example.com arrives
-    Recv->>DNS: TXT record for example.com?
+    Note over Recv: Mail claiming to be from<br/>hello@ayuslh.in arrives
+    Recv->>DNS: TXT record for ayuslh.in?
     DNS-->>Recv: "v=spf1 include:securedserver.net -all"
     Recv->>DNS: TXT record for securedserver.net?
     DNS-->>Recv: Authorized IP ranges (CIDR)
@@ -193,7 +193,7 @@ sequenceDiagram
     end
 ```
 
-This is exactly what stops a basic spoofing attempt. An attacker who spins up their own SMTP server and sets the `From` header to `hello@example.com` doesn't control `example.com`'s DNS, so they can't add their own IP to its SPF record. When the receiving server checks the sender's actual IP against the published ranges, it simply isn't there, and the mail gets flagged.
+This is exactly what stops a basic spoofing attempt. An attacker who spins up their own SMTP server and sets the `From` header to `hello@ayuslh.in` doesn't control `ayuslh.in`'s DNS, so they can't add their own IP to its SPF record. When the receiving server checks the sender's actual IP against the published ranges, it simply isn't there, and the mail gets flagged.
 
 Why doesn't the attacker just spoof the IP itself, forge the source address in the packet, instead of running a server on their own real IP? Two reasons that rule it out. SMTP runs over TCP, and TCP opens with a [three-way handshake](/networking/ch16-tcp-three-way-handshake): SYN, SYN-ACK, ACK. A spoofed SYN gets its SYN-ACK sent back to the *spoofed* address, not to the attacker, so without seeing that reply (and correctly guessing a randomized sequence number) the attacker can never complete the handshake, and no SMTP session, no delivered mail, ever happens. Even before that, most networks won't let a spoofed packet leave in the first place: ISPs and cloud providers widely implement egress filtering (BCP 38), dropping any outbound packet whose source IP doesn't actually belong to that network. So the only workable attack is the one SPF is actually built to catch, a real server, with a real IP, lying only in the mail headers.
 
@@ -211,15 +211,15 @@ A missing PTR record doesn't break a website; ordinary A-record resolution doesn
 
 ```mermaid
 flowchart LR
-    Sender(["Sender<br/>test@example.com"])
+    Sender(["Sender<br/>test@ayuslh.in"])
     Recv["Receiver's mailing server"]
     DNS[("DNS")]
     Trust["IPs match<br/>trustworthy, continue with<br/>SPF, DKIM, DMARC"]
     Suspicious["IPs don't match<br/>higher spam score or rejected"]
 
-    Sender -- "1. from: test@example.com<br/>to: test@gmail.com<br/>sending IP: 14.202.168.11" --> Recv
-    Recv <-- "2. PTR query: 14.202.168.11<br/>PTR response: mail.example.com" --> DNS
-    Recv <-- "3. A query: mail.example.com<br/>4. A response: 14.202.168.11" --> DNS
+    Sender -- "1. from: test@ayuslh.in<br/>to: test@gmail.com<br/>sending IP: 14.202.168.11" --> Recv
+    Recv <-- "2. PTR query: 14.202.168.11<br/>PTR response: mail.ayuslh.in" --> DNS
+    Recv <-- "3. A query: mail.ayuslh.in<br/>4. A response: 14.202.168.11" --> DNS
     Recv -- "sender IP matches step 4" --> Trust
     Recv -- "sender IP doesn't match" --> Suspicious
 
@@ -230,7 +230,7 @@ flowchart LR
     style Suspicious fill:#7f1d1d,stroke:#f87171,color:#fff
 ```
 
-The check works even against an attacker who owns their own IP block, and can therefore legitimately set their own PTR record to claim any hostname they like, say, `mail.example.com`. What they *can't* do is control `example.com`'s actual DNS. So the second half of the check, the forward A-record lookup on the hostname the PTR claimed, resolves through the real domain owner's DNS and comes back with the real mail server's IP, not the attacker's. The mismatch is what gives the spoof away: claiming a hostname via PTR is cheap, but making that hostname's own forward record point back to you requires controlling DNS you don't control.
+The check works even against an attacker who owns their own IP block, and can therefore legitimately set their own PTR record to claim any hostname they like, say, `mail.ayuslh.in`. What they *can't* do is control `ayuslh.in`'s actual DNS. So the second half of the check, the forward A-record lookup on the hostname the PTR claimed, resolves through the real domain owner's DNS and comes back with the real mail server's IP, not the attacker's. The mismatch is what gives the spoof away: claiming a hostname via PTR is cheap, but making that hostname's own forward record point back to you requires controlling DNS you don't control.
 
 ---
 
