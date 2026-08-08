@@ -53,6 +53,10 @@ The name is a size joke, not an arbitrary label. IPv4 addresses are 32 bits; IPv
 
 An **MX (Mail Exchange) record** tells the internet which servers handle mail for a domain. Buy a domain and want `hello@ayuslh.in` to work, and your registrar or email provider will ask you to add MX records pointing at their mail servers.
 
+To see why that matters, it helps to start with the simple case: two Gmail users mailing each other. `alice@gmail.com` sending to `bob@gmail.com` never leaves Google's own infrastructure, both mailboxes live on servers Google runs, so once Gmail's system has the message, it's an internal handoff, not a lookup across the open internet. There's still an MX record for `gmail.com` pointing at Google's mail servers, but the sending and receiving side are the same company, so there's no real discovery problem to solve.
+
+The interesting case, and the one MX records actually exist for, is two *different* mail providers talking to each other, `bob@gmail.com` mailing `hello@ayuslh.in`. Google's mail servers have no idea which machines handle mail for `ayuslh.in`, Gmail and GoDaddy (or Netlify, or whoever manages `ayuslh.in`'s mail) are entirely separate companies running entirely separate infrastructure, with no built-in way to know about each other. MX records are exactly what closes that gap: a public, DNS-published answer to "who handles mail for this domain?", so any sender anywhere can find the right destination without needing a special relationship with the recipient's provider.
+
 Two details make MX records behave differently from an A record:
 
 * **It stores a hostname, not an IP.** `smtp.securedserver.net`, not an address. This matters because the company running the mail servers, GoDaddy in this case, owns and manages that hostname's actual IP separately. If they ever move the mail server to a new IP, they update the A record for `smtp.securedserver.net` once, and every one of their customers' MX records keeps working without anyone touching their own DNS.
@@ -96,6 +100,8 @@ flowchart LR
 
 `ayuslh.in` itself never appears as a mail server anywhere in that flow, it's purely an identity. The actual delivery happens between Gmail's mail server and whichever of `ayuslh.in`'s three SMTP servers it ends up connecting to, entirely found through the MX lookup and the A-record lookup that follows it. Gmail always tries the lowest priority number first (`smtp.secureserver.net`, 10); only if that connection fails does it fall back to 20, then 50. Two MX records at the *same* priority is also valid, and gets used for load balancing, senders pick between them effectively at random. Once the mail lands on `ayuslh.in`'s server, it's synced into the actual inbox separately, via IMAP or POP3, a step MX records have no part in.
 
+The reverse direction, `hello@ayuslh.in` replying back to `bob@gmail.com`, is the identical process with the roles swapped. `ayuslh.in`'s mail server doesn't know which machines handle mail for `gmail.com` either, so it queries `gmail.com`'s MX records, gets back Google's mail servers, resolves the winning one's A record, and connects. Neither side ever has to be told anything about the other's infrastructure in advance; MX records are what make that possible in both directions, for any two mail providers on the internet, not just this one pair.
+
 ---
 
 ## The CNAME record: aliasing one hostname to another
@@ -116,7 +122,9 @@ sequenceDiagram
     DNS-->>Browser: 1.2.3.4
 ```
 
-This is why there's a hard rule: **whatever a CNAME points to must itself resolve to an A record.** If `some-host.network` had no A record of its own, the chain would dead-end, the browser would have an alias but nowhere to actually connect, and the lookup fails outright.
+Nothing stops a CNAME from pointing at another CNAME instead of straight at an A record, DNS doesn't enforce a limit on chain length when the records are created. `blog.ayuslh.in` could point to `some-host.network`, which itself is a CNAME to `edge.some-cdn.com`, which finally has the A record. The resolver just keeps following the chain, one more hop, one more round trip, until it either reaches something with an A record or runs out of chain to follow. In practice, this is discouraged: every extra hop is extra latency before the browser gets an IP, and some DNS providers cap how many CNAME hops they'll follow or refuse to create long chains at all.
+
+What actually happens at a **dead end**, the last name in the chain having no A record and no further CNAME, isn't DNS stopping you from creating that setup in the first place; DNS doesn't validate any of this at configuration time. It's simply that resolution fails *at query time*: the resolver runs out of chain, finds no address to return, and the lookup comes back empty, typically surfacing to the browser as an NXDOMAIN-style failure. Nothing dramatic happens to the DNS record itself, the CNAME sits there validly configured, it's just that following it leads nowhere, so every connection attempt through it fails until whatever it points to actually resolves.
 
 ---
 
@@ -128,15 +136,17 @@ A domain usually has more than one NS record, for the same redundancy reason MX 
 
 ### DNS delegation
 
-NS records aren't limited to a domain's top level, they can be set on a *subdomain*, and that subdomain's queries get delegated to a completely different DNS provider. This is common in larger teams: a frontend on Netlify, a backend infrastructure managed separately on AWS Route 53.
+NS records aren't limited to a domain's top level. The same mechanism that lets a TLD server hand authority for `ayuslh.in` off to Netlify's name servers also works one level down: a zone can carve out authority over one of its own *subdomains* and hand that piece off to an entirely different DNS provider. That's **delegation**, and it's the same idea applied recursively, a zone saying "I'm not authoritative for this part of my own namespace, go ask this other set of name servers instead."
 
-Say `ayuslh.in`'s DNS lives on Netlify, but `api.ayuslh.in`'s records live on Route 53 instead. Netlify's zone for `ayuslh.in` doesn't have an A record for `api.ayuslh.in`, it has an NS record delegating that subdomain to Route 53's name servers:
+This shows up often on teams split across infrastructure providers: say a frontend team manages `ayuslh.in`'s main site through Netlify, tied into their deploy pipeline, while a separate backend team runs everything on AWS and wants `api.ayuslh.in`'s records living in Route 53 alongside the rest of their AWS infrastructure, without needing access to Netlify's DNS panel at all. Delegation is what lets both teams manage their own piece independently, under the same parent domain.
+
+Concretely: Netlify's zone file for `ayuslh.in` has all the normal records for the apex domain and any other subdomains, but for `api.ayuslh.in` specifically, there's no A record at all. Instead, there's an **NS record** naming Route 53's name servers. That NS record *is* the delegation, it tells any resolver "I don't answer for this subdomain, they do":
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant Resolver
-    participant TLD as .com TLD Server
+    participant TLD as .in TLD Server
     participant Netlify as Netlify<br/>(authoritative for ayuslh.in)
     participant Route53 as AWS Route 53<br/>(delegated for api.ayuslh.in)
 
@@ -148,7 +158,7 @@ sequenceDiagram
     Route53-->>Resolver: 5.6.7.8
 ```
 
-The subdomain's zone is now entirely Route 53's responsibility. Netlify only ever needed to know one thing: which name servers to hand this subdomain off to.
+Once the resolver follows that NS record to Route 53, Netlify is out of the picture entirely, every record under `api.ayuslh.in`, A, CNAME, whatever the backend team needs, now lives in Route 53's zone and is managed there, completely independently of Netlify's zone for the rest of the domain.
 
 ---
 
@@ -205,9 +215,11 @@ Every record so far starts from a hostname and resolves to something else. A **P
 
 PTR records tend to be the most confusing entry on this list precisely because of that reversal, everything else in DNS points a name at something, this points an IP at a name. Rather than trying to cover every angle of them in the abstract, the rest of this section sticks to one concrete, practical case: how a PTR record gets used during email delivery.
 
-Because a domain's `name` field can only ever be a name, never an IP, PTR records aren't something a domain owner can manage in their own DNS. They're configured by whoever **owns the IP address block**, typically a cloud provider like AWS, not by whoever registered the domain that IP happens to serve.
+"**Owning an IP address block**" means an organization, an ISP, a cloud provider like AWS, a hosting company, has been allocated a specific range of IP addresses by a regional internet registry, and is the one responsible for how that range gets used. AWS, for instance, owns enormous ranges of IPs that it then hands out to individual EC2 instances, load balancers, and so on. Renting a server from AWS gets you *use* of one of those IPs, but AWS still owns the block it came from.
 
-A missing PTR record doesn't break a website; ordinary A-record resolution doesn't touch PTR records at all. What it *does* affect is **email deliverability**. Mail servers use PTR records as one signal for whether a sender is trustworthy, through a check called **Forward-Confirmed reverse DNS (FCrDNS)**:
+That distinction matters here specifically because of where a PTR record actually lives. An A record lives in the forward zone for a domain name, `ayuslh.in`'s zone, which whoever registered `ayuslh.in` controls directly. A PTR record lives in the **reverse zone** for an IP address, a completely separate namespace (under `in-addr.arpa` for IPv4) whose authority is delegated based on *IP allocation*, not domain registration. So even though `mail.ayuslh.in` is this domain's own hostname, the PTR record that maps its IP back to that hostname isn't something this domain's owner can just add to their own DNS. It has to be set by whoever controls the reverse zone for that IP, the cloud provider or ISP the server actually runs on.
+
+This is exactly what makes PTR records an **email deliverability** problem in practice, not a website problem. A missing PTR record doesn't break a website at all; ordinary A-record resolution never touches PTR records. But mail servers use PTR records as a trust signal through a check called **Forward-Confirmed reverse DNS (FCrDNS)**, and plenty of cloud providers don't configure a proper one by default. Spin up a generic VM to send mail from, and its IP might come with no PTR record at all, or a generic one like `ec2-x-x-x-x.compute-1.amazonaws.com` that has nothing to do with your actual mail domain. Even with perfectly correct A, MX, and SPF records on your own domain, mail sent from that server can still land in spam, or get rejected outright, because the FCrDNS check below fails before your domain's own records are ever checked. This is precisely why providers like AWS let customers explicitly request a custom PTR record for their sending IPs, it's not optional polish, it's often required for mail to be trusted at all:
 
 ```mermaid
 flowchart LR
