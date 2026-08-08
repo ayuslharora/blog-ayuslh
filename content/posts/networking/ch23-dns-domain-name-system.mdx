@@ -25,8 +25,6 @@ Humans have the opposite problem. You could memorize an IP address or two, but n
 
 **DNS (Domain Name System)** is the layer that bridges these two: a mapping from domain names to IP addresses, so humans get to use names and computers still get the IP addresses they actually need. It's one of the oldest and most heavily relied-upon protocols on the internet, and as covered in the UDP post, it runs on **UDP, port 53**.
 
-That choice isn't unconditional, though. UDP has a practical cap on how much data fits in a single datagram, traditionally 512 bytes for DNS, larger today with extensions, but still a hard ceiling. If a DNS response would exceed that, the server sends back what fits and sets a **truncated (TC) flag** in the response instead of just silently cutting it off. Seeing that flag, the resolver **retries the exact same query over TCP**, which has no such per-message size limit, and gets the complete answer back that way. This shows up in practice with unusually large responses, DNSSEC-signed answers, records with many entries, that kind of thing, while the overwhelming majority of ordinary DNS queries never come close to that ceiling and stay on UDP the whole way.
-
 ---
 
 ## The problems DNS actually solves
