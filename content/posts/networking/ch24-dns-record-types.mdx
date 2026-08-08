@@ -23,6 +23,8 @@ An **A record** is the one most people mean when they say "DNS record": it maps 
 
 An A record can be created against the apex domain (`ayuslh.in` itself) or any subdomain (`api.ayuslh.in`), each with its own independent A record. A single hostname can also have **multiple A records** at once, this is a common way to get basic failover or load balancing: if a resolver gets back both `11.22.33.44` and `11.22.33.45` for the same hostname, a client can fall back to the second if the first doesn't respond.
 
+DNS management UIs and zone files have a shorthand for that apex-domain case: `@`. A record named `@` means the apex domain itself, nothing in front of it, so `@` for `ayuslh.in` is exactly equivalent to writing out `ayuslh.in.` in full. It exists purely to save retyping the domain name in every record; `blog`, by contrast, is shorthand for `blog.ayuslh.in`, treated as a prefix to the zone's own domain.
+
 ```bash
 nslookup api.ayuslh.in
 ```
