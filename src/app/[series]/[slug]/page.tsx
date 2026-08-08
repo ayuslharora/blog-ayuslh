@@ -16,6 +16,7 @@ import IpConverter from '../../../components/IpConverter';
 import Mermaid from '../../../components/Mermaid';
 import TcpHeaderTable from '../../../components/TcpHeaderTable';
 import UdpHeaderTable from '../../../components/UdpHeaderTable';
+import DnsHeaderTable from '../../../components/DnsHeaderTable';
 import MtuMssDiagram from '../../../components/MtuMssDiagram';
 import TableOfContents from '../../../components/TableOfContents';
 import RelatedPosts from '../../../components/RelatedPosts';
@@ -124,6 +125,7 @@ export default async function PostPage({
             IpConverter,
             TcpHeaderTable,
             UdpHeaderTable,
+            DnsHeaderTable,
             MtuMssDiagram,
             img: MdxImage,
             MdxImage,
