@@ -176,38 +176,74 @@ Variance moves by less than 1%, 204.35 to 204.96, versus the ~20% drop mean/medi
 
 ### It Still Disturbs Covariance
 
+`.cov()` on a whole `DataFrame` slice, rather than one pair of columns at a time, gives the full picture in one call, `fare`, `age` (with its original gaps), and `age_imputed` all compared against each other at once:
+
 ```python
-X_train['age'].cov(X_train['family'])
-X_train['age_imputed'].cov(X_train['family'])
-X_train['age_median'].cov(X_train['family'])
+X_train[['fare', 'age', 'age_imputed']].cov()
 ```
 
 <div className="overflow-x-auto my-8">
   <table className="w-full text-left border-collapse">
     <thead>
       <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
-        <th className="py-3 px-4 font-bold">State</th>
-        <th className="py-3 px-4 font-bold">Covariance (age, family)</th>
+        <th className="py-3 px-4 font-bold"></th>
+        <th className="py-3 px-4 font-bold">fare</th>
+        <th className="py-3 px-4 font-bold">age</th>
+        <th className="py-3 px-4 font-bold">age_imputed</th>
       </tr>
     </thead>
     <tbody className="divide-y divide-black/5 dark:divide-white/5">
       <tr>
-        <td className="py-3 px-4 font-semibold">Original</td>
-        <td className="py-3 px-4">-6.50</td>
+        <td className="py-3 px-4 font-semibold">fare</td>
+        <td className="py-3 px-4">2438.42</td>
+        <td className="py-3 px-4">69.14</td>
+        <td className="py-3 px-4">62.86</td>
       </tr>
       <tr>
-        <td className="py-3 px-4 font-semibold">After Random Sample</td>
-        <td className="py-3 px-4">-5.18</td>
+        <td className="py-3 px-4 font-semibold">age</td>
+        <td className="py-3 px-4">69.14</td>
+        <td className="py-3 px-4">204.35</td>
+        <td className="py-3 px-4">204.35</td>
       </tr>
       <tr>
-        <td className="py-3 px-4 font-semibold">After Median</td>
-        <td className="py-3 px-4">-5.11</td>
+        <td className="py-3 px-4 font-semibold">age_imputed</td>
+        <td className="py-3 px-4">62.86</td>
+        <td className="py-3 px-4">204.35</td>
+        <td className="py-3 px-4">204.96</td>
       </tr>
     </tbody>
   </table>
 </div>
 
-Both techniques push the covariance toward zero by almost the same amount, roughly a 20% shrink from `-6.50`, random sample landing at `-5.18`, median at `-5.11`. That's a useful, slightly counterintuitive result: even though random sample imputation left `age`'s own distribution and variance almost untouched, it does *not* preserve `age`'s relationship with `family` any better than plain median imputation did. That checks out with how the fill values are chosen, each draw is a real value from the `age` column, but drawn independently of whatever `family` happens to be on that same row, so the pairing between the two columns on every imputed row is essentially random. Distribution shape and variance are what this technique is good at protecting; relationships with other columns aren't part of the deal, no univariate technique can fix that, since by definition it never looks at the other columns while filling one of them in.
+Two things worth reading carefully in that matrix. The diagonal is just each column's own variance, `age_imputed`'s `204.96` is the same number from the [variance table above](#checking-the-distribution). Everything off the diagonal is a pairwise covariance, and the `age`↔`age_imputed` cell is exactly `204.35`, the *same* number as `age`'s own variance on the diagonal. That's not a coincidence, and it's not really telling us anything about the imputed values either: `.cov()` computes each cell using only the rows where *both* of that cell's columns are non-null. `age` still has its original 148 missing rows, so pandas drops those 148 rows for this one cell, leaving exactly the 564 rows where `age` was never missing in the first place, and on every one of those rows `age_imputed` is defined to equal `age` exactly, only the missing rows got a random fill. So that cell is quietly measuring `age`'s variance on its own non-missing subset again, not the relationship *after* imputation. It's a real gotcha: a covariance matrix with a partially-missing column in it can smuggle in a cell that looks like it's comparing two things but is actually comparing one thing to a copy of itself.
+
+The `fare`↔`age` vs. `fare`↔`age_imputed` pair is the one that actually answers the question. Both of those exclude `fare`'s own 5% of missing rows, but they differ in which `age` rows get included, real values only for the first, real-plus-random-fill for the second, and that's a fair comparison. The covariance drops from `69.14` to `62.86`, a shrink of about 9%, the visible fingerprint of exactly what the earlier disadvantage warned about: every random draw is chosen from `age`'s own values with no regard for what `fare` happens to be on that row, so the pairing between the two columns on the imputed rows is close to random, and the measured relationship softens accordingly.
+
+### It Doesn't Manufacture Outliers
+
+The [mean/median post](/machine-learning/ch27-mean-median-imputation) found that piling ~21% of `age` onto a single median value crushed the IQR and manufactured dozens of fake outliers, ordinary ages that only got flagged because the box shrank around them. Random sample imputation never piles values onto one point, so it's worth checking whether that same damage shows up here:
+
+```python
+def count_outliers(s):
+    Q1, Q3 = s.quantile(0.25), s.quantile(0.75)
+    IQR = Q3 - Q1
+    lo, hi = Q1 - 1.5 * IQR, Q3 + 1.5 * IQR
+    return ((s < lo) | (s > hi)).sum()
+
+count_outliers(X_train['age'].dropna())    # original
+count_outliers(X_train['age_imputed'])     # after random sample
+count_outliers(X_train['age_median'])      # after median, for comparison
+```
+
+```text
+Original:              7 outliers
+After Random Sample:    8 outliers
+After Median:          69 outliers
+```
+
+<MdxImage src="/images/ch29-outlier-boxplot.png" alt="Three-panel boxplot of age: original, after random sample imputation, and after median imputation. The original and random sample boxes are nearly identical in size with 7 and 8 flagged outliers respectively. The median-imputed box is visibly narrower with 69 flagged outliers on both ends." className="w-full h-auto rounded-lg my-6" />
+
+Original and random-sample-imputed `age` land within a single outlier of each other, `7` versus `8`, and the box itself is practically unchanged, `Q1`/`Q3` sit at the same values in both. Median imputation, on the same column, balloons that count to `69` by squeezing the IQR tight around its pile-up of identical median values. This is the direct visual companion to the variance and distribution results above: random sample imputation doesn't just avoid *shrinking* the spread, it avoids the specific downstream failure mode, real, ordinary values getting mislabeled as anomalies, that comes from any technique that stacks mass onto one fixed point.
 
 ---
 
