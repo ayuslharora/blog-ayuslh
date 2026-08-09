@@ -92,6 +92,8 @@ for col in ['GarageQual', 'FireplaceQu']:
     print(col, 'missing:', missing.median(), missing.mean(), len(missing))
 ```
 
+The `.loc` line is doing two things at once: `.loc[row_selector, column_selector]` takes a row selector and a column selector, separated by a comma. `train_with_target[col].notna()` is the row selector, a boolean Series the same length as the table, `True` wherever that column isn't null and `False` wherever it is. `'SalePrice'` is the column selector, just the one column to keep. Pandas keeps only the rows where the mask is `True`, then returns just `SalePrice` for those rows as a Series. `present` ends up as "the `SalePrice` values, but only from rows where `col` isn't missing." The `missing` line is the mirror image, `.isna()` is the exact opposite mask of `.notna()`, so it's "the `SalePrice` values, but only from rows where `col` is missing." Two groups, split by whether one column was recorded, both restricted to a different column's values, that's the comparison the KDE chart below is built on.
+
 ```text
 GarageQual present: median=167000, mean=184425 (n=1103)
 GarageQual missing: median=100000, mean=104560 (n=65)
