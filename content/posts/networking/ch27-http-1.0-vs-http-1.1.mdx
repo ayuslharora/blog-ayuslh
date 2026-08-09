@@ -42,21 +42,21 @@ sequenceDiagram
     rect rgba(100, 100, 100, 0.08)
     Client->>Server: TCP connection established (3-way handshake)
     Client->>Server: GET /index.html
-    Server-->>Client: 200 OK &lt;index.html&gt;
+    Server-->>Client: 200 OK (index.html)
     Client--xServer: TCP connection closed
     end
 
     rect rgba(100, 100, 100, 0.08)
     Client->>Server: TCP connection established (3-way handshake)
     Client->>Server: GET image.jpg
-    Server-->>Client: 200 OK &lt;image.jpg&gt;
+    Server-->>Client: 200 OK (image.jpg)
     Client--xServer: TCP connection closed
     end
 
     rect rgba(100, 100, 100, 0.08)
     Client->>Server: TCP connection established (3-way handshake)
     Client->>Server: GET /about.html
-    Server-->>Client: 200 OK &lt;about.html&gt;
+    Server-->>Client: 200 OK (about.html)
     Client--xServer: TCP connection closed
     end
 ```
@@ -115,9 +115,9 @@ sequenceDiagram
     Client->>Server: GET image.jpg
     Client->>Server: GET /about.html
     Note over Server: index.html still processing,<br/>head-of-line blocking
-    Server-->>Client: 200 OK &lt;index.html&gt;
-    Server-->>Client: 200 OK &lt;image.jpg&gt;
-    Server-->>Client: 200 OK &lt;about.html&gt;
+    Server-->>Client: 200 OK (index.html)
+    Server-->>Client: 200 OK (image.jpg)
+    Server-->>Client: 200 OK (about.html)
     Note over Client,Server: Responses MUST be sent<br/>in the same order
     Client--xServer: TCP connection closed
 ```
