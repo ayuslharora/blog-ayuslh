@@ -77,21 +77,7 @@ There's a catch attached to it: responses **must** come back in the same order t
 
 That ordering requirement is where pipelining falls apart. Say `index.html` happens to be a large file that takes a long time to generate on the server. Even if `image.jpg` and `about.html` are fully ready to send, they're stuck waiting, because the response for `index.html` has to go out first. This is called **head-of-line blocking**: the request at the head of the line is still being processed, and every request behind it is blocked regardless of whether it's actually ready.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Client
-    participant Server
-
-    Client->>Server: GET /index.html
-    Client->>Server: GET /image.jpg
-    Client->>Server: GET /about.html
-    Note over Server: index.html is large,<br/>still processing
-    Note over Server: image.jpg and about.html<br/>are ready, but blocked
-    Server-->>Client: index.html response
-    Server-->>Client: image.jpg response
-    Server-->>Client: about.html response
-```
+![How HTTP/1.1 pipelining works, disabled by default: multiple requests sent without waiting for previous responses, but responses must be sent back in the same order, causing head-of-line blocking](/images/ch27-http11-pipelining-hol-blocking.png)
 
 `image.jpg` and `about.html` are independent requests with no real relationship to `index.html`, but head-of-line blocking makes them suffer anyway, stuck behind a response that has nothing to do with them. That downside is exactly why pipelining is **disabled by default** in HTTP/1.1, despite being part of the spec. This also happens to be a common interview question.
 
