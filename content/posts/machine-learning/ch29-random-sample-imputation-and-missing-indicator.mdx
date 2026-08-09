@@ -285,7 +285,21 @@ sampled_value = X_train['age'].dropna().sample(1, random_state=int(observation['
 
 `observation` here is a single incoming row, `family` on it is just being reused as a seed, not because it's meaningful to the imputation itself, but because it's a stable number already attached to this exact request. Two submissions from the same user, with the same `family`, hit `random_state=int(observation['family'])` both times, so `.sample(1, random_state=...)` draws the identical value from `age` on both occasions, same input in, same imputed value out. A different row with a different `family` gets a different seed, so it can still draw a different value, the randomness across *different* rows is untouched, it's only randomness across *repeated* requests for the *same* row that gets removed.
 
-The seed column has to be picked carefully, though: it has to be a column that's **guaranteed present on every incoming row**, since `int()` on a missing value throws immediately (`int(np.nan)` raises `ValueError: cannot convert float NaN to integer`). `fare` isn't a safe choice in this post's own dataset, it was given 5% artificial missingness earlier specifically to demonstrate a lightly-missing column, so a row could plausibly arrive missing both `age` and `fare` at once, and `int(observation['fare'])` would crash right when the fallback was supposed to save it. `family` (`sibsp + parch`) has zero missing values in this dataset, which is exactly why it's the safer pick here. In a real deployment, an even better choice is often something that isn't a model feature at all, a request ID or user ID hashed down to an integer, precisely because a feature column always carries some risk of being the very thing that's missing.
+The seed column has to be picked carefully, though: it has to be a column that's **guaranteed present on every incoming row**, since `int()` on a missing value throws immediately (`int(np.nan)` raises `ValueError: cannot convert float NaN to integer`). `fare` isn't a safe choice in this post's own dataset, it was given 5% artificial missingness earlier specifically to demonstrate a lightly-missing column, so a row could plausibly arrive missing both `age` and `fare` at once, and `int(observation['fare'])` would crash right when the fallback was supposed to save it. `family` (`sibsp + parch`) has zero missing values *in this training set*, which is why it looks like the safer pick here.
+
+But "zero missing in the training data" is a fact about the past, not a guarantee about the future. `family` is still a user-facing feature, and nothing stops a real production user from submitting a form where `family` itself is left blank too, at which point the exact same crash comes right back, just on a different column. Any feature is fair game to go missing, that's the entire premise of this post, which means no feature is truly safe to lean on as a seed by itself.
+
+The robust fix is to stop depending on a feature at all, and seed from something the *system* generates for every request by construction, a request ID, a session ID, a database row ID, something that exists because the request exists, not because a user happened to fill in a field. A reasonable pattern falls back to a feature when it's there (for continuity with how the model was demonstrated) but never trusts it alone:
+
+```python
+def get_seed(observation, request_id):
+    val = observation.get('family')
+    if val is not None and not (isinstance(val, float) and np.isnan(val)):
+        return int(val)
+    return hash(request_id) % (2**32)
+```
+
+If `family` is present, it's used, same as before. If it's missing, the seed falls back to a hash of `request_id`, something guaranteed to exist for every request regardless of which form fields the user left blank. Either branch is still fully deterministic for the same request submitted twice, which is the one property that actually matters here.
 
 ---
 
