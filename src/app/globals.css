@@ -111,6 +111,16 @@ body {
   animation: marquee 20s linear infinite;
 }
 
+::selection {
+  background-color: #fbbf24;
+  color: #050505;
+}
+
+::-moz-selection {
+  background-color: #fbbf24;
+  color: #050505;
+}
+
 /* Disable quotes in Tailwind Typography blockquotes */
 .prose blockquote p:first-of-type::before {
   content: none !important;
