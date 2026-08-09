@@ -33,31 +33,13 @@ But HTTP/1.0 introduced a different problem, this time about the underlying TCP 
 
 HTTP runs on top of TCP, and TCP is connection-oriented: sending anything over TCP first requires a [three-way handshake](/networking/ch16-tcp-three-way-handshake) to establish a connection. In HTTP/1.0, every single request opened a fresh TCP connection, and the moment the response for that request came back, the connection closed immediately.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Client
-    participant Server
-
-    Client->>Server: TCP handshake
-    Client->>Server: Request 1
-    Server-->>Client: Response 1
-    Note over Client,Server: Connection closes
-
-    Client->>Server: TCP handshake
-    Client->>Server: Request 2
-    Server-->>Client: Response 2
-    Note over Client,Server: Connection closes
-
-    Client->>Server: TCP handshake
-    Client->>Server: Request 3
-    Server-->>Client: Response 3
-    Note over Client,Server: Connection closes
-```
+![How HTTP/1.0 works: a separate TCP connection, established and closed, for each of index.html, image.jpg, and about.html](/images/ch27-http10-connection-per-request.png)
 
 Three requests meant three completely separate TCP connections, each with its own handshake and its own teardown. Establishing and tearing down a TCP connection both consume resources, so this pattern was burning resources unnecessarily on every single request.
 
 HTTP/1.0 did have a way around this: a `Connection: keep-alive` header. Sending it kept the underlying TCP connection persistent, meaning multiple requests and responses could reuse the same connection instead of opening a new one each time. The catch was that this header was entirely **optional**. Left unsent, the default behavior was still one fresh TCP connection per request.
+
+> You can think of `Connection: keep-alive` in HTTP/1.0 as a practical extension (or a patchwork) to improve performance by reusing TCP connections. HTTP/1.1 later standardized persistent connections and made them the default.
 
 ---
 
