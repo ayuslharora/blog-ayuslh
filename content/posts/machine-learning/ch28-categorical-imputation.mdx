@@ -53,7 +53,7 @@ Two conditions, mirroring the ones from numerical imputation:
 
 ## Trying It on a Real Dataset
 
-This post uses the Ames housing dataset (Kaggle's "House Prices: Advanced Regression Techniques"), narrowed to three columns: `GarageQual` and `FireplaceQu` (both categorical, rated `Po`/`Fa`/`TA`/`Gd`/`Ex` from Poor to Excellent), and `SalePrice` as the target. These two columns were picked deliberately, one has light missingness with a dominant category, the other has heavy missingness with no dominant category, which makes them a natural side-by-side test of when mode imputation works.
+This post uses the Ames housing dataset (Kaggle's "House Prices: Advanced Regression Techniques"), narrowed to three columns: `GarageQual` (garage quality) and `FireplaceQu` (fireplace quality), and `SalePrice` as the target. Both quality columns use the same five-point scale, worst to best: `Po` (Poor), `Fa` (Fair), `TA` (Typical/Average), `Gd` (Good), `Ex` (Excellent). A row's value is null when the house has no garage or no fireplace at all, there's nothing to rate. These two columns were picked deliberately, one has light missingness with a dominant category, the other has heavy missingness with no dominant category, which makes them a natural side-by-side test of when mode imputation works.
 
 ```python
 import pandas as pd
