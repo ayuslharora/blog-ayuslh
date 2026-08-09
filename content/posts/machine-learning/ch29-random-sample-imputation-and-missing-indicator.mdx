@@ -277,7 +277,13 @@ The original proportions were `Gd` 49.43%, `TA` 41.24%. Mode imputation from the
 
 There's a catch specific to deployment. If the same user submits the same incomplete form twice, once today and once next week, and each submission draws a fresh random value for the missing field, the model can produce two different predictions for what is, from the user's perspective, the same input. That's confusing and hard to debug in production.
 
-The fix: don't reseed randomness per request, tie it to something stable about the request itself. A common approach is deriving the seed from the specific observation, so the *same* incoming row always draws the *same* replacement value, while two different incomplete rows can still draw two different values. The randomness stays real across rows, it just stops being random across repeated identical requests.
+The fix: don't reseed randomness per request, tie it to something stable about the request itself. A common approach is deriving `random_state` from another value already sitting on that same incoming row, something that's already known and won't change between two submissions of the same form:
+
+```python
+sampled_value = X_train['age'].dropna().sample(1, random_state=int(observation['fare']))
+```
+
+`observation` here is a single incoming row, `fare` on it is just being reused as a seed, not because it's meaningful to the imputation itself, but because it's a stable number already attached to this exact request. Two submissions from the same user, with the same `fare`, hit `random_state=int(observation['fare'])` both times, so `.sample(1, random_state=...)` draws the identical value from `age` on both occasions, same input in, same imputed value out. A different row with a different `fare` gets a different seed, so it can still draw a different value, the randomness across *different* rows is untouched, it's only randomness across *repeated* requests for the *same* row that gets removed. Any other column already present and numeric on the observation, not just `fare`, works the same way, the seed just needs to be something stable and already available at request time.
 
 ---
 
