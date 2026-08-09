@@ -85,27 +85,36 @@ dtype: float64
 ### The Core Technique
 
 ```python
-def random_sample_impute(train_df, test_df, variable, seed=0):
-    train_df[variable + '_imputed'] = train_df[variable]
-    test_df[variable + '_imputed'] = test_df[variable]
+X_train['age_imputed'] = X_train['age']
+X_test['age_imputed'] = X_test['age']
 
-    random_sample_train = train_df[variable].dropna().sample(
-        train_df[variable].isnull().sum(), random_state=seed)
-    random_sample_train.index = train_df[train_df[variable].isnull()].index
-    train_df.loc[train_df[variable].isnull(), variable + '_imputed'] = random_sample_train
-
-    random_sample_test = train_df[variable].dropna().sample(
-        test_df[variable].isnull().sum(), random_state=seed, replace=True)
-    random_sample_test.index = test_df[test_df[variable].isnull()].index
-    test_df.loc[test_df[variable].isnull(), variable + '_imputed'] = random_sample_test
-
-    return train_df, test_df
-
-X_train, X_test = random_sample_impute(X_train, X_test, 'age')
-X_train, X_test = random_sample_impute(X_train, X_test, 'fare')
+X_train.loc[X_train['age_imputed'].isnull(), 'age_imputed'] = (
+    X_train['age'].dropna().sample(X_train['age'].isnull().sum(), random_state=0).values
+)
+X_test.loc[X_test['age_imputed'].isnull(), 'age_imputed'] = (
+    X_train['age'].dropna().sample(X_test['age'].isnull().sum(), random_state=0).values
+)
 ```
 
-Two `.sample()` calls worth walking through carefully. `train_df[variable].dropna().sample(n, random_state=seed)` pulls `n` random values from the column's own non-null entries, where `n` is exactly how many values are missing, one replacement value per hole. The line right after, `random_sample.index = train_df[train_df[variable].isnull()].index`, is what actually places each drawn value into the correct row: it overwrites the sample's index with the index labels of the missing rows, so `.loc[...] = random_sample` lines each drawn value up with a *specific* missing row by index rather than by position. Without that reassignment, pandas would try to align on the original indices and the assignment wouldn't line up at all. The test-set version does the same thing but draws from `train_df`'s values (never `test_df`'s own, that would leak information the model shouldn't have) and adds `replace=True`, since the test set can need more or fewer draws than happen to exist in the training column.
+Four lines. The first two just copy the original column so the fill can happen on a separate `_imputed` column, leaving `age` itself untouched for comparison later. The real work is the `.loc[...] = ...` lines, and the trick that keeps them short is `.values` at the end of the `.sample()` chain. `X_train['age'].dropna().sample(n, random_state=0)` draws `n` random values from the column's own non-null entries, where `n` is exactly how many values are missing, but that draw comes back as a `Series` with its own index, some arbitrary subset of the original row labels. Assigning a `Series` straight into `.loc[mask, col]` would try to line up *that* index against the mask's index, which isn't what's wanted here. `.values` strips the index entirely, leaving a bare NumPy array, so the assignment falls back to positional order: the first drawn value goes into the first `True` row of the mask, the second into the second, and so on. That sidesteps index alignment entirely instead of managing it by hand.
+
+The test-set line mirrors the train-set line with one deliberate difference: it draws from `X_train['age']`, never `X_test['age']`, since pulling replacement values from the test set's own data would leak information the model was never supposed to see. `X_test` also isn't guaranteed to need the exact same number of missing values as `X_train` has data for, so a stricter version would add `replace=True` on the test-side `.sample()` to be safe when the test set has more missing rows than the training column has values to draw from.
+
+One caveat, `X_train['age_imputed'][mask] = values` (chained indexing straight off the column) is what most walkthroughs of this technique show, and it happens to still work today, but pandas raises a `ChainedAssignmentError` future warning when it runs and is expected to silently *stop* updating the original frame once Copy-on-Write becomes the default in pandas 3.0. `.loc[mask, col] = values`, used above, is the version that keeps working either way.
+
+The same four lines, with `fare` substituted for `age`, handle the other column:
+
+```python
+X_train['fare_imputed'] = X_train['fare']
+X_test['fare_imputed'] = X_test['fare']
+
+X_train.loc[X_train['fare_imputed'].isnull(), 'fare_imputed'] = (
+    X_train['fare'].dropna().sample(X_train['fare'].isnull().sum(), random_state=0).values
+)
+X_test.loc[X_test['fare_imputed'].isnull(), 'fare_imputed'] = (
+    X_train['fare'].dropna().sample(X_test['fare'].isnull().sum(), random_state=0).values
+)
+```
 
 ### Checking the Distribution
 
@@ -121,7 +130,12 @@ plt.legend()
 
 Compare this to the [mean/median chart from the last numerical post](/machine-learning/ch27-mean-median-imputation): those imputed curves grew a visible extra peak right at the fill value. Here, the dashed line tracks the solid one almost exactly, for both `age` and `fare`, because nothing new was ever added to the distribution, values already present just got reused.
 
+Putting a number on it means bringing back mean and median imputation from the [earlier post](/machine-learning/ch27-mean-median-imputation) as a reference point:
+
 ```python
+X_train['age_median'] = X_train['age'].fillna(X_train['age'].median())
+X_train['age_mean'] = X_train['age'].fillna(X_train['age'].mean())
+
 X_train['age'].var(), X_train['age_imputed'].var()
 ```
 
@@ -160,32 +174,53 @@ X_train['age'].var(), X_train['age_imputed'].var()
 
 Variance moves by less than 1%, 204.35 to 204.96, versus the ~20% drop mean/median imputation caused on the exact same column in the earlier post. That's the whole appeal of the technique in one number.
 
-### It Still Disturbs Correlation
+### It Still Disturbs Covariance
 
 ```python
-X_train['age'].corr(X_train['family'])          # -0.299
-X_train['age_imputed'].corr(X_train['family'])  # -0.219
+X_train['age'].cov(X_train['family'])
+X_train['age_imputed'].cov(X_train['family'])
+X_train['age_median'].cov(X_train['family'])
 ```
 
-```text
-Original:        -0.299
-After Random:     -0.219
-```
+<div className="overflow-x-auto my-8">
+  <table className="w-full text-left border-collapse">
+    <thead>
+      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
+        <th className="py-3 px-4 font-bold">State</th>
+        <th className="py-3 px-4 font-bold">Covariance (age, family)</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-black/5 dark:divide-white/5">
+      <tr>
+        <td className="py-3 px-4 font-semibold">Original</td>
+        <td className="py-3 px-4">-6.50</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">After Random Sample</td>
+        <td className="py-3 px-4">-5.18</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">After Median</td>
+        <td className="py-3 px-4">-5.11</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
-For comparison, median imputation moved this same correlation to `-0.243`, so random sample imputation doesn't come out ahead here, in fact it moves the correlation slightly *more*, since it's introducing genuinely random noise rather than a single constant that at least stays predictable. Distribution shape and variance are what this technique is good at protecting; relationships with other columns aren't part of the deal, no univariate technique can fix that, since by definition it never looks at the other columns.
+Both techniques push the covariance toward zero by almost the same amount, roughly a 20% shrink from `-6.50`, random sample landing at `-5.18`, median at `-5.11`. That's a useful, slightly counterintuitive result: even though random sample imputation left `age`'s own distribution and variance almost untouched, it does *not* preserve `age`'s relationship with `family` any better than plain median imputation did. That checks out with how the fill values are chosen, each draw is a real value from the `age` column, but drawn independently of whatever `family` happens to be on that same row, so the pairing between the two columns on every imputed row is essentially random. Distribution shape and variance are what this technique is good at protecting; relationships with other columns aren't part of the deal, no univariate technique can fix that, since by definition it never looks at the other columns while filling one of them in.
 
 ---
 
 ## Trying It on House Prices (Categorical)
 
-The same function works unchanged on categorical data, `.sample()` doesn't care whether the values it's drawing are numbers or strings. This reuses the [categorical imputation post's](/machine-learning/ch28-categorical-imputation) dataset: Ames housing, narrowed to `GarageQual`, `FireplaceQu`, and `SalePrice`, where `FireplaceQu` is missing on 47.7% of rows with no dominant category, exactly the situation mode imputation handled badly.
+The same four-line pattern works unchanged on categorical data, `.sample()` and `.values` don't care whether the values they're moving around are numbers or strings. This reuses the [categorical imputation post's](/machine-learning/ch28-categorical-imputation) dataset: Ames housing, narrowed to `GarageQual`, `FireplaceQu`, and `SalePrice`, where `FireplaceQu` is missing on 47.7% of rows with no dominant category, exactly the situation mode imputation handled badly.
 
 ```python
-rs = X_train['FireplaceQu'].dropna().sample(
-    X_train['FireplaceQu'].isnull().sum(), random_state=0)
-rs.index = X_train[X_train['FireplaceQu'].isnull()].index
 X_train['FireplaceQu_imputed'] = X_train['FireplaceQu']
-X_train.loc[X_train['FireplaceQu'].isnull(), 'FireplaceQu_imputed'] = rs
+
+X_train.loc[X_train['FireplaceQu_imputed'].isnull(), 'FireplaceQu_imputed'] = (
+    X_train['FireplaceQu'].dropna().sample(X_train['FireplaceQu'].isnull().sum(), random_state=0).values
+)
 
 X_train['FireplaceQu_imputed'].value_counts(normalize=True) * 100
 ```
