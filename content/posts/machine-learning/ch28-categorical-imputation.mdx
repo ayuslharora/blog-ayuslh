@@ -80,12 +80,16 @@ dtype: float64
 
 ### Checking Whether Missingness Relates to the Target
 
-Before picking a technique, it's worth checking whether missingness itself carries information, comparing `SalePrice` for rows where the column is present against rows where it's missing:
+Before picking a technique, it's worth checking whether missingness itself carries information, comparing `SalePrice` for rows where the column is present against rows where it's missing. `SalePrice` was dropped out of `X_train` for the split, so this check joins it back onto a separate frame rather than mutating `X_train` itself:
 
 ```python
-present = X_train.loc[X_train['GarageQual'].notna(), 'SalePrice']
-missing = X_train.loc[X_train['GarageQual'].isna(), 'SalePrice']
-present.median(), missing.median()
+train_with_target = X_train.join(y_train)
+
+for col in ['GarageQual', 'FireplaceQu']:
+    present = train_with_target.loc[train_with_target[col].notna(), 'SalePrice']
+    missing = train_with_target.loc[train_with_target[col].isna(), 'SalePrice']
+    print(col, 'present:', present.median(), present.mean(), len(present))
+    print(col, 'missing:', missing.median(), missing.mean(), len(missing))
 ```
 
 ```text
