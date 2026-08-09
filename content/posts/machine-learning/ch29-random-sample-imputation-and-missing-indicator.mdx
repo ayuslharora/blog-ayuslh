@@ -1,0 +1,438 @@
+---
+title: "Ch.29: Random Sample Imputation, Missing Indicator, and Automatic Parameter Selection"
+description: "A beginner-friendly walkthrough of random sample imputation for numerical and categorical columns, why it preserves distribution shape and variance far better than mean/median or mode imputation, the reproducibility trap it introduces in production, scikit-learn's MissingIndicator for flagging which rows were incomplete, and using GridSearchCV to automatically pick the best imputation strategy instead of guessing."
+date: "2026-08-10T09:00"
+tags: ["machine-learning", "feature-engineering", "missing-data", "imputation", "scikit-learn", "python"]
+subtopic: "Handling Missing Data"
+draft: false
+---
+
+*Video Reference:* [YouTube](https://www.youtube.com/watch?v=Ratcir3p03w)
+
+The last two posts covered univariate imputation with a fixed value: mean/median or an arbitrary constant for numerical columns, most frequent category or a new "Missing" category for categorical ones. All four share the same weakness, every missing value in a column gets replaced by the *same* number or category, which flattens the column's variance and reshapes its distribution. This post covers a technique that sidesteps that problem entirely, **random sample imputation**, plus two things that go alongside it: a **missing indicator** column that flags which rows were incomplete, and a way to stop guessing which imputation strategy to use by letting `GridSearchCV` pick it automatically.
+
+---
+
+## Random Sample Imputation
+
+The idea: instead of filling every gap with one fixed value, fill each missing entry with a value picked at random from the column's own *existing*, non-null values. Not a random number in some arbitrary range, a random draw from the data that's already there. If a `city` column holds `Mumbai`, `Delhi`, and `Kolkata` in various proportions, a missing row gets filled with one of those three, chosen at random, weighted naturally by how often each one already appears in the column.
+
+```mermaid
+flowchart TD
+    Root["Univariate Imputation<br><i>numerical + categorical</i>"]
+
+    T1["Mean / Median / Mode<br><i>fixed value, ch.27 & ch.28</i>"]
+    T2["Random Sample<br><i>draw from the column's<br>own existing values</i>"]
+    T3["Multivariate<br><i>KNN / Iterative, next post</i>"]
+
+    Root --> T1
+    Root --> T2
+    Root --> T3
+
+    style Root fill:#18181b,stroke:#3f3f46,stroke-width:2px,color:#fff
+    style T1 fill:#0f172a,stroke:#3f3f46,color:#fff
+    style T2 fill:#0f172a,stroke:#3f3f46,color:#fff
+    style T3 fill:#0f172a,stroke:#3f3f46,color:#fff
+```
+
+That single change, drawing from the data instead of computing a fixed statistic, is what makes the technique work on **both numerical and categorical columns** with the exact same logic, and it's also why the distribution barely moves.
+
+### Why the Distribution Stays Intact
+
+Picture the column's values as a bag of marbles, most of them clustered around whatever value is most common, fewer of them out toward the edges. Every random draw from that bag is more likely to land on a common value than a rare one, purely because there are more of it in the bag. Fill enough missing slots this way and the *proportions* of the filled-in values end up mirroring the proportions already in the column. The shape barely changes, because the filling process is just re-sampling the same shape.
+
+Contrast that with mean imputation: every missing value becomes the exact same number, so the column develops an artificial spike at one point no matter what the rest of the distribution looks like. Random sample imputation never manufactures a spike, because it never picks the same fixed point twice on purpose.
+
+### Advantages and Disadvantages
+
+- **Advantage:** preserves the column's distribution and variance far better than mean/median/mode, which matters most when a downstream model (linear or logistic regression especially) is sensitive to the shape of its inputs.
+- **Disadvantage:** it disturbs the column's relationship (covariance/correlation) with other columns, same as every other univariate technique in this series, since the filled-in value is chosen without looking at the rest of the row.
+- **Disadvantage:** memory-heavy at deployment. The fill values for new, incoming rows have to be drawn from the *training* data, which means the training set's values for that column need to stay available at serve time, not just a couple of summary statistics like a mean.
+- **Disadvantage:** doesn't work well with tree-based models. Trees split on the data's actual structure, and random substitution doesn't consistently help there the way it does for linear models.
+
+---
+
+## Trying It on Titanic (Numerical)
+
+This uses the same Titanic setup as the [mean/median imputation post](/machine-learning/ch27-mean-median-imputation): `age`, `fare`, `family` (`sibsp + parch`), and `survived` as the target. `age` has real missing values; `fare` gets 5% randomly nulled out to demonstrate the technique on a lightly-missing column too.
+
+```python
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+
+df = pd.read_csv('https://raw.githubusercontent.com/mwaskom/seaborn-data/master/titanic.csv')
+df['family'] = df['sibsp'] + df['parch']
+df = df[['age', 'fare', 'family', 'survived']]
+
+X = df.drop(columns='survived')
+y = df['survived']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=2)
+
+missing_idx = X_train.sample(frac=0.05, random_state=2).index
+X_train.loc[missing_idx, 'fare'] = np.nan
+
+X_train.isnull().mean() * 100
+```
+
+```text
+age       20.79
+fare       5.06
+family     0.00
+dtype: float64
+```
+
+### The Core Technique
+
+```python
+def random_sample_impute(train_df, test_df, variable, seed=0):
+    train_df[variable + '_imputed'] = train_df[variable]
+    test_df[variable + '_imputed'] = test_df[variable]
+
+    random_sample_train = train_df[variable].dropna().sample(
+        train_df[variable].isnull().sum(), random_state=seed)
+    random_sample_train.index = train_df[train_df[variable].isnull()].index
+    train_df.loc[train_df[variable].isnull(), variable + '_imputed'] = random_sample_train
+
+    random_sample_test = train_df[variable].dropna().sample(
+        test_df[variable].isnull().sum(), random_state=seed, replace=True)
+    random_sample_test.index = test_df[test_df[variable].isnull()].index
+    test_df.loc[test_df[variable].isnull(), variable + '_imputed'] = random_sample_test
+
+    return train_df, test_df
+
+X_train, X_test = random_sample_impute(X_train, X_test, 'age')
+X_train, X_test = random_sample_impute(X_train, X_test, 'fare')
+```
+
+Two `.sample()` calls worth walking through carefully. `train_df[variable].dropna().sample(n, random_state=seed)` pulls `n` random values from the column's own non-null entries, where `n` is exactly how many values are missing, one replacement value per hole. The line right after, `random_sample.index = train_df[train_df[variable].isnull()].index`, is what actually places each drawn value into the correct row: it overwrites the sample's index with the index labels of the missing rows, so `.loc[...] = random_sample` lines each drawn value up with a *specific* missing row by index rather than by position. Without that reassignment, pandas would try to align on the original indices and the assignment wouldn't line up at all. The test-set version does the same thing but draws from `train_df`'s values (never `test_df`'s own, that would leak information the model shouldn't have) and adds `replace=True`, since the test set can need more or fewer draws than happen to exist in the training column.
+
+### Checking the Distribution
+
+```python
+import matplotlib.pyplot as plt
+
+X_train['age'].dropna().plot(kind='kde', label='Original')
+X_train['age_imputed'].plot(kind='kde', label='After Random Sample Imputation')
+plt.legend()
+```
+
+<MdxImage src="/images/ch29-random-sample-distribution.png" alt="Two-panel KDE chart comparing age and fare distributions before and after random sample imputation. Both panels show the original and imputed curves almost perfectly overlapping, in contrast to the visible distortion mean and median imputation caused in the previous chapter." className="w-full h-auto rounded-lg my-6" />
+
+Compare this to the [mean/median chart from the last numerical post](/machine-learning/ch27-mean-median-imputation): those imputed curves grew a visible extra peak right at the fill value. Here, the dashed line tracks the solid one almost exactly, for both `age` and `fare`, because nothing new was ever added to the distribution, values already present just got reused.
+
+```python
+X_train['age'].var(), X_train['age_imputed'].var()
+```
+
+```text
+(204.35, 204.96)
+```
+
+<div className="overflow-x-auto my-8">
+  <table className="w-full text-left border-collapse">
+    <thead>
+      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
+        <th className="py-3 px-4 font-bold">State</th>
+        <th className="py-3 px-4 font-bold">Variance</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-black/5 dark:divide-white/5">
+      <tr>
+        <td className="py-3 px-4 font-semibold">Original</td>
+        <td className="py-3 px-4">204.35</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">After Random Sample</td>
+        <td className="py-3 px-4">204.96</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">After Median</td>
+        <td className="py-3 px-4">161.99</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">After Mean</td>
+        <td className="py-3 px-4">161.81</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+Variance moves by less than 1%, 204.35 to 204.96, versus the ~20% drop mean/median imputation caused on the exact same column in the earlier post. That's the whole appeal of the technique in one number.
+
+### It Still Disturbs Correlation
+
+```python
+X_train['age'].corr(X_train['family'])          # -0.299
+X_train['age_imputed'].corr(X_train['family'])  # -0.219
+```
+
+```text
+Original:        -0.299
+After Random:     -0.219
+```
+
+For comparison, median imputation moved this same correlation to `-0.243`, so random sample imputation doesn't come out ahead here, in fact it moves the correlation slightly *more*, since it's introducing genuinely random noise rather than a single constant that at least stays predictable. Distribution shape and variance are what this technique is good at protecting; relationships with other columns aren't part of the deal, no univariate technique can fix that, since by definition it never looks at the other columns.
+
+---
+
+## Trying It on House Prices (Categorical)
+
+The same function works unchanged on categorical data, `.sample()` doesn't care whether the values it's drawing are numbers or strings. This reuses the [categorical imputation post's](/machine-learning/ch28-categorical-imputation) dataset: Ames housing, narrowed to `GarageQual`, `FireplaceQu`, and `SalePrice`, where `FireplaceQu` is missing on 47.7% of rows with no dominant category, exactly the situation mode imputation handled badly.
+
+```python
+rs = X_train['FireplaceQu'].dropna().sample(
+    X_train['FireplaceQu'].isnull().sum(), random_state=0)
+rs.index = X_train[X_train['FireplaceQu'].isnull()].index
+X_train['FireplaceQu_imputed'] = X_train['FireplaceQu']
+X_train.loc[X_train['FireplaceQu'].isnull(), 'FireplaceQu_imputed'] = rs
+
+X_train['FireplaceQu_imputed'].value_counts(normalize=True) * 100
+```
+
+```text
+Gd    49.74
+TA    41.01
+Fa     4.11
+Po     2.65
+Ex     2.48
+```
+
+<MdxImage src="/images/ch29-categorical-random-sample.png" alt="Grouped bar chart comparing FireplaceQu category proportions across original, after mode imputation, and after random sample imputation. The mode imputation bars show Gd spiking to about 74% while TA collapses. The random sample bars closely track the original proportions for every category." className="w-full h-auto rounded-lg my-6" />
+
+The original proportions were `Gd` 49.43%, `TA` 41.24%. Mode imputation from the last post pushed `Gd` to 73.54% and crushed `TA` down to 21.58%. Random sample imputation lands at `Gd` 49.74%, `TA` 41.01%, essentially untouched. This is the case mode imputation was never suited for, heavy missingness, no dominant category, and random sample imputation handles it cleanly without needing a new "Missing" category either.
+
+### The Reproducibility Problem in Production
+
+There's a catch specific to deployment. If the same user submits the same incomplete form twice, once today and once next week, and each submission draws a fresh random value for the missing field, the model can produce two different predictions for what is, from the user's perspective, the same input. That's confusing and hard to debug in production.
+
+The fix: don't reseed randomness per request, tie it to something stable about the request itself. A common approach is deriving the seed from the specific observation, so the *same* incoming row always draws the *same* replacement value, while two different incomplete rows can still draw two different values. The randomness stays real across rows, it just stops being random across repeated identical requests.
+
+---
+
+## Missing Indicator
+
+A completely different technique, usually paired *with* one of the fixed-value or random imputation methods above rather than replacing them: alongside filling in a value, add a new boolean column that simply records whether the original value was missing.
+
+```python
+X_train['age_NA'] = X_train['age'].isnull()
+```
+
+Two columns instead of one, `age` (imputed) carries a best-guess value, `age_NA` carries `True`/`False` for whether that guess was needed at all. The idea reportedly traces back to a Kaggle competition where some participants added missing indicators across their dataset and it measurably helped their model, the working theory being that a model can learn a different pattern for "this row's value was missing" versus "this row had this column's imputed value for another reason", something a single imputed column can't represent no matter which fill strategy generated it.
+
+### A Toy Example: Why It Can Work
+
+The Kaggle anecdote is easy to hear and hard to believe without seeing the mechanism, so here's a minimal, constructed example that isolates exactly why a missing indicator can help: a single feature `x`, and a target `y` where whether `x` is missing is itself almost entirely determined by `y`. This is deliberately extreme, real data is rarely this clean, but it makes the failure mode of plain imputation obvious.
+
+```python
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+
+rng = np.random.RandomState(42)
+n = 400
+y = rng.binomial(1, 0.5, n)          # coin-flip target
+x = rng.normal(0, 1, n)              # x itself carries no signal about y
+
+# missingness depends on the target: 90% missing when y=1, 5% missing when y=0
+miss_prob = np.where(y == 1, 0.9, 0.05)
+is_missing = rng.binomial(1, miss_prob).astype(bool)
+x[is_missing] = np.nan
+
+df = pd.DataFrame({'x': x, 'y': y})
+X_train, X_test, y_train, y_test = train_test_split(
+    df[['x']], df['y'], test_size=0.25, random_state=2)
+
+X_train['x'].isnull().mean() * 100
+```
+
+```text
+43.0
+```
+
+Notice `x`'s actual *value* is pure noise, `rng.normal(0, 1, n)` draws it completely independently of `y`. The only thing in this dataset that correlates with `y` at all is *whether `x` is missing*. A model that only ever sees the imputed value of `x`, with no way to tell which rows were originally missing, is working with a feature that's indistinguishable from random noise:
+
+```python
+si = SimpleImputer(strategy='mean')
+X_train_imp = si.fit_transform(X_train)
+X_test_imp = si.transform(X_test)
+
+clf = LogisticRegression()
+clf.fit(X_train_imp, y_train)
+accuracy_score(y_test, clf.predict(X_test_imp))
+```
+
+```text
+0.35
+```
+
+35% accuracy on a balanced binary target, worse than guessing the majority class. Now add the indicator:
+
+```python
+si = SimpleImputer(strategy='mean', add_indicator=True)
+X_train_imp = si.fit_transform(X_train)
+X_test_imp = si.transform(X_test)
+
+clf = LogisticRegression()
+clf.fit(X_train_imp, y_train)
+accuracy_score(y_test, clf.predict(X_test_imp))
+```
+
+```text
+0.93
+```
+
+93%. Nothing about `x`'s imputed values changed, the only difference is the model now also receives a second column, 0 or 1, for whether that row's `x` was missing. Since missingness here is (by construction) almost a direct proxy for `y`, handing the model that boolean directly is handing it most of the answer. Real datasets are never this clean-cut, missingness is rarely a near-perfect proxy for the target, which is exactly why the Titanic result below is a 2-point accuracy bump rather than a 58-point one. But the mechanism is the same one in both cases: whenever *the fact that a value is missing* correlates with the target, a plain imputed column throws that correlation away, and a missing indicator is the cheapest way to hand it back.
+
+### On Titanic, with scikit-learn
+
+```python
+from sklearn.impute import SimpleImputer
+
+si = SimpleImputer()  # strategy='mean' by default
+X_train_trf = si.fit_transform(X_train[['age', 'fare']])
+```
+
+```text
+Baseline (mean imputation only):        61.45% test accuracy
+```
+
+```python
+si = SimpleImputer(add_indicator=True)
+X_train_trf = si.fit_transform(X_train[['age', 'fare']])
+```
+
+```text
+Mean imputation + missing indicator:    63.13% test accuracy
+```
+
+<MdxImage src="/images/ch29-missing-indicator-accuracy.png" alt="Bar chart comparing logistic regression test accuracy on Titanic with age and fare as features: mean imputation alone reaches 61.45%, mean imputation plus a missing indicator reaches 63.13%." className="w-full h-auto rounded-lg my-6" />
+
+Same mean-imputed `age`/`fare`, same logistic regression, the only difference is `add_indicator=True`, and accuracy moves from 61.45% to 63.13% on this Titanic split. `add_indicator=True` is the shortcut version of manually creating a separate `MissingIndicator` transformer and concatenating its output onto the imputed columns, both approaches produce the same extra columns, but the parameter avoids having to import a second class, instantiate it, fit it, and merge the result by hand.
+
+---
+
+## Automatically Selecting Imputation Parameters with GridSearchCV
+
+Every technique in this three-post series has a "which one do I actually use" decision attached, mean vs. median, which arbitrary value, most frequent vs. missing category. Rather than deciding by hand, a `Pipeline` with `SimpleImputer` steps can have its strategies searched over directly by `GridSearchCV`, the same technique from [`GridSearchCV` for hyperparameter tuning](/machine-learning/ch20-pipelines), just applied to imputation choices instead of model hyperparameters.
+
+```python
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import GridSearchCV
+
+df = pd.read_csv('https://raw.githubusercontent.com/mwaskom/seaborn-data/master/titanic.csv')
+df = df[['age', 'embarked', 'sex', 'pclass', 'survived']]
+X = df.drop(columns='survived')
+y = df['survived']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=2)
+
+X_train.isnull().sum()
+```
+
+```text
+age         148
+embarked      2
+sex           0
+pclass        0
+```
+
+`age` (numerical) and `embarked` (categorical) both have missing values, `sex` and `pclass` don't. Two sub-pipelines, one for each type, feed into a `ColumnTransformer`:
+
+```python
+num_pipe = Pipeline([('impute', SimpleImputer(strategy='mean'))])
+cat_pipe = Pipeline([
+    ('impute', SimpleImputer(strategy='most_frequent')),
+    ('encode', OneHotEncoder(handle_unknown='ignore')),
+])
+
+trf1 = ColumnTransformer([
+    ('num', num_pipe, ['age']),
+    ('cat', cat_pipe, ['embarked', 'sex', 'pclass']),
+])
+
+pipe = Pipeline([
+    ('trf1', trf1),
+    ('clf', LogisticRegression(max_iter=500)),
+])
+```
+
+Worth walking through what each layer of nesting is doing, since the grid search step depends on understanding this structure:
+
+- **`num_pipe`** is a one-step `Pipeline` wrapping a `SimpleImputer` under the name `'impute'`. It's still a `Pipeline`, not just a bare transformer, specifically so that name can be targeted later.
+- **`cat_pipe`** is a two-step `Pipeline`: `'impute'` fills missing categories, then `'encode'` one-hot encodes the result. These run in sequence, imputation has to happen before encoding, since `OneHotEncoder` can't handle `NaN` values on its own. `handle_unknown='ignore'` tells the encoder to zero out any category it never saw during `fit` (relevant once `X_test` gets transformed) instead of raising an error.
+- **`trf1`** is a `ColumnTransformer` that routes `['age']` through `num_pipe` and `['embarked', 'sex', 'pclass']` through `cat_pipe`, in parallel, then concatenates the results back into one array. This is the same pattern used for the `age`/`fare` split back in the [mean/median post](/machine-learning/ch27-mean-median-imputation), just with a full pipeline instead of a bare `SimpleImputer` in each slot.
+- **`pipe`** chains `trf1` into a `LogisticRegression`, so calling `pipe.fit(X_train, y_train)` runs the entire preprocessing-plus-model sequence in one call.
+
+The `strategy='mean'` and `strategy='most_frequent'` set on the two imputers above are just starting points, values the pipeline needs *something* set to in order to be constructible, not the final answer. That's what `param_grid` is for, it lists the strategies actually worth comparing:
+
+```python
+param_grid = {
+    'trf1__num__impute__strategy': ['mean', 'median'],
+    'trf1__cat__impute__strategy': ['most_frequent', 'constant'],
+}
+```
+
+Each key is a **path into the nested pipeline**, joined with double underscores, one segment per level of nesting: `trf1` (the step name inside `pipe`) → `num` (the transformer name inside `trf1`) → `impute` (the step name inside `num_pipe`) → `strategy` (the actual constructor argument on that `SimpleImputer`). `GridSearchCV` doesn't know anything about imputers or pipelines specifically, it just calls `.set_params(**{that path: that value})` on a clone of `pipe` for every combination in the grid, and `scikit-learn`'s `.set_params()` is what knows how to walk a dotted (here, double-underscore) path down through nested estimators. Getting a segment wrong, `trf1__num_impute__strategy` instead of `trf1__num__impute__strategy` for example, fails immediately with an "invalid parameter" error rather than silently ignoring it, which is a fast way to double check the path matches the actual step names used above.
+
+```python
+grid = GridSearchCV(pipe, param_grid, cv=5, scoring='accuracy')
+grid.fit(X_train, y_train)
+
+grid.best_params_
+grid.best_score_
+```
+
+`cv=5` means every one of the 2×2=4 combinations in the grid gets evaluated with 5-fold cross-validation, the training data is split five ways, each combination trains on four folds and validates on the held-out fifth, five times over, and the five scores get averaged into one number per combination. That's `4 × 5 = 20` total model fits for this grid, `.fit()` runs all of them. `scoring='accuracy'` is what those folds get judged on; by default `GridSearchCV` also refits one final model on the *entire* training set using whichever combination scored best, that refit model is what ends up accessible as `grid.best_estimator_`.
+
+```text
+best_params_: {'trf1__cat__impute__strategy': 'constant', 'trf1__num__impute__strategy': 'median'}
+best_score_:  0.8033
+```
+
+`best_params_` reports back using the exact same double-underscore paths from `param_grid`, and on this split the winner is median for `age`, constant-fill for the categorical columns. `best_score_` is the average cross-validated accuracy for that winning combination, 80.33%, not a test-set score, that number only comes from calling `grid.score(X_test, y_test)` separately. On a small dataset like this the gap between combinations won't always be dramatic, but the value of the approach doesn't depend on the dataset being large: it replaces "which imputation strategy should I use" with "let cross-validation answer that," the same shift `GridSearchCV` already makes for every other hyperparameter in a pipeline.
+
+---
+
+## Summary Cheat Sheet
+
+<div className="overflow-x-auto my-8">
+  <table className="w-full text-left border-collapse">
+    <thead>
+      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
+        <th className="py-3 px-4 font-bold">Technique</th>
+        <th className="py-3 px-4 font-bold">scikit-learn</th>
+        <th className="py-3 px-4 font-bold">Use When</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-black/5 dark:divide-white/5">
+      <tr>
+        <td className="py-3 px-4 font-semibold">Random Sample Imputation</td>
+        <td className="py-3 px-4">manual, no built-in class</td>
+        <td className="py-3 px-4">preserving distribution/variance matters, works for numerical + categorical alike</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Missing Indicator</td>
+        <td className="py-3 px-4"><code>SimpleImputer(add_indicator=True)</code> or <code>MissingIndicator</code></td>
+        <td className="py-3 px-4">pair with any imputation technique when missingness itself might be predictive</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Automatic Strategy Selection</td>
+        <td className="py-3 px-4"><code>GridSearchCV</code> over a <code>Pipeline</code>'s imputer strategies</td>
+        <td className="py-3 px-4">unsure which fixed-value strategy performs best, want it decided by cross-validation</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+---
+
+## What's Next?
+
+This closes out univariate imputation: mean/median and arbitrary value/end of distribution for fixed numerical fills (ch.27), most frequent and missing category for fixed categorical fills (ch.28), and now random sample imputation, which drops the "fixed" part entirely and preserves distribution shape at the cost of disturbing correlations with other columns, same as every technique in this series. All of them share one limitation: each column gets filled using only its own data. The next posts move to **multivariate imputation**, KNN Imputer and Iterative Imputer, which fill gaps using the *other* columns in the row instead of just the column's own statistics.
