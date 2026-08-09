@@ -126,6 +126,8 @@ sequenceDiagram
 
 What browsers do instead, and what's often confused for pipelining, is sending multiple requests in parallel over multiple connections, without waiting for each response, but without the strict in-order response requirement pipelining imposes either.
 
+> The concurrency looks similar, requests go out without waiting on each other, but the mechanism isn't. Pipelining queues multiple requests onto **one** connection, so the response order is forced. Browsers instead open several **separate** TCP connections (historically around six per host) and spread requests across them. A slow response on one connection has no effect on the others, since ordering was only ever a constraint within a single connection, not across independent ones. That's what avoids head-of-line blocking without needing pipelining at all.
+
 ---
 
 ## Summary
