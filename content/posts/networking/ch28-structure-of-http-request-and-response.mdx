@@ -77,6 +77,7 @@ Calling the same endpoint returns response headers like these:
 | `Connection` | `keep-alive` | The server's side of the same persistent-connection negotiation covered above. |
 | `X-Powered-By` | `Express` | An application-level header, not part of the HTTP spec itself, added by the framework (Express, running on Node.js here) rather than by HTTP. |
 | `Access-Control-Allow-Origin` | `*` | A CORS header, controlling which origins are allowed to read this response from a browser. |
+| `RateLimit-Limit` / `RateLimit-Remaining` / `RateLimit-Reset` | `5000` / `4999` / `316` | How many requests are allowed in the current window, how many are left, and seconds until the window resets. FreeAPI generates these itself; they're not part of the HTTP spec either. |
 | `ETag` | `W/"2a05-xjkqHU4sNAeFPZX9uGNel7XPn8E"` | A hash of this exact response body, used for conditional requests, covered next. |
 
 `Content-Length` is easy to verify directly: fetching the same response body and measuring it comes out to exactly 10,757 bytes, matching the header precisely.
@@ -117,5 +118,5 @@ The server still did the work of building the response; what it skipped is *tran
 * An HTTP **request** starts with a request line, **method**, **path** (including any query string), and **protocol version**, followed by headers.
 * Common request headers: **`Host`** (the domain being called), **`Referer`** (the exact page the request came from), **`User-Agent`**, **`Accept`** (the response format expected), **`Accept-Encoding`**, **`Accept-Language`**, **`Connection: keep-alive`**, and **`Cookie`**.
 * An HTTP **response** starts with a status line, **protocol version** and **status code** (`200 OK`), followed by headers.
-* Common response headers: **`Server`**, **`Date`**, **`Content-Type`**, **`Content-Length`** (the exact byte size of the body), **`Connection`**, and framework-added headers like **`X-Powered-By`**.
+* Common response headers: **`Server`**, **`Date`**, **`Content-Type`**, **`Content-Length`** (the exact byte size of the body), **`Connection`**, and application-added headers like **`X-Powered-By`**, CORS headers, and **`RateLimit-*`** headers.
 * **`ETag`** is a hash of the response body. A client resends it via **`If-None-Match`** on the next request; if the server's freshly computed hash still matches, it replies **`304 Not Modified`** with no body, saving the bandwidth of resending unchanged data.
