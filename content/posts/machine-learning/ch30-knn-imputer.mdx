@@ -192,126 +192,77 @@ One call to `fit_transform`, `KNNImputer` fits its own internal nearest-neighbor
 
 ## Does KNN Actually Preserve Relationships Between Columns?
 
-Every univariate technique in this series has carried the same disadvantage: filling a column using only its own values ignores whatever relationship that column has with the others, and [random sample imputation's `.cov()` check](/machine-learning/ch29-random-sample-imputation-and-missing-indicator#it-still-disturbs-covariance) measured exactly that damage using a full matrix rather than one pair at a time. Same approach here, `.corr()` on the whole three-column slice, once per state, `KNN Imputer` is built around the idea of explicitly using `Pclass` and `Fare` to decide what `Age` should be, so it's worth checking whether that shows up as *less* damage to `Age`'s relationships, not just better accuracy:
+Every univariate technique in this series has carried the same disadvantage: filling a column using only its own values ignores whatever relationship that column has with the others, and [random sample imputation's `.cov()` check](/machine-learning/ch29-random-sample-imputation-and-missing-indicator#it-still-disturbs-covariance) measured exactly that damage by keeping the original column *and* the imputed one side by side in the same `DataFrame` and calling `.cov()` once. Same move here: `Age` (still has its gaps) stays put, and `Age_knn` / `Age_mean` sit next to it as new columns, so one `.corr()` call shows every relationship, and every state, at once:
 
 ```python
-X_train_knn = pd.DataFrame(X_train_trf, columns=X_train.columns, index=X_train.index)
-X_train_mean = pd.DataFrame(X_train_trf2, columns=X_train.columns, index=X_train.index)
+combined = X_train.copy()
+combined['Age_knn'] = X_train_knn['Age']
+combined['Age_mean'] = X_train_mean['Age']
+combined = combined[['Pclass', 'Fare', 'Age', 'Age_knn', 'Age_mean']]
 
-X_train.corr()       # pairwise-complete, original
-X_train_knn.corr()   # after KNN imputation
-X_train_mean.corr()  # after mean imputation
+combined.corr()
 ```
 
 <div className="overflow-x-auto my-8">
   <table className="w-full text-left border-collapse">
     <thead>
       <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
-        <th className="py-3 px-4 font-bold" colSpan={4}>Original (pairwise-complete)</th>
-      </tr>
-      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
         <th className="py-3 px-4 font-bold"></th>
-        <th className="py-3 px-4 font-bold">Age</th>
         <th className="py-3 px-4 font-bold">Pclass</th>
         <th className="py-3 px-4 font-bold">Fare</th>
+        <th className="py-3 px-4 font-bold">Age</th>
+        <th className="py-3 px-4 font-bold">Age_knn</th>
+        <th className="py-3 px-4 font-bold">Age_mean</th>
       </tr>
     </thead>
     <tbody className="divide-y divide-black/5 dark:divide-white/5">
-      <tr>
-        <td className="py-3 px-4 font-semibold">Age</td>
-        <td className="py-3 px-4">1.000</td>
-        <td className="py-3 px-4">-0.380</td>
-        <td className="py-3 px-4">0.096</td>
-      </tr>
       <tr>
         <td className="py-3 px-4 font-semibold">Pclass</td>
+        <td className="py-3 px-4">1.000</td>
+        <td className="py-3 px-4">-0.559</td>
         <td className="py-3 px-4">-0.380</td>
-        <td className="py-3 px-4">1.000</td>
-        <td className="py-3 px-4">-0.559</td>
-      </tr>
-      <tr>
-        <td className="py-3 px-4 font-semibold">Fare</td>
-        <td className="py-3 px-4">0.096</td>
-        <td className="py-3 px-4">-0.559</td>
-        <td className="py-3 px-4">1.000</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
-<div className="overflow-x-auto my-8">
-  <table className="w-full text-left border-collapse">
-    <thead>
-      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
-        <th className="py-3 px-4 font-bold" colSpan={4}>After KNN Imputation</th>
-      </tr>
-      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
-        <th className="py-3 px-4 font-bold"></th>
-        <th className="py-3 px-4 font-bold">Age</th>
-        <th className="py-3 px-4 font-bold">Pclass</th>
-        <th className="py-3 px-4 font-bold">Fare</th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-black/5 dark:divide-white/5">
-      <tr>
-        <td className="py-3 px-4 font-semibold">Age</td>
-        <td className="py-3 px-4">1.000</td>
         <td className="py-3 px-4">-0.365</td>
-        <td className="py-3 px-4">0.090</td>
-      </tr>
-      <tr>
-        <td className="py-3 px-4 font-semibold">Pclass</td>
-        <td className="py-3 px-4">-0.365</td>
-        <td className="py-3 px-4">1.000</td>
-        <td className="py-3 px-4">-0.559</td>
-      </tr>
-      <tr>
-        <td className="py-3 px-4 font-semibold">Fare</td>
-        <td className="py-3 px-4">0.090</td>
-        <td className="py-3 px-4">-0.559</td>
-        <td className="py-3 px-4">1.000</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
-<div className="overflow-x-auto my-8">
-  <table className="w-full text-left border-collapse">
-    <thead>
-      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
-        <th className="py-3 px-4 font-bold" colSpan={4}>After Mean Imputation</th>
-      </tr>
-      <tr className="border-b border-black/10 dark:border-white/10 text-amber-600 dark:text-amber-400">
-        <th className="py-3 px-4 font-bold"></th>
-        <th className="py-3 px-4 font-bold">Age</th>
-        <th className="py-3 px-4 font-bold">Pclass</th>
-        <th className="py-3 px-4 font-bold">Fare</th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-black/5 dark:divide-white/5">
-      <tr>
-        <td className="py-3 px-4 font-semibold">Age</td>
-        <td className="py-3 px-4">1.000</td>
         <td className="py-3 px-4">-0.339</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Fare</td>
+        <td className="py-3 px-4">-0.559</td>
+        <td className="py-3 px-4">1.000</td>
+        <td className="py-3 px-4">0.096</td>
+        <td className="py-3 px-4">0.090</td>
         <td className="py-3 px-4">0.091</td>
       </tr>
       <tr>
-        <td className="py-3 px-4 font-semibold">Pclass</td>
-        <td className="py-3 px-4">-0.339</td>
+        <td className="py-3 px-4 font-semibold">Age</td>
+        <td className="py-3 px-4">-0.380</td>
+        <td className="py-3 px-4">0.096</td>
         <td className="py-3 px-4">1.000</td>
-        <td className="py-3 px-4">-0.559</td>
+        <td className="py-3 px-4">1.000</td>
+        <td className="py-3 px-4">1.000</td>
       </tr>
       <tr>
-        <td className="py-3 px-4 font-semibold">Fare</td>
+        <td className="py-3 px-4 font-semibold">Age_knn</td>
+        <td className="py-3 px-4">-0.365</td>
+        <td className="py-3 px-4">0.090</td>
+        <td className="py-3 px-4">1.000</td>
+        <td className="py-3 px-4">1.000</td>
+        <td className="py-3 px-4">0.937</td>
+      </tr>
+      <tr>
+        <td className="py-3 px-4 font-semibold">Age_mean</td>
+        <td className="py-3 px-4">-0.339</td>
         <td className="py-3 px-4">0.091</td>
-        <td className="py-3 px-4">-0.559</td>
+        <td className="py-3 px-4">1.000</td>
+        <td className="py-3 px-4">0.937</td>
         <td className="py-3 px-4">1.000</td>
       </tr>
     </tbody>
   </table>
 </div>
 
-Two things worth reading in the full matrix rather than a single extracted cell. First, `Pclass`↔`Fare` is `-0.559` in all three tables, identical, because neither column was ever missing, imputing `Age` cannot touch a relationship that doesn't involve `Age` at all. Second, `Age`↔`Pclass` moves from `-0.380` to `-0.339` under mean imputation, every missing `Age` becomes the exact same number regardless of `Pclass`, which mutes the relationship, and KNN lands closer at `-0.365`, precisely because each fill was chosen *using* that row's own `Pclass` and `Fare`. But `Age`↔`Fare` tells a less clean story: `0.096` originally, KNN moves it to `0.090`, mean to `0.091`, KNN is not the closer of the two on this particular pair, even though `Fare` was one of the two columns it used to pick each fill. Multivariate imputation uses the other columns, it doesn't guarantee every relationship improves, on this split it's a clear win for the relationship the technique was pointed at (`Age`↔`Pclass`) and a wash on the other one (`Age`↔`Fare`).
+The `Pclass` and `Fare` rows are the honest comparison, `Age`, `Age_knn`, and `Age_mean` are each correlated against a column that was *never* missing, so every cell in those two rows uses the full row count and is directly comparable to the others. Reading across: `Age`↔`Pclass` is `-0.380` originally, mean imputation mutes it to `-0.339`, every missing `Age` becomes the exact same number regardless of `Pclass`, and KNN lands closer at `-0.365`, precisely because each fill used that row's own `Pclass` and `Fare`. But `Age`↔`Fare` tells a less clean story, `0.096` originally, KNN moves it to `0.090`, mean to `0.091`, KNN is not the closer of the two here even though `Fare` was one of the columns it used to pick each fill. Multivariate imputation doesn't guarantee every relationship improves, this split is a clear win for `Age`↔`Pclass` and a wash on `Age`↔`Fare`.
+
+The `Age` / `Age_knn` / `Age_mean` block in the top-left of that 3×3 corner is the same gotcha [Ch.29 ran into](/machine-learning/ch29-random-sample-imputation-and-missing-indicator#it-still-disturbs-covariance): every cell reads `1.000` because `.corr()` drops rows where either column is missing, and on every row where `Age` isn't missing, `Age_knn` and `Age_mean` are defined to equal it exactly, so those cells are quietly comparing `Age`'s non-missing subset to a copy of itself. `Age_knn`↔`Age_mean` is the one cell in that corner not poisoned by that trick, neither column has any gaps left, so it uses every row, and it lands at `0.937`, not `1.000`. That number is the direct measure of how much the two imputation methods actually agree with each other: high, because most rows were never missing and both columns equal the real `Age` there, but not perfect, because on the ~20% of rows that *were* missing, KNN's per-row neighbor average and mean's single fixed constant rarely land on the same number twice.
 
 ---
 
