@@ -224,7 +224,7 @@ Which, on this particular split, **ties mean imputation exactly** and trails `KN
   </table>
 </div>
 
-That tie is worth sitting with rather than explaining away: it does *not* mean `IterativeImputer` filled `Age` the same way mean imputation did.
+That tie is worth sitting with rather than explaining away: it does *not* mean `IterativeImputer` filled `Age` the same way mean imputation did. [Ch.30 already measured](/machine-learning/ch30-knn-imputer#does-knn-actually-preserve-relationships-between-columns) how much signal `Pclass` and `Fare` actually carry about `Age`, `-0.380` and `0.096`, both fairly weak. MICE's whole advantage over a flat mean comes from exploiting exactly that signal, so on a pair of predictors this weak, there's only so much a per-row regression fill can improve over a single constant, and a tied accuracy isn't the dataset failing MICE, it's MICE correctly not having much to work with here.
 
 ### Same Accuracy, Very Different Fills
 
@@ -274,7 +274,7 @@ That tie is worth sitting with rather than explaining away: it does *not* mean `
   </table>
 </div>
 
-Mean imputation writes `29.79` regardless of class or fare. `IterativeImputer` gives a third-class, low-fare passenger (`77`) a younger predicted age (`24.83`) and a first-class, high-fare passenger (`334`) an older one (`35.00`), because it's actually using the correlation between `Age`, `Pclass`, and `Fare` on every fill. `LogisticRegression` on this particular 3-feature split just happens to draw the same decision boundary either way, a coincidence of this dataset and this split, not something to expect in general.
+Mean imputation writes `29.79` regardless of class or fare. `IterativeImputer` gives a third-class, low-fare passenger (`77`) a younger predicted age (`24.83`) and a first-class, high-fare passenger (`334`) an older one (`35.00`), because it's actually using the correlation between `Age`, `Pclass`, and `Fare` on every fill. That per-row difference is real, but it doesn't automatically reach the accuracy number: accuracy only sees a fill through the lossy chain of `Age` → `LogisticRegression` → predicted `Survived`, so a better `Age` guess only moves accuracy if it's large enough, on enough rows, to flip a prediction. With `Age`↔`Pclass`/`Fare` correlation this weak to begin with, MICE's per-row correction is too small and too scattered to clear that bar on this split, `LogisticRegression` draws the same decision boundary either way. The correlation table below is the more sensitive instrument, it catches the difference directly instead of waiting for it to survive a classifier.
 
 ### Which One Preserves Correlation Best
 
