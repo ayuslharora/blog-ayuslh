@@ -7,7 +7,7 @@ subtopic: "Handling Missing Data"
 draft: false
 ---
 
-*Video Reference:* [YouTube](https://www.youtube.com/watch?v=Ratcir3p03w)
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=Ratcir3p03w)
 
 The last two posts covered univariate imputation with a fixed value: mean/median or an arbitrary constant for numerical columns, most frequent category or a new "Missing" category for categorical ones. All four share the same weakness, every missing value in a column gets replaced by the *same* number or category, which flattens the column's variance and reshapes its distribution. This post covers a technique that sidesteps that problem entirely, **random sample imputation**, plus two things that go alongside it: a **missing indicator** column that flags which rows were incomplete, and a way to stop guessing which imputation strategy to use by letting `GridSearchCV` pick it automatically.
 

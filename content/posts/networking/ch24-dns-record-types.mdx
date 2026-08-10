@@ -11,7 +11,7 @@ source:
   url: "https://www.youtube.com/watch?v=_PugVKzp3ig"
 ---
 
-*Video Reference:* [YouTube](https://www.youtube.com/watch?v=_PugVKzp3ig)
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=_PugVKzp3ig)
 
 The [previous post](/networking/ch23-dns-domain-name-system) walked through *how* a resolver finds an answer, root server, TLD server, authoritative name server, but treated the answer itself as a black box: "the authoritative server returns the IP." That's only true for one record type. A domain's authoritative name server actually holds several different kinds of records, each answering a different question, an IPv4 address, an IPv6 address, where to deliver mail, an alias to another hostname, who's authoritative for a zone, arbitrary text used for security checks. This post opens that box.
 

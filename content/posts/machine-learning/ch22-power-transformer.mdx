@@ -7,7 +7,7 @@ subtopic: "Feature Engineering"
 draft: false
 ---
 
-*Video Reference:* [YouTube](https://www.youtube.com/watch?v=lV_Z4HbNAx0)
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=lV_Z4HbNAx0)
 
 The last post covered **Mathematical Transformations**: reshaping a skewed column with a fixed formula like Log or Square Root, using `FunctionTransformer`. Those formulas work, but you have to guess which one fits your data and try each by hand. This post covers a class that skips the guessing: **`PowerTransformer`**. Instead of applying one fixed formula, it searches for the exact exponent that makes your column look as close to a bell curve as possible, then applies it. It comes with two techniques baked in: **Box-Cox** and **Yeo-Johnson**.
 

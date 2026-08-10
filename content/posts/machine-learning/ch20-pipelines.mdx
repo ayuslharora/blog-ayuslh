@@ -7,7 +7,7 @@ subtopic: "Feature Engineering"
 draft: false
 ---
 
-*Video Reference:* [YouTube](https://www.youtube.com/watch?v=xOccYkgRV4Q)
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=xOccYkgRV4Q)
 
 The last post covered `ColumnTransformer`: one object, one `fit_transform()` call, applying different preprocessing to different columns. That solves the problem of *one preprocessing step spanning several columns*. It doesn't solve a bigger problem: a real project usually needs *several* preprocessing steps, one after another, followed by a model, and every one of those steps has to be repeated, in the exact same order, on every new batch of data that comes in. That's what **`Pipeline`** is for.
 

@@ -11,7 +11,7 @@ source:
   url: "https://www.youtube.com/watch?v=P31T7461kfs"
 ---
 
-*Video Reference:* [YouTube](https://www.youtube.com/watch?v=P31T7461kfs)
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=P31T7461kfs)
 
 [Ch.23](/networking/ch23-dns-domain-name-system) covered what DNS is and how a resolver walks the hierarchy to answer a query. [Ch.24](/networking/ch24-dns-record-types) covered what the records themselves store. Neither looked at the actual bytes that travel between resolver and server to make any of that happen, the DNS message itself, sitting inside the [UDP datagram](/networking/ch14-anatomy-of-a-udp-datagram-and-checksum)'s data field. This post opens that up, field by field, the same way earlier posts did for UDP and TCP, and ends with a real capture showing a query that outgrows UDP entirely.
 
