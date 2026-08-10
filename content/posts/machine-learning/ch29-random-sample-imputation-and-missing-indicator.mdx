@@ -412,84 +412,120 @@ Same mean-imputed `age`/`fare`, same logistic regression, the only difference is
 
 Every technique in this three-post series has a "which one do I actually use" decision attached, mean vs. median, which arbitrary value, most frequent vs. missing category. Rather than deciding by hand, a `Pipeline` with `SimpleImputer` steps can have its strategies searched over directly by `GridSearchCV`, the same technique from [`GridSearchCV` for hyperparameter tuning](/machine-learning/ch20-pipelines), just applied to imputation choices instead of model hyperparameters.
 
+This uses the raw Kaggle Titanic training file rather than the `seaborn-data` copy used earlier in this post, mostly so the column names (`Age`, `Fare`, `Embarked`, `Sex`, `Pclass`) line up with the original source notebook exactly:
+
 ```python
-from sklearn.impute import SimpleImputer
+import pandas as pd
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GridSearchCV
 
-df = pd.read_csv('https://raw.githubusercontent.com/mwaskom/seaborn-data/master/titanic.csv')
-df = df[['age', 'embarked', 'sex', 'pclass', 'survived']]
-X = df.drop(columns='survived')
-y = df['survived']
+df = pd.read_csv('https://raw.githubusercontent.com/campusx-official/100-days-of-machine-learning/main/day38-missing-indicator/train.csv')
+df.drop(columns=['PassengerId', 'Name', 'Ticket', 'Cabin'], inplace=True)
+
+X = df.drop(columns=['Survived'])
+y = df['Survived']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=2)
 
 X_train.isnull().sum()
 ```
 
 ```text
-age         148
-embarked      2
-sex           0
-pclass        0
+Pclass        0
+Sex           0
+Age         148
+SibSp         0
+Parch         0
+Fare          0
+Embarked      2
 ```
 
-`age` (numerical) and `embarked` (categorical) both have missing values, `sex` and `pclass` don't. Two sub-pipelines, one for each type, feed into a `ColumnTransformer`:
+`Age` and `Embarked` have missing values, everything else doesn't, notably `Fare` here is the real, untouched Kaggle column, unlike the `fare` used earlier in this post, which had 5% artificially nulled out for demonstration. Two sub-pipelines, one for each column type, feed into a `ColumnTransformer`:
 
 ```python
-num_pipe = Pipeline([('impute', SimpleImputer(strategy='mean'))])
-cat_pipe = Pipeline([
-    ('impute', SimpleImputer(strategy='most_frequent')),
-    ('encode', OneHotEncoder(handle_unknown='ignore')),
+numerical_features = ['Age', 'Fare']
+numerical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='median')),
+    ('scaler', StandardScaler()),
 ])
 
-trf1 = ColumnTransformer([
-    ('num', num_pipe, ['age']),
-    ('cat', cat_pipe, ['embarked', 'sex', 'pclass']),
+categorical_features = ['Embarked', 'Sex']
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='most_frequent')),
+    ('ohe', OneHotEncoder(handle_unknown='ignore')),
 ])
 
-pipe = Pipeline([
-    ('trf1', trf1),
-    ('clf', LogisticRegression(max_iter=500)),
+preprocessor = ColumnTransformer(transformers=[
+    ('num', numerical_transformer, numerical_features),
+    ('cat', categorical_transformer, categorical_features),
+])
+
+clf = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('classifier', LogisticRegression()),
 ])
 ```
 
 Worth walking through what each layer of nesting is doing, since the grid search step depends on understanding this structure:
 
-- **`num_pipe`** is a one-step `Pipeline` wrapping a `SimpleImputer` under the name `'impute'`. It's still a `Pipeline`, not just a bare transformer, specifically so that name can be targeted later.
-- **`cat_pipe`** is a two-step `Pipeline`: `'impute'` fills missing categories, then `'encode'` one-hot encodes the result. These run in sequence, imputation has to happen before encoding, since `OneHotEncoder` can't handle `NaN` values on its own. `handle_unknown='ignore'` tells the encoder to zero out any category it never saw during `fit` (relevant once `X_test` gets transformed) instead of raising an error.
-- **`trf1`** is a `ColumnTransformer` that routes `['age']` through `num_pipe` and `['embarked', 'sex', 'pclass']` through `cat_pipe`, in parallel, then concatenates the results back into one array. This is the same pattern used for the `age`/`fare` split back in the [mean/median post](/machine-learning/ch27-mean-median-imputation), just with a full pipeline instead of a bare `SimpleImputer` in each slot.
-- **`pipe`** chains `trf1` into a `LogisticRegression`, so calling `pipe.fit(X_train, y_train)` runs the entire preprocessing-plus-model sequence in one call.
+- **`numerical_transformer`** is a two-step `Pipeline`: `'imputer'` fills `Age`/`Fare` gaps, then `'scaler'` standardizes both columns. The scaler matters more here than in earlier posts, `LogisticRegression`'s `C` parameter (added to the grid below) regularizes the size of the model's coefficients, and that only means something consistent when every feature is on a comparable scale.
+- **`categorical_transformer`** is a two-step `Pipeline`: `'imputer'` fills missing categories, then `'ohe'` one-hot encodes the result. Imputation has to run before encoding, `OneHotEncoder` can't handle `NaN` values on its own, and `handle_unknown='ignore'` tells it to zero out any category it never saw during `fit` (relevant once `X_test` gets transformed) instead of raising an error.
+- **`preprocessor`** is a `ColumnTransformer` that routes `numerical_features` through `numerical_transformer` and `categorical_features` through `categorical_transformer`, in parallel, then concatenates the results back into one array. Same pattern as the `age`/`fare` split back in the [mean/median post](/machine-learning/ch27-mean-median-imputation), just with a full pipeline in each slot instead of a bare `SimpleImputer`.
+- **`clf`** chains `preprocessor` into a `LogisticRegression`, so calling `clf.fit(X_train, y_train)` runs the entire preprocessing-plus-model sequence in one call.
 
-The `strategy='mean'` and `strategy='most_frequent'` set on the two imputers above are just starting points, values the pipeline needs *something* set to in order to be constructible, not the final answer. That's what `param_grid` is for, it lists the strategies actually worth comparing:
+The `strategy='median'`, `strategy='most_frequent'` set on the two imputers above are just starting points, values the pipeline needs *something* set to in order to be constructible, not the final answer. That's what `param_grid` is for, and this time it's not limited to imputation strategies, `LogisticRegression`'s own `C` (inverse regularization strength) gets searched over in the same grid:
 
 ```python
 param_grid = {
-    'trf1__num__impute__strategy': ['mean', 'median'],
-    'trf1__cat__impute__strategy': ['most_frequent', 'constant'],
+    'preprocessor__num__imputer__strategy': ['mean', 'median'],
+    'preprocessor__cat__imputer__strategy': ['most_frequent', 'constant'],
+    'classifier__C': [0.1, 1.0, 10, 100],
 }
 ```
 
-Each key is a **path into the nested pipeline**, joined with double underscores, one segment per level of nesting: `trf1` (the step name inside `pipe`) → `num` (the transformer name inside `trf1`) → `impute` (the step name inside `num_pipe`) → `strategy` (the actual constructor argument on that `SimpleImputer`). `GridSearchCV` doesn't know anything about imputers or pipelines specifically, it just calls `.set_params(**{that path: that value})` on a clone of `pipe` for every combination in the grid, and `scikit-learn`'s `.set_params()` is what knows how to walk a dotted (here, double-underscore) path down through nested estimators. Getting a segment wrong, `trf1__num_impute__strategy` instead of `trf1__num__impute__strategy` for example, fails immediately with an "invalid parameter" error rather than silently ignoring it, which is a fast way to double check the path matches the actual step names used above.
+Each key is a **path into the nested pipeline**, joined with double underscores, one segment per level of nesting: `preprocessor` (the step name inside `clf`) → `num` (the transformer name inside `preprocessor`) → `imputer` (the step name inside `numerical_transformer`) → `strategy` (the actual constructor argument on that `SimpleImputer`). `classifier__C` is a shorter path, straight from `clf` to the `C` argument on the `LogisticRegression` step, no nesting in between. `GridSearchCV` doesn't know anything about imputers, pipelines, or regularization specifically, it just calls `.set_params(**{that path: that value})` on a clone of `clf` for every combination in the grid, and `scikit-learn`'s `.set_params()` is what knows how to walk a dotted (here, double-underscore) path down through nested estimators, imputation strategy and model hyperparameter alike. Getting a segment wrong fails immediately with an "invalid parameter" error rather than silently ignoring it, which is a fast way to double check a path matches the actual step names used above.
 
 ```python
-grid = GridSearchCV(pipe, param_grid, cv=5, scoring='accuracy')
-grid.fit(X_train, y_train)
+grid_search = GridSearchCV(clf, param_grid, cv=10)
+grid_search.fit(X_train, y_train)
 
-grid.best_params_
-grid.best_score_
+grid_search.best_params_
+grid_search.best_score_
 ```
 
-`cv=5` means every one of the 2×2=4 combinations in the grid gets evaluated with 5-fold cross-validation, the training data is split five ways, each combination trains on four folds and validates on the held-out fifth, five times over, and the five scores get averaged into one number per combination. That's `4 × 5 = 20` total model fits for this grid, `.fit()` runs all of them. `scoring='accuracy'` is what those folds get judged on; by default `GridSearchCV` also refits one final model on the *entire* training set using whichever combination scored best, that refit model is what ends up accessible as `grid.best_estimator_`.
+`cv=10` means every one of the `2 × 2 × 4 = 16` combinations in the grid gets evaluated with 10-fold cross-validation, `16 × 10 = 160` total model fits, all run by that one `.fit()` call. By default `GridSearchCV` also refits one final model on the *entire* training set using whichever combination scored best, accessible afterward as `grid_search.best_estimator_`.
 
 ```text
-best_params_: {'trf1__cat__impute__strategy': 'constant', 'trf1__num__impute__strategy': 'median'}
-best_score_:  0.8033
+best_params_: {'classifier__C': 1.0, 'preprocessor__cat__imputer__strategy': 'most_frequent', 'preprocessor__num__imputer__strategy': 'mean'}
+best_score_:  0.788
 ```
 
-`best_params_` reports back using the exact same double-underscore paths from `param_grid`, and on this split the winner is median for `age`, constant-fill for the categorical columns. `best_score_` is the average cross-validated accuracy for that winning combination, 80.33%, not a test-set score, that number only comes from calling `grid.score(X_test, y_test)` separately. On a small dataset like this the gap between combinations won't always be dramatic, but the value of the approach doesn't depend on the dataset being large: it replaces "which imputation strategy should I use" with "let cross-validation answer that," the same shift `GridSearchCV` already makes for every other hyperparameter in a pipeline.
+On this split, `C=1.0` (the default), most frequent for the categorical imputer, and mean for the numerical imputer come out on top, at 78.8% average cross-validated accuracy. Sorting `grid_search.cv_results_` into a table shows there isn't one lonely best combination so much as a tied cluster at the top:
+
+```python
+cv_results = pd.DataFrame(grid_search.cv_results_)
+cv_results = cv_results.sort_values('mean_test_score', ascending=False)
+cv_results[[
+    'param_classifier__C',
+    'param_preprocessor__cat__imputer__strategy',
+    'param_preprocessor__num__imputer__strategy',
+    'mean_test_score',
+]].head()
+```
+
+```text
+    C      cat strategy    num strategy   mean_test_score
+  1.0     most_frequent            mean           0.78785
+  1.0     most_frequent          median           0.78785
+  1.0          constant            mean           0.78785
+  1.0          constant          median           0.78785
+ 10.0     most_frequent            mean           0.78785
+```
+
+Both imputer strategies for both columns land on the exact same score once `C=1.0`, only `classifier__C` actually moves the needle on this dataset, `Age`'s and `Embarked`'s missingness are light enough here (148 and 2 rows respectively) that mean vs. median or most-frequent vs. constant makes no measurable difference. That's a real, useful finding in itself, not every dataset punishes a "wrong" imputation choice, and `GridSearchCV` is what reveals that cheaply instead of assuming it. On a dataset with heavier or more skewed missingness, the same setup would show a real gap between strategies rather than a tie, exactly the kind of thing worth checking rather than guessing.
 
 ---
 
