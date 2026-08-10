@@ -155,6 +155,10 @@ y_pred = lr.predict(X_test_trf)
 accuracy_score(y_test, y_pred)
 ```
 
+```text
+0.7094972067039106
+```
+
 ```python
 # Comparison with SimpleImputer --> mean
 
@@ -170,7 +174,9 @@ y_pred2 = lr.predict(X_test_trf2)
 accuracy_score(y_test, y_pred2)
 ```
 
-<MdxImage src="/images/ch30-knn-vs-mean-accuracy.png" alt="Bar chart comparing logistic regression test accuracy on Titanic Age/Pclass/Fare: mean imputation reaches 69.27%, KNN Imputer with n_neighbors=3 and weights='distance' reaches 70.95%." className="w-full h-auto rounded-lg my-6" />
+```text
+0.6927374301675978
+```
 
 One call to `fit_transform`, `KNNImputer` fits its own internal nearest-neighbor structure on `X_train` and fills every missing `Age` using the worked-example logic above, in parallel for every row that needs it. `.transform(X_test)` reuses that same fitted structure, test-set rows get filled using distances computed against the *training* rows, never against other test rows, the same train/test separation discipline as every other imputation technique in this series. On this split, `KNNImputer` edges out `SimpleImputer`'s mean by about 1.7 points, `70.95%` versus `69.27%`.
 

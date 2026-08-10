@@ -121,6 +121,12 @@ body {
   color: #050505;
 }
 
+/* Force code block backgrounds to pure black, matching other dark
+   surfaces on the site, instead of the Shiki theme's own gray. */
+.prose pre[data-theme] {
+  background-color: #0a0a0a !important;
+}
+
 /* Disable quotes in Tailwind Typography blockquotes */
 .prose blockquote p:first-of-type::before {
   content: none !important;

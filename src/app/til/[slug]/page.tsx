@@ -131,7 +131,7 @@ export default async function TilPostPage({
               rehypePlugins: [
                 rehypeSlug,
                 rehypeKatex,
-                [rehypePrettyCode, { theme: 'github-dark-dimmed', keepBackground: true }],
+                [rehypePrettyCode, { theme: 'github-dark-dimmed', keepBackground: false }],
               ],
             },
           }}

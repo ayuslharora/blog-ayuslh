@@ -130,7 +130,7 @@ export default async function PostPage({
               rehypePlugins: [
                 rehypeSlug,
                 rehypeKatex,
-                [rehypePrettyCode, { theme: 'github-dark-dimmed', keepBackground: true }],
+                [rehypePrettyCode, { theme: 'github-dark-dimmed', keepBackground: false }],
               ],
             },
           }}
