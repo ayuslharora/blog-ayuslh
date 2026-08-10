@@ -15,7 +15,13 @@ source:
 
 [Ch.26](/networking/ch26-http-hypertext-transfer-protocol) covered what HTTP is, and [Ch.27](/networking/ch27-http-1.0-vs-http-1.1) covered how its versions differ in connection handling. Neither looked at what an actual request and response contain. This post does exactly that: calling a real endpoint and reading the request and response headers a browser and server actually exchange, field by field.
 
-The endpoint used throughout is `GET https://api.freeapi.app/api/v1/public/randomusers`, a public API that returns a list of random users as JSON.
+The exact request used throughout this post, reproducible with `curl` or a browser, is:
+
+```
+GET https://api.freeapi.app/api/v1/public/randomusers?page=2&limit=10
+```
+
+A public API that returns a page of random users as JSON, two query parameters and all, so every header and value below traces back to this one call.
 
 ---
 
@@ -24,11 +30,11 @@ The endpoint used throughout is `GET https://api.freeapi.app/api/v1/public/rando
 Every HTTP request opens with a single line made of exactly three pieces:
 
 ```
-GET /api/v1/public/randomusers HTTP/1.1
+GET /api/v1/public/randomusers?page=2&limit=10 HTTP/1.1
 ```
 
 * **Method**, `GET` here, says what kind of operation this request is.
-* **Path**, `/api/v1/public/randomusers`, is the endpoint being called. Anything after a `?` in the path is the **query string**, key-value pairs separated by `&`, used for things like pagination (`?page=2&limit=10`).
+* **Path**, `/api/v1/public/randomusers`, is the endpoint being called. Everything from the `?` onward, `page=2&limit=10`, is the **query string**: key-value pairs separated by `&`, here telling the API to return page 2 with 10 users per page.
 * **Version**, `HTTP/1.1`, is the protocol version the client is speaking, the same versioning [Ch.27](/networking/ch27-http-1.0-vs-http-1.1) went into.
 
 That's the entire request line. Everything else in the request is headers.
@@ -66,21 +72,27 @@ HTTP/1.1 200 OK
 
 Protocol version first, then a **status code**, `200` here, meaning the request succeeded. Status codes have their own taxonomy (`2xx` success, `4xx` client error, `5xx` server error) that's worth a dedicated post on its own; for now, `200 OK` is the one that matters.
 
-Calling the same endpoint returns response headers like these:
+Calling that exact request, `GET /api/v1/public/randomusers?page=2&limit=10`, returns these response headers:
 
 | Header | Value | What it means |
 | :--- | :--- | :--- |
 | `Server` | `nginx/1.18.0 (Ubuntu)` | The web server software handling the request. FreeAPI sits behind nginx. |
-| `Date` | `Mon, 10 Aug 2026 17:35:55 GMT` | When the response was generated. |
+| `Date` | `Mon, 10 Aug 2026 17:56:42 GMT` | When the response was generated. |
 | `Content-Type` | `application/json; charset=utf-8` | What kind of data the body actually is, matching the `Accept: application/json` the request asked for. |
-| `Content-Length` | `10757` | The exact byte size of the response body, so the client knows precisely where the response ends. |
+| `Content-Length` | `10689` | The exact byte size of the response body, so the client knows precisely where the response ends. |
 | `Connection` | `keep-alive` | The server's side of the same persistent-connection negotiation covered above. |
 | `X-Powered-By` | `Express` | An application-level header, not part of the HTTP spec itself, added by the framework (Express, running on Node.js here) rather than by HTTP. |
 | `Access-Control-Allow-Origin` | `*` | A CORS header, controlling which origins are allowed to read this response from a browser. |
-| `RateLimit-Limit` / `RateLimit-Remaining` / `RateLimit-Reset` | `5000` / `4999` / `316` | How many requests are allowed in the current window, how many are left, and seconds until the window resets. FreeAPI generates these itself; they're not part of the HTTP spec either. |
-| `ETag` | `W/"2a05-xjkqHU4sNAeFPZX9uGNel7XPn8E"` | A hash of this exact response body, used for conditional requests, covered next. |
+| `RateLimit-Limit` / `RateLimit-Remaining` / `RateLimit-Reset` | `5000` / `4996` / `218` | How many requests are allowed in the current window, how many are left, and seconds until the window resets. FreeAPI generates these itself; they're not part of the HTTP spec either. |
+| `ETag` | `W/"29c1-slhkHFv/RRXUkUGVvWaUr0J8qZA"` | A hash of this exact response body, used for conditional requests, covered next. |
 
-`Content-Length` is easy to verify directly: fetching the same response body and measuring it comes out to exactly 10,757 bytes, matching the header precisely.
+`Content-Length` is directly checkable: fetching this same URL and measuring the body comes out to exactly 10,689 bytes, matching the header precisely.
+
+```
+curl -s -D - "https://api.freeapi.app/api/v1/public/randomusers?page=2&limit=10"
+```
+
+Running that returns the same status line and headers listed above, so every value here is something you can reproduce yourself, not a hypothetical.
 
 ---
 
@@ -96,18 +108,27 @@ sequenceDiagram
     participant Client as Browser
     participant Server
 
-    Client->>Server: GET /randomusers
+    Client->>Server: GET /randomusers?page=2&limit=10
     Note over Server: Generates JSON, computes hash
-    Server-->>Client: 200 OK<br/>ETag: W/"2a05-xjkqHU4..."<br/>Body: 10,757 bytes of JSON
+    Server-->>Client: 200 OK<br/>ETag: W/"29c1-slhkHFv..."<br/>Body: 10,689 bytes of JSON
 
     Note over Client: Stores the ETag for this path
 
-    Client->>Server: GET /randomusers<br/>If-None-Match: W/"2a05-xjkqHU4..."
+    Client->>Server: GET /randomusers?page=2&limit=10<br/>If-None-Match: W/"29c1-slhkHFv..."
     Note over Server: Generates JSON again,<br/>computes hash again,<br/>compares to If-None-Match
-    Server-->>Client: 304 Not Modified<br/>ETag: W/"2a05-xjkqHU4..."<br/>Body: (empty)
+    Server-->>Client: 304 Not Modified<br/>ETag: W/"29c1-slhkHFv..."<br/>Body: (empty, 0 bytes)
 ```
 
-On the second request, the server still processes the request and still generates the JSON, but it also computes a fresh hash and compares it against the `If-None-Match` value the client sent. If the two hashes match, the underlying data hasn't changed since the client last saw it, so the server sends back `304 Not Modified` with the same `ETag`, and **no body at all**. The browser already has an identical copy from the first request, so it just reuses that instead of receiving the same 10,757 bytes over again.
+Sending that same request a second time, this time with `If-None-Match: W/"29c1-slhkHFv/RRXUkUGVvWaUr0J8qZA"` attached, gets back:
+
+```
+HTTP/1.1 304 Not Modified
+ETag: W/"29c1-slhkHFv/RRXUkUGVvWaUr0J8qZA"
+```
+
+with a response body of exactly 0 bytes, checkable the same way as the `Content-Length` above.
+
+On this second request, the server still processes the request and still generates the JSON, but it also computes a fresh hash and compares it against the `If-None-Match` value the client sent. If the two hashes match, the underlying data hasn't changed since the client last saw it, so the server sends back `304 Not Modified` with the same `ETag`, and **no body at all**. The browser already has an identical copy from the first request, so it just reuses that instead of receiving the same 10,689 bytes over again.
 
 The server still did the work of building the response; what it skipped is *transmitting* it. That's the entire point of `ETag`: it saves bandwidth on responses that haven't actually changed, at the cost of the server still having to regenerate the data to check.
 
