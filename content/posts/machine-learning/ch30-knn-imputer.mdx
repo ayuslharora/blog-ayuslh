@@ -50,11 +50,15 @@ $$d = \sqrt{(x_1 - y_1)^2 + (x_2 - y_2)^2 + \dots + (x_n - y_n)^2}$$
 That formula breaks the moment either row has a `NaN` in it, there's nothing to subtract. scikit-learn's `KNNImputer` uses a variant built for exactly this, `nan_euclidean_distances`, which does two things differently:
 
 1. **Skip any coordinate where either row is missing.** Only compute the squared difference over columns where *both* rows have a value.
-2. **Rescale by how many columns actually got used**, so that a distance computed from 2 present columns isn't unfairly small next to one computed from all 4:
+2. **Rescale by how many columns actually got used**, so that a distance computed from 2 present columns isn't unfairly small next to one computed from all 4. That rescaling factor is a **weight**, defined as:
 
-$$d = \sqrt{\frac{n_{\text{features}}}{n_{\text{present}}} \sum_{i \,\in\, \text{present}} (x_i - y_i)^2}$$
+$$w = \frac{n_{\text{features}}}{n_{\text{present}}}$$
 
-`n_features` is the total column count, `n_present` is how many of them weren't missing in *either* row for this particular pairwise comparison. That ratio is the "weight" mentioned in scikit-learn's own docs for this function, it inflates the sum-of-squares to compensate for using fewer terms, so distances stay roughly comparable whether a pair of rows shares 4 columns or only 2.
+which folds into the full distance as:
+
+$$d = \sqrt{w \sum_{i \,\in\, \text{present}} (x_i - y_i)^2}$$
+
+`n_features` is the total column count, `n_present` is how many of them weren't missing in *either* row for this particular pairwise comparison. This is exactly the "weight" scikit-learn's own docs name for this function, it inflates the sum-of-squares to compensate for using fewer terms, so distances stay roughly comparable whether a pair of rows shares 4 columns or only 2.
 
 ### A Worked Example on Real Titanic Rows
 
