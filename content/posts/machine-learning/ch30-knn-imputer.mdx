@@ -60,6 +60,8 @@ $$d = \sqrt{w \sum_{i \,\in\, \text{present}} (x_i - y_i)^2}$$
 
 `n_features` is the total column count, `n_present` is how many of them weren't missing in *either* row for this particular pairwise comparison. This is exactly the "weight" scikit-learn's own docs name for this function, it inflates the sum-of-squares to compensate for using fewer terms, so distances stay roughly comparable whether a pair of rows shares 4 columns or only 2.
 
+It's worth being precise about what this correction is actually for: `n_present` is a property of the *pair* being compared, not of one row being "more empty" in general, and the weight isn't there to penalize sparse-overlap pairs. A sum of fewer squared terms is, all else equal, a smaller number purely because fewer things are being added up, not because the rows are truly more similar. Left uncorrected, a pair sharing only one present column would tend to look artificially closer than a pair sharing all four, even if that one shared value disagrees a lot, and get wrongly picked as a "nearest" neighbor for the wrong reason. Scaling by `w` corrects that bias by inflating the partial sum back up to roughly what a full-column comparison would have produced, so a thin-overlap pair no longer has an unfair advantage. It can still end up as the nearest neighbor, honestly, if the few values it does share are genuinely close.
+
 ### A Worked Example on Real Titanic Rows
 
 This uses the same `Age` / `Pclass` / `Fare` / `Survived` slice of Titanic the source notebook uses (more on that below). Row `766` in the training split is missing `Age`:
