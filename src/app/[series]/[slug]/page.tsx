@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import rehypeSlug from 'rehype-slug';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { getAllPosts, getPostBySlug, getPostsBySeries } from '../../../lib/posts';
 import { getSeriesTitle } from '../../../lib/covers';
 import { getReadingTimeMinutes } from '../../../lib/readingTime';
@@ -120,7 +122,12 @@ export default async function PostPage({
 
         <MDXRemote
           source={post.content}
-          options={{ mdxOptions: { remarkPlugins: [remarkGfm], rehypePlugins: [rehypeSlug] } }}
+          options={{
+            mdxOptions: {
+              remarkPlugins: [remarkGfm, remarkMath],
+              rehypePlugins: [rehypeSlug, rehypeKatex],
+            },
+          }}
           components={{
             IpConverter,
             TcpHeaderTable,

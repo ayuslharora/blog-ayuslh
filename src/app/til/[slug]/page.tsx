@@ -4,6 +4,8 @@ import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import rehypeSlug from 'rehype-slug';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { getTilPosts, getTilPostBySlug } from '../../../lib/posts';
 import { getTagMeta } from '../../../lib/tags';
 import { getReadingTimeMinutes } from '../../../lib/readingTime';
@@ -121,7 +123,12 @@ export default async function TilPostPage({
 
         <MDXRemote
           source={post.content}
-          options={{ mdxOptions: { rehypePlugins: [rehypeSlug] } }}
+          options={{
+            mdxOptions: {
+              remarkPlugins: [remarkMath],
+              rehypePlugins: [rehypeSlug, rehypeKatex],
+            },
+          }}
           components={{
             IpConverter,
             img: MdxImage,
