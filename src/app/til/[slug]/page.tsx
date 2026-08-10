@@ -4,8 +4,10 @@ import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import rehypeSlug from 'rehype-slug';
+import rehypePrettyCode from 'rehype-pretty-code';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import remarkMermaid from '../../../lib/remarkMermaid';
 import { getTilPosts, getTilPostBySlug } from '../../../lib/posts';
 import { getTagMeta } from '../../../lib/tags';
 import { getReadingTimeMinutes } from '../../../lib/readingTime';
@@ -125,21 +127,19 @@ export default async function TilPostPage({
           source={post.content}
           options={{
             mdxOptions: {
-              remarkPlugins: [remarkMath],
-              rehypePlugins: [rehypeSlug, rehypeKatex],
+              remarkPlugins: [remarkMath, remarkMermaid],
+              rehypePlugins: [
+                rehypeSlug,
+                rehypeKatex,
+                [rehypePrettyCode, { theme: 'github-dark-dimmed', keepBackground: true }],
+              ],
             },
           }}
           components={{
             IpConverter,
+            Mermaid,
             img: MdxImage,
             MdxImage,
-            pre: (props: any) => {
-              const child = props.children;
-              if (child && child.type === 'code' && child.props.className === 'language-mermaid') {
-                return <Mermaid chart={child.props.children} />;
-              }
-              return <pre {...props} />;
-            },
           }}
         />
 

@@ -4,9 +4,11 @@ import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import rehypeSlug from 'rehype-slug';
+import rehypePrettyCode from 'rehype-pretty-code';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import remarkMermaid from '../../../lib/remarkMermaid';
 import { getAllPosts, getPostBySlug, getPostsBySeries } from '../../../lib/posts';
 import { getSeriesTitle } from '../../../lib/covers';
 import { getReadingTimeMinutes } from '../../../lib/readingTime';
@@ -124,8 +126,12 @@ export default async function PostPage({
           source={post.content}
           options={{
             mdxOptions: {
-              remarkPlugins: [remarkGfm, remarkMath],
-              rehypePlugins: [rehypeSlug, rehypeKatex],
+              remarkPlugins: [remarkGfm, remarkMath, remarkMermaid],
+              rehypePlugins: [
+                rehypeSlug,
+                rehypeKatex,
+                [rehypePrettyCode, { theme: 'github-dark-dimmed', keepBackground: true }],
+              ],
             },
           }}
           components={{
@@ -134,15 +140,9 @@ export default async function PostPage({
             UdpHeaderTable,
             DnsHeaderTable,
             MtuMssDiagram,
+            Mermaid,
             img: MdxImage,
             MdxImage,
-            pre: (props: any) => {
-              const child = props.children;
-              if (child && child.type === 'code' && child.props.className === 'language-mermaid') {
-                return <Mermaid chart={child.props.children} />;
-              }
-              return <pre {...props} />;
-            }
           }}
         />
 
