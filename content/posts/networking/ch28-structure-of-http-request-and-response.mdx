@@ -43,20 +43,34 @@ That's the entire request line. Everything else in the request is headers.
 
 ## Request headers
 
-After the request line comes a set of headers, each one a `Name: value` pair. A browser's `GET` request to the endpoint above carries headers like these:
+After the request line comes a set of headers, each one a `Name: value` pair. Opening Chrome DevTools, calling this endpoint from a browser, and copying the request headers gives something like this:
+
+```
+GET /api/v1/public/randomusers?page=2&limit=10 HTTP/1.1
+Host: api.freeapi.app
+Referer: https://freeapi.app/
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36
+Accept: application/json
+Accept-Encoding: gzip, deflate, br, zstd
+Accept-Language: en-US
+Connection: keep-alive
+Cookie: connect.sid=s%3ArO3ivwJkxXcDNqgvc-Mia19k7PHfKyD6.DNhk5l0bU5689GFPWOraVMrk%2BXxmtS8nqQju7ahgf2M
+```
+
+Request line on top, then one header per line, each one a `Name: value` pair:
 
 | Header | Value | What it means |
 | :--- | :--- | :--- |
 | `Host` | `api.freeapi.app` | The domain being called. Needed because a single IP can point to multiple domains, so the server needs to know which one this request is actually for. |
-| `Referer` | `/` or `/test` | The page the request was fired *from*. Unlike `Host`, which is the fixed domain, `Referer` changes depending on which route on that domain triggered the call. |
+| `Referer` | `https://freeapi.app/` | The page the request was fired *from*. Unlike `Host`, which is the fixed domain, `Referer` changes depending on which page on that domain triggered the call, calling this same API from a different page would carry that page's URL instead. |
 | `User-Agent` | `Mozilla/5.0 ... Chrome/...` | The browser and OS making the request. It lists multiple browser names (`Mozilla`, `AppleWebKit`, `Chrome`) for historical reasons dating back to the early browser wars, even when only one browser, Chrome here, actually sent it. |
 | `Accept` | `application/json` | The response format the client is willing to accept. A server returning XML or a PDF here would be rejected by the client. |
 | `Accept-Encoding` | `gzip, deflate, br, zstd` | The compression algorithms the client can decompress. |
 | `Accept-Language` | `en-US` | The language the client prefers the response in. |
 | `Connection` | `keep-alive` | Asks for the underlying TCP connection to stay open. HTTP/1.1 connections are persistent by default, so this header is technically redundant for a pure 1.1 connection, but a request often crosses a proxy or load balancer that's still speaking HTTP/1.0, and 1.0 only keeps a connection alive if explicitly told to. Sending it costs nothing and covers that case. |
-| `Cookie` | `connect.sid=...` | Whatever cookies the browser has stored for this domain, the same values visible under the Application tab in DevTools, sent back with every request to that domain. |
+| `Cookie` | `connect.sid=s%3ArO3iv...` | Whatever cookies the browser has stored for this domain, the same values visible under the Application tab in DevTools, sent back with every request to that domain. |
 
-`Host` and `Referer` are easy to conflate but answer different questions: `Host` is the fixed domain being called regardless of route, `Referer` is the exact page that made the call, and it changes as the client navigates from `/` to `/test` to anywhere else on that same domain.
+`Host` and `Referer` are easy to conflate but answer different questions: `Host` is the fixed domain being called regardless of route, `Referer` is the exact page that made the call, and it changes as the client navigates to a different page on the calling site.
 
 > Why does `User-Agent` list four browser names for one browser? Each new browser wanted pages built for its predecessor to keep working, so it copied that predecessor's name into its own string instead of just sending its own. Internet Explorer claimed to be `Mozilla` so it wouldn't get served the stripped-down pages sites built for older browsers. Safari's WebKit claimed to be `KHTML, like Gecko` for the same reason. Chrome then launched on WebKit, needed to pass as Safari, and so claimed to be both `AppleWebKit` and `Safari` while still keeping the inherited `Mozilla/5.0` at the front. The result, `Mozilla/5.0 ... AppleWebKit/... (KHTML, like Gecko) Chrome/... Safari/...`, is every browser's real identity buried behind a chain of names it's impersonating. Aaron Andersen's [History of the browser user-agent string](https://webaim.org/blog/user-agent-string-history/) walks through the full chain in detail.
 
