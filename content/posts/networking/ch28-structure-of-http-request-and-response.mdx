@@ -52,6 +52,8 @@ After the request line comes a set of headers, each one a `Name: value` pair. A 
 
 `Host` and `Referer` are easy to conflate but answer different questions: `Host` is the fixed domain being called regardless of route, `Referer` is the exact page that made the call, and it changes as the client navigates from `/` to `/test` to anywhere else on that same domain.
 
+> Why does `User-Agent` list four browser names for one browser? Each new browser wanted pages built for its predecessor to keep working, so it copied that predecessor's name into its own string instead of just sending its own. Internet Explorer claimed to be `Mozilla` so it wouldn't get served the stripped-down pages sites built for older browsers. Safari's WebKit claimed to be `KHTML, like Gecko` for the same reason. Chrome then launched on WebKit, needed to pass as Safari, and so claimed to be both `AppleWebKit` and `Safari` while still keeping the inherited `Mozilla/5.0` at the front. The result, `Mozilla/5.0 ... AppleWebKit/... (KHTML, like Gecko) Chrome/... Safari/...`, is every browser's real identity buried behind a chain of names it's impersonating. Aaron Andersen's [History of the browser user-agent string](https://webaim.org/blog/user-agent-string-history/) walks through the full chain in detail.
+
 ---
 
 ## The response: status line first, then headers
