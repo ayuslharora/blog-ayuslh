@@ -1,0 +1,119 @@
+---
+title: "Ch.28: Structure of an HTTP Request and Response"
+description: "A field-by-field walkthrough of what an actual HTTP request and response look like: the request line (method, path, version), common request headers like Host, Referer, and Cookie, the response status line and headers like Content-Length and Server, and how ETag plus If-None-Match lets a server answer with a bodyless 304 Not Modified instead of resending the same JSON."
+date: "2026-08-10T14:00:00+05:30"
+tags: ["networking", "http", "headers", "application-layer", "protocols"]
+subtopic: "HTTP"
+draft: false
+source:
+  title: "31 HTTP Request Response structure"
+  channel: "Chai aur Code"
+  url: "https://www.youtube.com/watch?v=rZNdo9UjF94"
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=rZNdo9UjF94)
+
+[Ch.26](/networking/ch26-http-hypertext-transfer-protocol) covered what HTTP is, and [Ch.27](/networking/ch27-http-1.0-vs-http-1.1) covered how its versions differ in connection handling. Neither looked at what an actual request and response contain. This post does exactly that: calling a real endpoint and reading the request and response headers a browser and server actually exchange, field by field.
+
+The endpoint used throughout is `GET https://api.freeapi.app/api/v1/public/randomusers`, a public API that returns a list of random users as JSON.
+
+---
+
+## The request line: method, path, version
+
+Every HTTP request opens with a single line made of exactly three pieces:
+
+```
+GET /api/v1/public/randomusers HTTP/1.1
+```
+
+* **Method**, `GET` here, says what kind of operation this request is.
+* **Path**, `/api/v1/public/randomusers`, is the endpoint being called. Anything after a `?` in the path is the **query string**, key-value pairs separated by `&`, used for things like pagination (`?page=2&limit=10`).
+* **Version**, `HTTP/1.1`, is the protocol version the client is speaking, the same versioning [Ch.27](/networking/ch27-http-1.0-vs-http-1.1) went into.
+
+That's the entire request line. Everything else in the request is headers.
+
+---
+
+## Request headers
+
+After the request line comes a set of headers, each one a `Name: value` pair. A browser's `GET` request to the endpoint above carries headers like these:
+
+| Header | Value | What it means |
+| :--- | :--- | :--- |
+| `Host` | `api.freeapi.app` | The domain being called. Needed because a single IP can point to multiple domains, so the server needs to know which one this request is actually for. |
+| `Referer` | `/` or `/test` | The page the request was fired *from*. Unlike `Host`, which is the fixed domain, `Referer` changes depending on which route on that domain triggered the call. |
+| `User-Agent` | `Mozilla/5.0 ... Chrome/...` | The browser and OS making the request. It lists multiple browser names (`Mozilla`, `AppleWebKit`, `Chrome`) for historical reasons dating back to the early browser wars, even when only one browser, Chrome here, actually sent it. |
+| `Accept` | `application/json` | The response format the client is willing to accept. A server returning XML or a PDF here would be rejected by the client. |
+| `Accept-Encoding` | `gzip, deflate, br, zstd` | The compression algorithms the client can decompress. |
+| `Accept-Language` | `en-US` | The language the client prefers the response in. |
+| `Connection` | `keep-alive` | Asks for the underlying TCP connection to stay open. HTTP/1.1 connections are persistent by default, so this header is technically redundant for a pure 1.1 connection, but a request often crosses a proxy or load balancer that's still speaking HTTP/1.0, and 1.0 only keeps a connection alive if explicitly told to. Sending it costs nothing and covers that case. |
+| `Cookie` | `connect.sid=...` | Whatever cookies the browser has stored for this domain, the same values visible under the Application tab in DevTools, sent back with every request to that domain. |
+
+`Host` and `Referer` are easy to conflate but answer different questions: `Host` is the fixed domain being called regardless of route, `Referer` is the exact page that made the call, and it changes as the client navigates from `/` to `/test` to anywhere else on that same domain.
+
+---
+
+## The response: status line first, then headers
+
+The response mirrors the same shape, just with a status line instead of a request line:
+
+```
+HTTP/1.1 200 OK
+```
+
+Protocol version first, then a **status code**, `200` here, meaning the request succeeded. Status codes have their own taxonomy (`2xx` success, `4xx` client error, `5xx` server error) that's worth a dedicated post on its own; for now, `200 OK` is the one that matters.
+
+Calling the same endpoint returns response headers like these:
+
+| Header | Value | What it means |
+| :--- | :--- | :--- |
+| `Server` | `nginx/1.18.0 (Ubuntu)` | The web server software handling the request. FreeAPI sits behind nginx. |
+| `Date` | `Mon, 10 Aug 2026 17:35:55 GMT` | When the response was generated. |
+| `Content-Type` | `application/json; charset=utf-8` | What kind of data the body actually is, matching the `Accept: application/json` the request asked for. |
+| `Content-Length` | `10757` | The exact byte size of the response body, so the client knows precisely where the response ends. |
+| `Connection` | `keep-alive` | The server's side of the same persistent-connection negotiation covered above. |
+| `X-Powered-By` | `Express` | An application-level header, not part of the HTTP spec itself, added by the framework (Express, running on Node.js here) rather than by HTTP. |
+| `Access-Control-Allow-Origin` | `*` | A CORS header, controlling which origins are allowed to read this response from a browser. |
+| `ETag` | `W/"2a05-xjkqHU4sNAeFPZX9uGNel7XPn8E"` | A hash of this exact response body, used for conditional requests, covered next. |
+
+`Content-Length` is easy to verify directly: fetching the same response body and measuring it comes out to exactly 10,757 bytes, matching the header precisely.
+
+---
+
+## ETag and the conditional request: getting a 304 instead of the body
+
+`ETag` is the one response header worth walking through in detail, because it changes what the *next* request looks like.
+
+The first time the endpoint is called, the server generates the JSON, computes a hash over it, and sends that hash back as the `ETag` header alongside the usual `200 OK`. On every request after that, the browser attaches its own header, `If-None-Match`, carrying that exact `ETag` value back to the server.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as Browser
+    participant Server
+
+    Client->>Server: GET /randomusers
+    Note over Server: Generates JSON, computes hash
+    Server-->>Client: 200 OK<br/>ETag: W/"2a05-xjkqHU4..."<br/>Body: 10,757 bytes of JSON
+
+    Note over Client: Stores the ETag for this path
+
+    Client->>Server: GET /randomusers<br/>If-None-Match: W/"2a05-xjkqHU4..."
+    Note over Server: Generates JSON again,<br/>computes hash again,<br/>compares to If-None-Match
+    Server-->>Client: 304 Not Modified<br/>ETag: W/"2a05-xjkqHU4..."<br/>Body: (empty)
+```
+
+On the second request, the server still processes the request and still generates the JSON, but it also computes a fresh hash and compares it against the `If-None-Match` value the client sent. If the two hashes match, the underlying data hasn't changed since the client last saw it, so the server sends back `304 Not Modified` with the same `ETag`, and **no body at all**. The browser already has an identical copy from the first request, so it just reuses that instead of receiving the same 10,757 bytes over again.
+
+The server still did the work of building the response; what it skipped is *transmitting* it. That's the entire point of `ETag`: it saves bandwidth on responses that haven't actually changed, at the cost of the server still having to regenerate the data to check.
+
+---
+
+## Summary
+
+* An HTTP **request** starts with a request line, **method**, **path** (including any query string), and **protocol version**, followed by headers.
+* Common request headers: **`Host`** (the domain being called), **`Referer`** (the exact page the request came from), **`User-Agent`**, **`Accept`** (the response format expected), **`Accept-Encoding`**, **`Accept-Language`**, **`Connection: keep-alive`**, and **`Cookie`**.
+* An HTTP **response** starts with a status line, **protocol version** and **status code** (`200 OK`), followed by headers.
+* Common response headers: **`Server`**, **`Date`**, **`Content-Type`**, **`Content-Length`** (the exact byte size of the body), **`Connection`**, and framework-added headers like **`X-Powered-By`**.
+* **`ETag`** is a hash of the response body. A client resends it via **`If-None-Match`** on the next request; if the server's freshly computed hash still matches, it replies **`304 Not Modified`** with no body, saving the bandwidth of resending unchanged data.
