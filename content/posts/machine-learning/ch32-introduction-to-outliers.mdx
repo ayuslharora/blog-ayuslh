@@ -252,6 +252,8 @@ Upper Fence = Q3 + 1.5 * IQR
 
 Any data point smaller than the `Lower Fence` or larger than the `Upper Fence` is defined as an outlier.
 
+<MdxImage src="/images/ch32-iqr-box-plot.png" alt="Box plot diagram illustrating Q1, Median, Q3, Interquartile Range (IQR), Lower Fence (Q1 - 1.5*IQR), Upper Fence (Q3 + 1.5*IQR), and outliers" className="w-full h-auto rounded-lg my-6" />
+
 ### Method 3: Percentile-Based Thresholds (Distribution-Agnostic)
 
 For arbitrary distributions where strict normal assumptions or box plot multipliers do not fit well, custom percentile cutoffs are defined manually based on dataset inspection:
