@@ -170,7 +170,7 @@ The gap between the mean (59.58) and the median (28.0) signals right skew: the f
 sns.boxplot(df['placement_exam_marks'])
 ```
 
-<img src="/images/ch34-boxplot-before.png" alt="Box plot of placement exam marks showing the box from Q1=17 to Q3=44, with the upper whisker ending at the IQR limit of 84.5 and 15 outlier dots scattered to the right beyond it" className="w-full h-auto" />
+<img src="/images/ch34-boxplot-before.png" alt="Box plot of placement exam marks showing the box from Q1=17 to Q3=44, with the upper whisker ending at 83 (the largest real value within the 84.5 IQR bound) and 15 outlier dots scattered to the right beyond it" className="w-full h-auto" />
 
 The dots beyond the right whisker are exactly the outliers the IQR rule will flag. There are no dots on the left side, which means no outliers exist in the lower tail of this distribution.
 
