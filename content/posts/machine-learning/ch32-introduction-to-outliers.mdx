@@ -198,7 +198,7 @@ df.loc[(df['age'] < lower_bound) | (df['age'] > upper_bound), 'age'] = np.nan
 ```
 
 ### 4. Discretization (Feature Binning)
-Converting continuous numerical variables into discrete categorical bins naturally absorbs outliers into boundary intervals (e.g., binning ages into `[0-18, 19-35, 36-60, 60+]`). Both an age of `65` and an outlier age of `105` fall into the same `60+` bucket, neutralizing the extreme distance impact.
+As covered in detail in [Ch.23 on Discretization and Binarization](/machine-learning/ch23-discretization-binarization), converting continuous numerical variables into discrete categorical bins naturally absorbs outliers into boundary intervals (e.g., binning ages into `[0-18, 19-35, 36-60, 60+]`). Both an age of `65` and an outlier age of `105` fall into the same `60+` bucket, neutralizing the extreme distance impact.
 
 ---
 
