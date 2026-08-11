@@ -149,6 +149,9 @@ sns.boxplot(df['Height'])
 
 The distribution is nearly symmetric and bell-shaped, confirming what the describe() stats suggested. However, the box plot reveals **outlier dots at both ends**: a handful of very short individuals and a handful of very tall individuals that fall beyond the box plot whiskers. The dashed red and green lines mark the 1st and 99th percentile boundaries that we will use as our cutoff.
 
+> **Why do the percentile lines sit inside the box plot's own whiskers?**
+> Seaborn and Matplotlib box plots compute their whiskers using the **IQR rule** ($Q_3 + 1.5 \times \text{IQR}$ and $Q_1 - 1.5 \times \text{IQR}$), a different statistic from the 1st/99th percentile cutoffs this post uses. For this dataset the IQR rule gives bounds of roughly **55.0 to 77.7**, wider than the percentile bounds of **58.1 to 74.8**. So the dashed percentile lines land inside the whisker range rather than lining up with it. This is expected: the box plot's dots mark IQR-rule outliers, while the dashed lines mark where the Percentile Method will draw its own, different boundary.
+
 ---
 
 ## Step 1: Compute the Percentile Limits
