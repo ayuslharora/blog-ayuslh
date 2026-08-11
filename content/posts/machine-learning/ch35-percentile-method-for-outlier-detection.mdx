@@ -280,16 +280,22 @@ The key insight is that unlike Z-score (where the $3\sigma$ rule has a specific 
 
 ---
 
-## Series Recap: All Three Outlier Techniques
+## Series Recap: When to Use Which Method
 
-Over the last three posts (ch33, ch34, ch35) we covered every major outlier detection and removal method used in practice:
+Over the last three posts (ch33, ch34, ch35) we covered every major outlier detection and removal method used in practice. Each one only "fires" under different conditions, and picking the wrong one for a given column either misses real outliers or removes data that was never anomalous in the first place.
 
 | Method | When to Use | Statistic Used | Distributional Assumption |
 |--------|-------------|----------------|--------------------------|
 | **Z-Score** (ch33) | Column is approximately normal | Mean, Standard Deviation | Requires normality |
 | **IQR Proximity Rule** (ch34) | Column is skewed | Q1, Q3, IQR | Works for skewed; no normality needed |
-| **Percentile Method** (ch35) | Any distribution shape | Rank/quantile | None: purely rank-based |
+| **Percentile Method** (ch35) | Any distribution shape, or when normality is unknown/impractical to check | Rank/quantile | None: purely rank-based |
 
-The three form a natural decision tree: check for normality first; if present, use Z-score; if skewed, prefer IQR; and when in doubt or when the distribution is unusual, fall back to the percentile method as the most general tool.
+**Z-Score** is the most statistically principled of the three, but only on normal data. Because $3\sigma$ has a real probabilistic meaning, it only flags a point when the data itself says that point is unusual. On a perfectly clean normal column, Z-score can flag zero outliers, which is exactly the correct behavior.
+
+**IQR** relaxes the normality requirement (it works on skewed data too) while keeping a similar "adapts to the data" property: the $1.5 \times \text{IQR}$ boundary is a convention, but it is still derived from the column's own quartiles, so a column with no real outliers will still tend to produce few or no flagged points.
+
+**Percentile Method** is the most general, since it makes no distributional assumption at all, but it pays for that generality by losing the "adapts to whether outliers exist" property that the other two share. It always clips the top/bottom $k\%$ of observations, mechanically, by rank, whether or not those observations are actually anomalous. Run it on a perfectly normal column and it will still remove exactly 1% from each tail (assuming a 1%/99% threshold), even if every single value in the dataset is perfectly legitimate. This makes it a poor first choice specifically when the data is well-behaved and normal (prefer Z-score there, since it will correctly leave clean data untouched), and a strong choice when the shape is unknown, irregular, or checking it per-column isn't practical, such as automated pipelines running across many features at once.
+
+The three form a natural decision tree: check for normality first; if present, use Z-score; if skewed, prefer IQR; and when in doubt, when the distribution is unusual, or when a fixed rank-based cutoff is what the problem actually calls for, fall back to the percentile method as the most general tool.
 
 In the next post, we will move on to the next stage of feature engineering.
