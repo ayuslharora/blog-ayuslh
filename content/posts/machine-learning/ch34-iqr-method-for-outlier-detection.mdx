@@ -245,12 +245,15 @@ The dataset shrinks from **1,000 rows to 985 rows**, removing the 15 anomalous h
 
 ### Before vs. After Trimming
 
-<img src="/images/ch34-trimming-before-after.png" alt="2x2 comparison showing distribution plots and box plots before and after trimming: the right-skewed tail is truncated and the box plot loses its outlier dots on the right" className="w-full h-auto" />
+<img src="/images/ch34-trimming-before-after.png" alt="2x2 comparison showing distribution plots and box plots before and after trimming: the right-skewed tail is truncated and the box plot loses most of its outlier dots on the right, aside from one new outlier relative to the trimmed data's own IQR" className="w-full h-auto" />
 
 Key observations from the comparison:
 
 * **Distribution plot**: The shape is mostly unchanged, but the right tail is cleanly cut off at 84.5. The bin around 85-100 disappears entirely. The overall shape remains right-skewed (trimming does not normalize a distribution, it just clips the extremes).
-* **Box plot**: The outlier dots on the right are gone. The whisker now terminates at the largest remaining value, which sits within the IQR boundary.
+* **Box plot**: Almost all outlier dots on the right are gone, but one still remains near 83.
+
+> **Why does a new outlier show up after trimming?**
+> The bottom-right box plot is drawn on the trimmed dataset, not the original one. It computes its own Q1, Q3, and IQR from those 985 remaining rows, and that new IQR is naturally tighter since the most extreme values are gone. So a point that comfortably sat inside the boundary before trimming can end up just past the new, stricter boundary after trimming. This is expected: outlier status is always relative to the dataset it's measured against, not an absolute property of the value itself.
 
 ---
 
