@@ -298,4 +298,21 @@ Over the last three posts (ch33, ch34, ch35) we covered every major outlier dete
 
 The three form a natural decision tree: check for normality first; if present, use Z-score; if skewed, prefer IQR; and when in doubt, when the distribution is unusual, or when a fixed rank-based cutoff is what the problem actually calls for, fall back to the percentile method as the most general tool.
 
+### A Fourth Option: Transform First, Then Use Z-Score
+
+There is one more move worth knowing: instead of picking IQR or the percentile method because a column is skewed, you can reshape the column toward normal first using a power transform like **Yeo-Johnson** (covered in [Ch.22](/machine-learning/ch22-power-transformer)), and then apply Z-score to the transformed values. If the transform succeeds, you get Z-score's biggest advantage back: it only flags a point when the data itself says that point is unusual, instead of mechanically clipping a fixed fraction.
+
+The workflow looks like this:
+
+1. Fit Yeo-Johnson on the skewed column and transform it.
+2. Run the Z-score check ($\mu \pm 3\sigma$) on the **transformed** values, not the original ones.
+3. If you need the boundary back in the original units, invert the transform. Yeo-Johnson has a well-defined inverse formula for this.
+
+Two catches make this less of a free lunch than it sounds:
+
+- **Yeo-Johnson does not guarantee normality.** It picks the $\lambda$ that minimizes skewness, which gets you *closer* to a bell curve, not necessarily all the way there. Always check the transformed distribution (a Q-Q plot or a quick `distplot`) before trusting Z-score on it, same as you would for any raw column.
+- **Outliers can bias the transform itself.** If a handful of genuine anomalies are what caused the skew in the first place, fitting $\lambda$ across the whole column (extremes included) can compress those exact points into the "normal-looking" bulk of the transformed distribution, hiding them from Z-score afterward instead of exposing them.
+
+One thing that does *not* change: this move is pointless if you were going to use the Percentile Method anyway. Yeo-Johnson is a strictly monotonic transform, so it preserves rank order, and the 1st/99th percentile cutoff flags the exact same rows whether it is computed before or after the transform. Transform-then-Z-score only matters when you are specifically trying to unlock Z-score's stricter, distribution-aware behavior on a column that would otherwise fail the normality check.
+
 In the next post, we will move on to the next stage of feature engineering.
