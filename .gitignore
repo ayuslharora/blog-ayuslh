@@ -11,3 +11,4 @@ next-env.d.ts
 # Ignore agent customizations
 .agents/
 .claude/
+AGENTS.md
