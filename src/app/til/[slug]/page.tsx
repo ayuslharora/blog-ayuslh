@@ -16,7 +16,6 @@ import ChatWidget from '../../../components/ChatWidget';
 import IpConverter from '../../../components/IpConverter';
 import Mermaid from '../../../components/Mermaid';
 import MdxImage from '../../../components/MdxImage';
-import TypingTitle from '../../../components/TypingTitle';
 
 export const dynamicParams = false;
 
@@ -92,10 +91,9 @@ export default async function TilPostPage({
             ← Today I Learned
           </Link>
           
-          <TypingTitle
-            text={post.title}
-            className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 !leading-[1.15] tracking-tight text-gradient-gold"
-          />
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 !leading-[1.15] tracking-tight text-gradient-gold">
+            {post.title}
+          </h1>
 
           <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)] font-medium mb-6">
             <Link href="/about" className="hover:text-amber-500 transition-colors">

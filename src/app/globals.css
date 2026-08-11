@@ -127,43 +127,6 @@ body {
   background-color: #0a0a0a !important;
 }
 
-/* Typing title reveal, used by TypingTitle.tsx on post pages */
-@keyframes typing-char-in {
-  to {
-    opacity: 1;
-  }
-}
-
-.typing-char {
-  display: inline-block;
-  opacity: 0;
-  animation: typing-char-in 0.01s linear forwards;
-}
-
-@keyframes typing-cursor-blink {
-  0%, 40% { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
-
-.typing-cursor {
-  display: inline-block;
-  width: 3px;
-  height: 0.85em;
-  margin-left: 2px;
-  vertical-align: -0.1em;
-  background: currentColor;
-  opacity: 0;
-  animation: typing-char-in 0.01s linear forwards, typing-cursor-blink 0.9s step-end 3 forwards;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .typing-char,
-  .typing-cursor {
-    animation: none !important;
-    opacity: 1 !important;
-  }
-}
-
 /* Disable quotes in Tailwind Typography blockquotes */
 .prose blockquote p:first-of-type::before {
   content: none !important;

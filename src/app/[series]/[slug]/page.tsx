@@ -25,7 +25,6 @@ import MtuMssDiagram from '../../../components/MtuMssDiagram';
 import TableOfContents from '../../../components/TableOfContents';
 import RelatedPosts from '../../../components/RelatedPosts';
 import MdxImage from '../../../components/MdxImage';
-import TypingTitle from '../../../components/TypingTitle';
 
 // Chapters with this many H2 sections or more get an in-page table of
 // contents (currently: ddia-ch1 at 10, ch1-http-request at 6). A count
@@ -107,10 +106,9 @@ export default async function PostPage({
           >
             {getSeriesTitle(series)}
           </Link>
-          <TypingTitle
-            text={post.title}
-            className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 !leading-[1.1] tracking-tight text-gradient-gold"
-          />
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 !leading-[1.1] tracking-tight text-gradient-gold">
+            {post.title}
+          </h1>
           <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)] font-medium">
             <Link href="/about" className="hover:text-amber-500 transition-colors">
               By Ayush Arora
