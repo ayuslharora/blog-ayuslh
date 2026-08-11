@@ -284,6 +284,9 @@ df['cgpa_capped'] = np.clip(df['cgpa'], a_min=lower_limit, a_max=upper_limit)
 
 <MdxImage src="/images/ch33-capping-before-after.png" alt="Side-by-side box plots comparing raw CGPA with outliers extending beyond 4.89 and 9.12 against capped CGPA where extreme points are neatly clamped at 5.11 and 8.81" className="w-full h-auto rounded-lg my-6" />
 
+> **Why do points still appear outside the whiskers in the capped box plot?**
+> Seaborn and Matplotlib box plots compute whisker boundaries using the **IQR rule** ($Q_3 + 1.5 \times \text{IQR}$), NOT the Z-score $3\sigma$ rule. In a standard normal distribution, $1.5 \times \text{IQR}$ corresponds to roughly $\pm 2.7\sigma$. Because Z-score capping clamps extreme values at $\pm 3.0\sigma$, values clamped between $2.7\sigma$ and $3.0\sigma$ (e.g. `8.81` and `5.11`) are correctly capped, but still sit slightly beyond the box plot's $2.7\sigma$ whisker boundary.
+
 ---
 
 ## Summary & Key Takeaways
