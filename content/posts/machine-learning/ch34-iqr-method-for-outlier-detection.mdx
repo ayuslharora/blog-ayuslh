@@ -72,12 +72,9 @@ Because IQR is defined by the middle bulk of the distribution, it is resistant t
 
 ### Reading a Box Plot
 
-A box plot is the standard visualization for IQR-based statistics. Every element maps directly to a quantile:
+A box plot is the standard visualization for IQR-based statistics. Every element maps directly to a quantile. Here it is labeled on the real `placement_exam_marks` column used throughout this post:
 
-```text
-   |---whisker---|  [  Q1 ---- Median ---- Q3  ]  |---whisker---|  o  o  o
-  Lower limit   Q1                              Q3         Upper limit  <- outliers
-```
+<img src="/images/ch34-boxplot-anatomy.png" alt="Labeled box plot anatomy diagram of placement exam marks: box spans Q1 to Q3 with the median line inside, whiskers extend to the IQR proximity limits, and individual dots beyond the upper whisker are marked as outliers" className="w-full h-auto" />
 
 * The **box** spans Q1 to Q3 (the IQR).
 * The **center line** inside the box is the median (Q2).
