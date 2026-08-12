@@ -60,7 +60,13 @@ Three concrete problems emerge as dimensionality grows:
 
 ### Why High-Dimensional Distance Breaks Down
 
-To build intuition for this, think of a concrete analogy. You have lost your wallet somewhere in your neighborhood. If you know it is somewhere along a single road (1 dimension), searching is straightforward: walk down the road, check both sides, done. If you know it is somewhere in a particular building (2 dimensions), the search area grows: you need to check every room on every floor. Now imagine you know it is somewhere in a large campus with multiple buildings, floors, rooms, and corridors (3+ dimensions). The volume of space you must search grows exponentially with each added dimension.
+To build intuition for this, think of a concrete analogy: you have lost your wallet, and you're told which space it's somewhere in.
+
+* **1D: somewhere on the road from the college gate to the college building.** A road is a line. You just walk its length once, checking as you go. Trivial.
+* **2D: somewhere in a park.** Now you're searching an *area*, not a line. You have to sweep back and forth across two dimensions of open ground, a search that takes meaningfully longer than walking a single road of the same length.
+* **3D: somewhere inside the college building.** Now you're searching a *volume*: every floor, every room, every corridor. The building occupies roughly the same footprint as the park, but because you've added a third dimension (height, floors), the number of distinct places the wallet could be has exploded far beyond the park's.
+
+The wallet hasn't moved, and the search area's rough footprint hasn't changed much either. What changed is the dimensionality of the space it's hidden in, and that alone made the search dramatically harder. Each dimension you add multiplies the number of places to check, not adds to it.
 
 The same thing happens with data. In one or two dimensions, data points cluster naturally into groups that are easy to separate. As you add more and more dimensions, the data points spread out into an increasingly vast space. The volume grows so fast that the available data becomes sparse, distances between points converge, and algorithms that depend on spatial structure struggle to find meaningful patterns.
 
