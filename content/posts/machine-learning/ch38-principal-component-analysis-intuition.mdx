@@ -37,19 +37,19 @@ Consider a small housing dataset with two candidate input columns, and a target 
 - **Number of Rooms**
 - **Nearby Grocery Shops**
 
-If a real-estate agent looked at this, they'd immediately say rooms matters far more to price than nearby grocery shops. Housing price obviously depends heavily on room count; grocery shop count barely moves the needle. Feature Selection formalizes that intuition without needing domain knowledge: plot each candidate column and measure how much it **spreads out**.
+If a real-estate agent looked at this, they'd immediately say rooms matters far more to price than nearby grocery shops. Housing price obviously depends heavily on room count; grocery shop count barely moves the needle. Feature Selection formalizes that intuition without needing domain knowledge: project every point onto each axis and measure how much it **spreads out** there. The star markers below sit at the two most extreme points in the data (bottom-left and top-right); the dashed guides and bracket arrows show where those two points, and by extension the whole cloud, land once collapsed onto a single axis (counts are jittered slightly on the plot for legibility, the variance is computed on the real integer values):
 
-<img src="/images/ch38-feature-selection-rooms-grocery.png" alt="Joint scatter plot of number of rooms versus nearby grocery shops with marginal projections onto each axis, showing rooms has variance 1.00 while grocery shops has variance 0.11" className="w-full h-auto" />
+<img src="/images/ch38-feature-selection-rooms-grocery.png" alt="Scatter plot of number of rooms versus nearby grocery shops with the two extreme points marked and bracket arrows showing the projected spread on each axis, rooms has variance 1.00 while grocery shops has variance 0.15" className="w-full h-auto" />
 
-Rooms spans a wide range and grocery shops barely moves. Projecting every point down onto each axis and measuring that 1D spread directly, rooms comes out to a variance of 1.00 against 0.11 for grocery shops, a roughly 9x difference. Given a choice between the two, you keep rooms and drop grocery shops: it's the column doing almost all of the work.
+Rooms spans a wide range and grocery shops barely moves. Projecting every point down onto each axis and measuring that 1D spread directly, rooms comes out to a variance of 1.00 against 0.15 for grocery shops, close to a 7x difference. Given a choice between the two, you keep rooms and drop grocery shops: it's the column doing almost all of the work.
 
 ### Where This Breaks Down
 
 Now swap grocery shops for a column that's clearly *not* interchangeable with rooms in the real world, but is strongly related to it: **Number of Washrooms**. A bigger flat tends to have both more rooms and more washrooms, so the two columns move together.
 
-<img src="/images/ch38-feature-selection-rooms-washrooms.png" alt="Joint scatter plot of number of rooms versus number of washrooms with marginal projections onto each axis, showing similar variance of 1.36 and 0.94 on the two axes" className="w-full h-auto" />
+<img src="/images/ch38-feature-selection-rooms-washrooms.png" alt="Scatter plot of number of rooms versus number of washrooms with the two extreme points marked and bracket arrows showing the projected spread on each axis, both variances are comparably large at 1.50 and 0.94" className="w-full h-auto" />
 
-The scatter now trends diagonally instead of forming a shapeless blob, and critically, the two marginal variances are close (1.36 vs. 0.94) instead of one dwarfing the other. There's no longer a clear "drop this one" answer just by comparing spread column by column. Yet intuitively, price depends on *both*: a bigger flat needs to be described by both its rooms and its washrooms together, not by either one alone with the other discarded.
+The scatter now trends diagonally instead of forming a shapeless blob, and critically, the two projected variances are close (1.50 vs. 0.94) instead of one dwarfing the other. There's no longer a clear "drop this one" answer just by comparing spread column by column. Yet intuitively, price depends on *both*: a bigger flat needs to be described by both its rooms and its washrooms together, not by either one alone with the other discarded.
 
 This is the exact failure mode Feature Selection cannot resolve: **when candidate columns are correlated and carry comparable individual variance, there's no principled way to pick a "more important" one by looking at each column in isolation.** Feature Selection can only keep or discard whole columns as they already exist. It has no way to combine two correlated columns into something that captures both at once.
 
