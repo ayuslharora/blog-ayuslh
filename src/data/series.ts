@@ -14,7 +14,7 @@ export const SERIES: Record<string, SeriesInfo> = {
     category: "networking",
   },
   'machine-learning': {
-    title: "Machine Learning",
+    title: "Fundamental Machine Learning",
     description:
       "Exploring the foundations of machine learning, from basic algorithms to advanced neural networks.",
     category: "machine-learning",
