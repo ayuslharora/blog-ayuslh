@@ -68,7 +68,25 @@ To build intuition for this, think of a concrete analogy: you have lost your wal
 
 The wallet hasn't moved, and the search area's rough footprint hasn't changed much either. What changed is the dimensionality of the space it's hidden in, and that alone made the search dramatically harder. Each dimension you add multiplies the number of places to check, not adds to it.
 
-The same thing happens with data. In one or two dimensions, data points cluster naturally into groups that are easy to separate. As you add more and more dimensions, the data points spread out into an increasingly vast space. The volume grows so fast that the available data becomes sparse, distances between points converge, and algorithms that depend on spatial structure struggle to find meaningful patterns.
+The same thing happens with data. In one or two dimensions, data points cluster naturally into groups that are easy to separate. As you add more and more dimensions, the data points spread out into an increasingly vast space, and the available data becomes sparse relative to it.
+
+### Why "Nearest" Neighbor Loses Meaning
+
+Sparsity explains why data gets spread thin, but it doesn't yet explain the sharper claim from earlier: that the nearest point and the farthest point start to look *the same*. That takes one more step of intuition.
+
+Picture comparing people using a single feature, height. Whoever's height is closest to yours is unambiguously your nearest neighbor. Simple, one number decides it.
+
+Now add a second, independent feature: weight. Distance is now $\sqrt{(\Delta \text{height})^2 + (\Delta \text{weight})^2}$. A pair that differs a lot in height but happens to match closely in weight can now land at roughly the same total distance as a pair that differs only a little in height but a lot in weight. Two genuinely different-looking pairs can now produce the same number.
+
+Keep adding independent features, age, income, shoe size, blood pressure, GPA, hundreds of them. Each one contributes its own small, mostly unrelated difference to the running total. This is exactly the situation an average lives in: flip one coin and you might get heads or tails, pure luck either way; flip a thousand coins and the total lands very close to 500 heads almost every time, because the individual swings cancel each other out. Distance across many independent features behaves the same way: no single feature can any longer swing the total decisively, because it's just one of hundreds of contributors being summed, and that sum settles toward a similar, typical value for *every* pair of points, whether they're genuinely alike or not.
+
+That's the actual mechanism: nearest and farthest neighbor both drift toward that same typical distance, so the gap between them, the exact gap that KNN depends on to mean anything, shrinks toward nothing.
+
+This isn't hand-waving, it's directly measurable. The chart below fixes a query point and scatters 2,000 random points in a unit hypercube, then tracks $(\text{farthest} - \text{nearest}) / \text{nearest}$ as dimensionality climbs from 1 to 5,000:
+
+<img src="/images/ch37-distance-concentration.png" alt="Log-log line chart showing the (farthest minus nearest) over nearest distance ratio collapsing from about 3285x at 1 dimension down to about 0.05x at 5000 dimensions" className="w-full h-auto" />
+
+At 1 dimension, the farthest point is over 3,000x farther away than the nearest, a huge, unambiguous gap. By 5,000 dimensions, that gap has collapsed to roughly 0.05x, the farthest point is barely 5% farther than the nearest. Every point has become almost equidistant from the query, exactly as the coin-flip intuition predicts. This is why KNN, RBF-kernel SVMs, and distance-based clustering all degrade as dimensionality grows: their core assumption, that distance is a meaningful measure of similarity, quietly stops being true.
 
 ### The MNIST Example: 784 Features for Handwritten Digits
 
