@@ -19,6 +19,12 @@ export const SERIES: Record<string, SeriesInfo> = {
       "Exploring the foundations of machine learning, from basic algorithms to advanced neural networks.",
     category: "machine-learning",
   },
+  'machine-learning-algorithms': {
+    title: "Machine Learning Algorithms",
+    description:
+      "A deep dive into how core machine learning algorithms actually work, from linear regression to ensemble methods.",
+    category: "machine-learning",
+  },
   til: {
     title: "Today I Learned",
     description:
