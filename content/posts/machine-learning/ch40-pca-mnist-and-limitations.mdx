@@ -1,0 +1,127 @@
+---
+title: "Ch.40: PCA in Practice - MNIST, Visualization, and Where It Breaks Down"
+description: "Applying sklearn's PCA to the handwritten digits dataset for both dimensionality reduction and 2D/3D visualization, then closing out the series with the three shapes of data where PCA simply doesn't help."
+date: "2026-08-13T02:50:00+05:30"
+tags: ["machine-learning", "feature-engineering", "dimensionality-reduction", "feature-extraction", "pca", "sklearn", "knn"]
+subtopic: "Feature Construction & Extraction"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=tofVCUDrg4M)
+
+The [last post](/machine-learning/ch39-principal-component-analysis-math) worked out the full math of PCA by hand: covariance matrices, eigenvectors, eigenvalues, and a manual pipeline on a small 3-feature dataset. Nobody actually writes that pipeline by hand in practice, sklearn's `PCA` does it in a couple of lines. This post uses that real implementation on a genuinely high-dimensional dataset, uses it to visualize what dimensionality reduction actually buys you, and then closes the series with the question every PCA writeup eventually has to answer: when does this technique just not work?
+
+---
+
+## The Dataset: Handwritten Digits
+
+Every sample is an 8x8 grayscale image of a handwritten digit (0-9), flattened into 64 columns, one column per pixel. That's a 64-dimensional space for something a human recognizes instantly by eye. It's exactly the kind of dataset PCA is built for: lots of columns, most of them redundant (neighboring pixels are highly correlated, since a stroke of ink covers many pixels at once, not just one).
+
+```python
+from sklearn.datasets import load_digits
+from sklearn.preprocessing import StandardScaler
+
+digits = load_digits()
+X, y = digits.data, digits.target        # X: (1797, 64), y: digit labels 0-9
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+```
+
+### Baseline: KNN on the Raw 64 Columns
+
+Before touching PCA, it helps to have a number to compare against. A plain k-nearest-neighbors classifier, trained directly on all 64 scaled pixel columns:
+
+```python
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=42
+)
+
+knn = KNeighborsClassifier()
+knn.fit(X_train, y_train)
+accuracy_score(y_test, knn.predict(X_test))
+```
+
+That comes out to about **97.5%** accuracy, using all 64 columns.
+
+---
+
+## Applying PCA for Real
+
+```python
+from sklearn.decomposition import PCA
+
+pca = PCA()
+pca.fit(X_scaled)
+```
+
+Called with no arguments, `n_components` defaults to the number of input columns, so this produces the full set of 64 principal components rather than reducing anything yet. What's useful right away is `explained_variance_ratio_`: for each component, what fraction of the total variance in the data it alone accounts for.
+
+```python
+import numpy as np
+
+cum_variance = np.cumsum(pca.explained_variance_ratio_)
+```
+
+`cum_variance[k]` says how much of the original 64-dimensional data's variance is preserved by keeping just the top `k + 1` components. Plotting that running total against the number of components gives a clean way to pick a cutoff:
+
+<img src="/images/ch40-explained-variance-cumsum.png" alt="Line chart of cumulative explained variance against number of principal components, rising steeply at first and flattening near 1.0, with a marker showing 31 components are needed to cross 90% cumulative variance" className="w-full h-auto" />
+
+The rule of thumb used throughout the source material: keep adding components until the curve crosses **90% explained variance**, then stop. Here that happens at **31 components**, less than half the original 64.
+
+### Accuracy After Reduction
+
+```python
+pca_reduced = PCA(n_components=31)
+X_train_pca = pca_reduced.fit_transform(X_train)
+X_test_pca = pca_reduced.transform(X_test)
+
+knn_pca = KNeighborsClassifier()
+knn_pca.fit(X_train_pca, y_train)
+accuracy_score(y_test, knn_pca.predict(X_test_pca))
+```
+
+That gives roughly **96.9%** accuracy, using 31 columns instead of 64, a whole dimension cut in half with barely any accuracy lost. On this particular dataset the difference is small because 64 columns is already modest for a KNN model, but the pattern holds at any scale: `fit` finds the components once, `transform` projects any data (train or test) onto that already-fixed set of axes, exactly the same `fit`/`transform` split used by `StandardScaler` and every other sklearn preprocessor.
+
+---
+
+## Visualizing 64 Dimensions in 2D
+
+The other classic use of PCA, alongside dimensionality reduction for modeling, is dimensionality reduction for the human eye. Nobody can look at a point in 64-dimensional space and build any intuition for it. Reduce it to 2 or 3 components, though, and it becomes an ordinary scatter plot.
+
+```python
+pca_2d = PCA(n_components=2)
+X_2d = pca_2d.fit_transform(X_scaled)
+```
+
+`X_2d` is now a plain `(1797, 2)` array, PC1 and PC2 standing in for all 64 original pixel columns. Coloring each point by its true digit label:
+
+<img src="/images/ch40-pca-digits-2d.png" alt="2D scatter plot of handwritten digits projected onto PC1 and PC2, colored by digit 0 through 9, showing distinct clusters for digits like 4 and 6 on the edges while several middle digits overlap heavily near the center" className="w-full h-auto" />
+
+Some digits separate cleanly even in just two dimensions: 4 sits off to the left almost entirely on its own, 6 forms a tight cluster near the bottom. Others overlap heavily in the middle, exactly the digits that look genuinely similar when handwritten (3, 5, 8, 9 all share loops and curves that don't project apart cleanly in only 2 dimensions). That overlap isn't a bug in PCA, it's an honest picture of how visually similar those digit shapes actually are; going to 3 components recovers some of that separation back, since there's a third axis of variance the 2D view was throwing away entirely.
+
+---
+
+## Where PCA Doesn't Help
+
+Everything so far makes PCA look close to magic: feed in high-dimensional data, get back a lower-dimensional version that keeps almost all the useful structure. That's true often enough to be genuinely useful, but not always. There are data shapes where PCA runs without error and produces components, and those components are still useless. Three of them come up constantly:
+
+<img src="/images/ch40-pca-limitations.png" alt="Three side-by-side diagrams. Left: a uniform circular cloud of points with no direction spreading them out more than any other. Middle: two horizontal bands of points, blue on top and orange on bottom, that collapse into a heavily overlapping strip once projected onto the x-axis. Right: a sine-wave-shaped cluster of points that a straight axis through the data cannot capture, losing the curve's shape when projected." className="w-full h-auto" />
+
+**1. Equal variance in every direction.** PCA's whole premise is finding the direction of *maximum* variance. If the data is a roughly circular (or spherical) blob, spread is identical in every direction by construction. Rotate the candidate axis anywhere and the projected variance barely changes, there's no "best" direction to find, because none exists. Running PCA on data like this still returns components, but they're arbitrary, not meaningful.
+
+**2. Classes that overlap along the only axis that matters.** Sometimes different classes are cleanly separated in the original space, but only along an axis PCA doesn't end up choosing, or the classes overlap along every axis that does have high variance. In the middle panel, the two groups are visually distinct as bands, but projected onto the x-axis (the axis with the most spread) they land on top of each other. Whatever separated them is lost the moment they're flattened onto that one line.
+
+**3. Nonlinear structure.** PCA only ever finds *straight-line* directions. If the real structure in the data is curved, like points following a sine wave, no straight axis through that curve preserves the shape. Project those points onto any line and the curve folds back over itself, points that were far apart along the curve end up landing at the same projected value. This is the fundamental ceiling of PCA: it's a **linear** technique, full stop. Nonlinear dimensionality reduction methods (t-SNE, UMAP, kernel PCA) exist precisely to handle this case, but that's beyond what plain PCA can do.
+
+The practical takeaway: PCA is worth trying on almost any high-dimensional dataset, it's cheap and the payoff can be large, but always check whether variance actually is concentrated along a few directions before assuming the reduced components carry the same signal the original data did. When the explained-variance curve refuses to climb quickly no matter how many components get added, that flatness is usually the dataset telling you it's one of these three shapes.
+
+---
+
+## Wrapping Up the Series
+
+Across these three posts, PCA went from a geometric idea (rotate the axes, keep the ones with the most spread) to precise math (variance maximization solved via the covariance matrix's eigenvectors) to a working tool (sklearn's `PCA`, applied to real 64-dimensional image data for both faster modeling and 2D visualization), and finally to its limits (circular data, class overlap along the top axis, and nonlinear structure). That's the complete arc: know what it does, know why it works, know how to use it, and know when to reach for something else instead.
