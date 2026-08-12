@@ -1,0 +1,186 @@
+---
+title: "Ch.39: Principal Component Analysis, Part 2 - The Math Behind It"
+description: "Turning PCA's geometric intuition into a real optimization problem: projections, the variance objective, covariance matrices, and why eigenvectors of the covariance matrix are exactly the axes PCA is looking for, ending with a full code walkthrough on real 3D data."
+date: "2026-08-13T00:45:00+05:30"
+tags: ["machine-learning", "feature-engineering", "dimensionality-reduction", "feature-extraction", "pca", "eigenvectors", "covariance"]
+subtopic: "Feature Construction & Extraction"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=tXXnxjj2wM4)
+
+In the [previous post](/machine-learning/ch38-principal-component-analysis-intuition), we built the geometric intuition for PCA: rotate the coordinate axes, and pick the rotation that maximizes variance along the new axes. That's true, but it isn't yet a problem a computer can solve. It's missing a precise objective function and a way to actually find the answer.
+
+This post fills in both gaps: the exact optimization problem PCA solves, the linear algebra (covariance matrices, eigenvectors, eigenvalues) that solves it, and a full code walkthrough on a real 3D dataset that gets reduced down to 2D.
+
+---
+
+## Turning "Rotate the Axes" into Math
+
+Say we have a single data point in some direction, and a candidate axis we want to measure it against. Every point can be treated as a vector, and "measuring a point against an axis" is exactly **projection**: dropping a perpendicular line from the point onto the axis and reading off where it lands.
+
+If $u$ is a **unit vector** (length 1) pointing along the candidate axis, and $x$ is a data point, the length of $x$'s projection onto $u$ is:
+
+$$
+\text{proj}_u(x) = u^T x
+$$
+
+This is just a single number, a scalar, telling you how far along the $u$ direction that point sits. Do this for every point in the dataset and you get a whole set of scalars: one projected value per point, along that one axis.
+
+### The Objective: Maximize the Variance of the Projections
+
+Now the question PCA actually needs answered: **which unit vector $u$ should we pick?** Any direction is a candidate. But projecting onto the wrong direction collapses points that were genuinely different into nearly the same value (this is exactly the PC2 collapse from the [previous post](/machine-learning/ch38-principal-component-analysis-intuition)), while projecting onto the right direction keeps them spread apart.
+
+"Spread apart" is variance. So the projected values' variance, as a function of $u$, is the quantity to maximize:
+
+$$
+\text{Var} = \frac{1}{n}\sum_{i=1}^{n} \left(u^T x_i\right)^2
+$$
+
+This is PCA's entire mathematical objective in one line: **find the unit vector $u$ that maximizes the variance of the data once every point is projected onto it.** Once we have that $u$, it *is* the first principal component. Solving this maximization is a constrained optimization problem (constrained because $u$ has to stay a unit vector), and solving it directly needs machinery we won't derive here. Instead, it helps to know two prerequisite ideas first: **covariance**, and **eigenvectors/eigenvalues**. Once those are in place, the solution to the objective above turns out to be almost embarrassingly clean.
+
+---
+
+## Variance Isn't Enough: Covariance
+
+[Ch.38](/machine-learning/ch38-principal-component-analysis-intuition) established that variance measures how spread out a single column is. But variance only ever looks at one axis at a time; it can't say anything about how two columns move *together*. Two completely different-looking datasets can have identical per-column variance while having totally different relationships between the columns.
+
+**Covariance** fixes this. For two variables $X$ and $Y$:
+
+$$
+\text{Cov}(X, Y) = \frac{1}{n}\sum_{i=1}^{n} (x_i - \bar{x})(y_i - \bar{y})
+$$
+
+The sign is what carries the information:
+
+<img src="/images/ch39-covariance-sign.png" alt="Two scatter plots of three points each: left panel shows X and Y increasing together with positive covariance 0.67, right panel shows X increasing while Y decreases with negative covariance -0.67, both plotted with a dashed best-fit line" className="w-full h-auto" />
+
+Positive covariance means as $X$ increases, $Y$ tends to increase too. Negative covariance means as $X$ increases, $Y$ tends to decrease. Unlike correlation, covariance isn't bounded to $[-1, 1]$, its magnitude depends on the scale of the data, but the sign alone already tells you the direction of the relationship between two axes.
+
+### The Covariance Matrix
+
+With more than two columns, you don't just want pairwise covariances one at a time, you want all of them at once, organized. That's the **covariance matrix**. For a dataset with columns $X$, $Y$, $Z$, it's a $3 \times 3$ matrix:
+
+$$
+\Sigma = \begin{bmatrix}
+\text{Var}(X) & \text{Cov}(X,Y) & \text{Cov}(X,Z) \\
+\text{Cov}(Y,X) & \text{Var}(Y) & \text{Cov}(Y,Z) \\
+\text{Cov}(Z,X) & \text{Cov}(Z,Y) & \text{Var}(Z)
+\end{bmatrix}
+$$
+
+Two structural facts make this matrix special:
+
+- **The diagonal is variance.** $\text{Cov}(X, X) = \text{Var}(X)$, so the diagonal entries are exactly the per-column spreads we already know how to compute.
+- **It's symmetric.** $\text{Cov}(X, Y) = \text{Cov}(Y, X)$, so the matrix mirrors across its diagonal. For $n$ columns it generalizes to an $n \times n$ symmetric matrix the same way.
+
+Put together, the covariance matrix is a complete description of a dataset's shape: the diagonal says how spread out the data is along each original axis, and the off-diagonal entries say how those axes lean on each other. Spread and orientation, both in one matrix.
+
+---
+
+## Matrices as Transformations, and the Vectors That Don't Rotate
+
+The second prerequisite is eigenvectors and eigenvalues, and understanding them starts with a simple idea: **a matrix is a transformation.**
+
+Picture a coordinate system full of points, every point really a vector from the origin. Multiplying every one of those vectors by a matrix moves them all at once, the whole space can rotate, stretch, squash, or flip. The identity matrix is the one special case that changes nothing at all; every other matrix moves at least some vectors off their original line.
+
+But for almost any transformation, a handful of vectors are special: their **direction** doesn't change. They might get longer, shorter, or flip to point the opposite way along the same line, but they never rotate off their original span. Those are **eigenvectors**, and the factor by which they get stretched (or shrunk, or flipped) is the corresponding **eigenvalue**. The defining relationship is:
+
+$$
+A v = \lambda v
+$$
+
+$A$ is the matrix (the transformation), $v$ is the eigenvector, and $\lambda$ (lambda) is the eigenvalue, just a scalar. Multiplying the matrix by its own eigenvector is identical to just multiplying that same vector by a number. A 2D linear transformation has (up to) two independent eigenvector directions; a 3D one has (up to) three.
+
+### Why This Matters for PCA
+
+Here's the connection: **the matrix we care about transforming with is the covariance matrix itself.** The covariance matrix already tells us spread and orientation. Its eigenvectors are the directions in the data that don't get rotated away by that spread/orientation structure, they're the data's own natural axes. Solving the maximization problem from earlier (using a technique called the Rayleigh quotient, which is out of scope here) leads to a strikingly simple result:
+
+**The eigenvector of the covariance matrix with the largest eigenvalue points in the exact direction of maximum variance.** That eigenvector *is* the first principal component. The eigenvector with the second-largest eigenvalue is the second principal component, and so on, each one orthogonal to the ones before it.
+
+---
+
+## The Full Algorithm
+
+Putting the pieces together, PCA reduces to a short, mechanical sequence of steps:
+
+1. **Mean-center the data.** Subtract each column's mean from itself so the data is centered at the origin. Not strictly mandatory, but consistently improves PCA's numerical behavior.
+2. **Compute the covariance matrix** of the (centered) data.
+3. **Find the eigenvalues and eigenvectors** of that covariance matrix.
+4. **Rank the eigenvectors** by their eigenvalues, largest first. These ranked eigenvectors are the principal components, PC1, PC2, PC3, and so on, up to the original number of columns.
+5. **Project the data onto however many top components you want to keep**, by taking the dot product of the data with the transpose of the chosen eigenvectors.
+
+Step 5 is genuinely just matrix multiplication: if $X$ is the (n, d) data matrix and $V$ is the (d, k) matrix of the top $k$ eigenvectors, the reduced dataset is $X V$, shape (n, k). No further cleverness needed.
+
+---
+
+## Code Walkthrough: 3D Down to 2D
+
+To make this concrete, here's the whole pipeline run on a real synthetic dataset: 40 points with 3 features (`feature1`, `feature2`, `feature3`) split across 2 classes.
+
+```python
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+
+np.random.seed(23)
+mu_vec1 = np.array([0, 0, 0])
+cov_mat1 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+class1_sample = np.random.multivariate_normal(mu_vec1, cov_mat1, 20)
+df1 = pd.DataFrame(class1_sample, columns=['feature1', 'feature2', 'feature3'])
+df1['target'] = 1
+
+mu_vec2 = np.array([1, 1, 1])
+cov_mat2 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+class2_sample = np.random.multivariate_normal(mu_vec2, cov_mat2, 20)
+df2 = pd.DataFrame(class2_sample, columns=['feature1', 'feature2', 'feature3'])
+df2['target'] = 2
+
+df = pd.concat([df1, df2], ignore_index=True)
+```
+
+Plotted directly, the raw 3D data looks like this, the two classes overlapping but distinguishable along a diagonal direction:
+
+<img src="/images/ch39-pca-3d-data.png" alt="3D scatter plot of 40 points with feature1, feature2, and feature3 axes, colored by two classes, showing the two classes separated along a roughly diagonal direction through the cube" className="w-full h-auto" />
+
+### Step 1-3: Standardize, Covariance Matrix, Eigendecomposition
+
+```python
+scaler = StandardScaler()
+X = scaler.fit_transform(df[['feature1', 'feature2', 'feature3']].values)
+
+cov_matrix = np.cov(X.T)
+eigen_values, eigen_vectors = np.linalg.eig(cov_matrix)
+
+order = np.argsort(eigen_values)[::-1]
+eigen_values = eigen_values[order]
+eigen_vectors = eigen_vectors[:, order]
+```
+
+For this dataset, that produces eigenvalues of roughly `[1.35, 0.95, 0.78]`. The largest one, 1.35, belongs to PC1. Drawing the top 2 eigenvectors directly on top of the (standardized) data makes the abstraction concrete: these aren't arbitrary lines, they're the data's own computed axes of maximum spread.
+
+<img src="/images/ch39-pca-eigenvectors-3d.png" alt="3D scatter plot of the standardized data with two lines drawn through the origin representing PC1 and PC2, the black PC1 line running along the direction the two classes are most separated" className="w-full h-auto" />
+
+PC1 (black) runs right along the direction the two classes are most stretched apart. PC2 (gray) is the next-best direction, orthogonal to PC1, capturing whatever spread is left over once PC1's direction is accounted for.
+
+### Step 4-5: Rank and Project
+
+```python
+pc = eigen_vectors[:, 0:2]          # top 2 eigenvectors, shape (3, 2)
+transformed = np.dot(X, pc)          # (40, 3) dot (3, 2) -> (40, 2)
+
+new_df = pd.DataFrame(transformed, columns=['PC1', 'PC2'])
+new_df['target'] = df['target'].values
+```
+
+That single dot product is the entire dimensionality reduction step. The result is a brand-new 2-column dataset, `PC1` and `PC2`, standing in for the original three features:
+
+<img src="/images/ch39-pca-projected-2d.png" alt="2D scatter plot with PC1 on the x-axis and PC2 on the y-axis, showing the same 40 points as two visibly separated clusters by class" className="w-full h-auto" />
+
+The two classes, which lived in a 3D cube a moment ago, are now visibly separable in a flat 2D plot, using only the two directions that captured the most spread (together, roughly 75% of the total variance in this particular dataset). This is exactly the payoff promised back in the intuition post: fewer dimensions, same essential structure.
+
+---
+
+## What's Next?
+
+We now have PCA fully specified: the variance-maximization objective, the covariance matrix that encodes a dataset's spread and orientation, and the eigenvector/eigenvalue math that solves the objective in closed form. The next post moves to a real-world dataset and works through applying PCA end to end in more depth, including how to decide how many components to keep.
