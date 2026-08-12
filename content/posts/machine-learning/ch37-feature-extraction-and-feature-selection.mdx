@@ -46,24 +46,11 @@ A common misconception, especially early on, is that feeding a model *more* feat
 
 There exists an **optimal number of features** for any given model and dataset. Up to that point, each new feature contributes useful signal and accuracy improves. Beyond it, additional features add more noise than signal, computational cost climbs, and the model's ability to generalize *degrades*. This phenomenon, where high-dimensional feature spaces actively hurt model performance, is what is meant by the **Curse of Dimensionality**.
 
-```text
-Model Performance vs. Number of Features
+To make this concrete, the chart below runs a small real experiment: a synthetic 60-feature dataset (12 informative, 8 redundant, the rest pure noise) with a KNN classifier (`k=5`), retrained repeatedly while feeding it more and more of those features in order:
 
-Performance
-    ▲
-    │            ╭──── Optimal point
-    │           ╱  ╲
-    │          ╱    ╲
-    │         ╱      ╲──── Performance degrades
-    │        ╱              (noise, overfitting)
-    │       ╱
-    │      ╱
-    │     ╱
-    └────╱──────────────────────► Number of Features
-         ↑
-     Useful signal
-     dominates here
-```
+<img src="/images/ch37-performance-vs-features.png" alt="Line chart of KNN test accuracy against number of features used, rising from 54% at 2 features to a peak of 91% at 18 features, then declining with noise down to around 69% by 50 features" className="w-full h-auto" />
+
+Accuracy climbs sharply as the first informative features are added, peaks once the 12 informative and 8 redundant columns are all in play, then drops as the remaining pure-noise columns get mixed in. KNN's decisions get worse not because the informative signal disappeared, but because computing distance across dozens of irrelevant dimensions drowns it out.
 
 Three concrete problems emerge as dimensionality grows:
 
