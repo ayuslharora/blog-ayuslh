@@ -128,6 +128,24 @@ To make this concrete, here's the whole pipeline run on a real dataset: 40 point
 
 Plotted directly, the raw 3D data looks like this, the two classes overlapping but distinguishable along a diagonal direction:
 
+```python
+import matplotlib.pyplot as plt
+
+fig = plt.figure(figsize=(8, 6))
+ax = fig.add_subplot(111, projection='3d')
+for target, color in [(1, 'tab:blue'), (2, 'tab:orange')]:
+    subset = df[df['target'] == target]
+    ax.scatter(subset['feature1'], subset['feature2'], subset['feature3'],
+               color=color, edgecolor='black', label=f'class {target}')
+
+ax.set_xlabel('Feature 1')
+ax.set_ylabel('Feature 2')
+ax.set_zlabel('Feature 3')
+ax.set_title('Raw 3D Dataset (2 Classes)')
+ax.legend()
+plt.show()
+```
+
 <img src="/images/ch39-pca-3d-data.png" alt="3D scatter plot of 40 points with feature1, feature2, and feature3 axes, colored by two classes, showing the two classes separated along a roughly diagonal direction through the cube" className="w-full h-auto" />
 
 ### Step 1-3: Standardize, Covariance Matrix, Eigendecomposition
@@ -146,6 +164,28 @@ eigen_vectors = eigen_vectors[:, order]
 
 For this dataset, that produces eigenvalues of roughly `[1.35, 0.95, 0.78]`. The largest one, 1.35, belongs to PC1. Drawing the top 2 eigenvectors directly on top of the (standardized) data makes the abstraction concrete: these aren't arbitrary lines, they're the data's own computed axes of maximum spread.
 
+```python
+fig = plt.figure(figsize=(8, 6))
+ax = fig.add_subplot(111, projection='3d')
+for target, color in [(1, 'tab:blue'), (2, 'tab:orange')]:
+    mask = df['target'].values == target
+    ax.scatter(X[mask, 0], X[mask, 1], X[mask, 2],
+               color=color, edgecolor='black', label=f'class {target}')
+
+t = np.linspace(-3, 3, 2)
+pc1_line = np.outer(t, eigen_vectors[:, 0])
+pc2_line = np.outer(t, eigen_vectors[:, 1])
+ax.plot(pc1_line[:, 0], pc1_line[:, 1], pc1_line[:, 2], color='black', linewidth=3, label='PC1 (largest eigenvalue)')
+ax.plot(pc2_line[:, 0], pc2_line[:, 1], pc2_line[:, 2], color='gray', linewidth=3, label='PC2 (2nd largest)')
+
+ax.set_xlabel('Feature 1 (scaled)')
+ax.set_ylabel('Feature 2 (scaled)')
+ax.set_zlabel('Feature 3 (scaled)')
+ax.set_title('Eigenvectors of the Covariance Matrix')
+ax.legend()
+plt.show()
+```
+
 <img src="/images/ch39-pca-eigenvectors-3d.png" alt="3D scatter plot of the standardized data with two lines drawn through the origin representing PC1 and PC2, the black PC1 line running along the direction the two classes are most separated" className="w-full h-auto" />
 
 PC1 (black) runs right along the direction the two classes are most stretched apart. PC2 (gray) is the next-best direction, orthogonal to PC1, capturing whatever spread is left over once PC1's direction is accounted for.
@@ -161,6 +201,19 @@ new_df['target'] = df['target'].values
 ```
 
 That single dot product is the entire dimensionality reduction step. The result is a brand-new 2-column dataset, `PC1` and `PC2`, standing in for the original three features:
+
+```python
+plt.figure(figsize=(8, 6))
+for target, color in [(1, 'tab:blue'), (2, 'tab:orange')]:
+    subset = new_df[new_df['target'] == target]
+    plt.scatter(subset['PC1'], subset['PC2'], color=color, edgecolor='black', label=f'class {target}')
+
+plt.xlabel('PC1')
+plt.ylabel('PC2')
+plt.title('Data Projected onto the Top 2 Principal Components')
+plt.legend()
+plt.show()
+```
 
 <img src="/images/ch39-pca-projected-2d.png" alt="2D scatter plot with PC1 on the x-axis and PC2 on the y-axis, showing the same 40 points as two visibly separated clusters by class" className="w-full h-auto" />
 
