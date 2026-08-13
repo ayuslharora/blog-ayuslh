@@ -19,7 +19,7 @@ This post fills in both gaps: the exact optimization problem PCA solves, the lin
 
 Say we have a single data point in some direction, and a candidate axis we want to measure it against. Every point can be treated as a vector, and "measuring a point against an axis" is exactly **projection**: dropping a perpendicular line from the point onto the axis and reading off where it lands.
 
-<img src="/images/ch39-projection-illustration.png" alt="A data point x with a perpendicular dotted line dropped onto a candidate axis defined by unit vector u, landing at the projected point u transpose x" className="w-full h-auto" />
+<img src="/images/ch39-projection-illustration.png" alt="Two vectors x and u drawn from the origin, with a perpendicular dotted line dropped from the tip of x onto u, landing at the projected point u transpose x" className="w-full h-auto" />
 
 If $u$ is a **unit vector** (length 1) pointing along the candidate axis, and $x$ is a data point, the length of $x$'s projection onto $u$ is:
 
