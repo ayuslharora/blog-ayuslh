@@ -72,7 +72,7 @@ export default function MnistPca3d() {
       mode: 'markers' as const,
       type: 'scatter3d' as const,
       name: `${digit}`,
-      marker: { size: 3, color: DIGIT_COLORS[digit], opacity: 0.8 },
+      marker: { size: 4, color: DIGIT_COLORS[digit], opacity: 0.8 },
     };
   });
 
@@ -104,7 +104,14 @@ export default function MnistPca3d() {
           </button>
         ))}
       </div>
-      <div className="rounded-2xl border border-black/5 dark:border-white/5 bg-white dark:bg-black/20 overflow-hidden">
+      <div className="mnist-pca3d-plot rounded-2xl border border-black/5 dark:border-white/5 bg-white dark:bg-black/20 overflow-hidden">
+        <style>{`
+          .mnist-pca3d-plot .legendpoints path {
+            transform-box: fill-box;
+            transform-origin: center;
+            transform: translate(20px, 0) scale(2.2);
+          }
+        `}</style>
         <Plot
           data={traces}
           layout={{
