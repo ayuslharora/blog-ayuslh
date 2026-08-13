@@ -121,6 +121,10 @@ X_2d = pca_2d.fit_transform(X_train_s)
 
 Digit 1 separates almost entirely on its own on the left, a thin vertical stroke lights up very few pixels and barely varies from sample to sample, so it lands in a tight, low-variance corner. Digit 0 fans out the widest on the right, a full loop covers a lot of pixels and its exact size/roundness varies a lot between people's handwriting. Everything else, the digits with moderate ink coverage, overlaps heavily in the middle, exactly what's expected when 784 dimensions get flattened down to just 2. That overlap isn't a bug in PCA, it's an honest picture of how much structure the first 2 of 784 directions can realistically hold onto; the earlier explained-variance curve already said as much, 2 components capture under 10% of the total variance here.
 
+One more component helps untangle some of that middle overlap. Here's the same real MNIST training data (300 samples per digit) projected onto the top 3 components instead of 2, as an interactive plot, drag to rotate, scroll to zoom, and use the digit buttons below to isolate one class at a time:
+
+<MnistPca3d />
+
 ---
 
 ## Where PCA Doesn't Help
