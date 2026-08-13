@@ -144,18 +144,10 @@ Plotted directly, the raw 3D data looks like this, the two classes overlapping b
 ```python
 import matplotlib.pyplot as plt
 
-fig = plt.figure(figsize=(8, 6))
-ax = fig.add_subplot(111, projection='3d')
+ax = plt.figure().add_subplot(projection='3d')
 for target, color in [(1, 'tab:blue'), (2, 'tab:orange')]:
     subset = df[df['target'] == target]
-    ax.scatter(subset['feature1'], subset['feature2'], subset['feature3'],
-               color=color, edgecolor='black', label=f'class {target}')
-
-ax.set_xlabel('Feature 1')
-ax.set_ylabel('Feature 2')
-ax.set_zlabel('Feature 3')
-ax.set_title('Raw 3D Dataset (2 Classes)')
-ax.legend()
+    ax.scatter(subset['feature1'], subset['feature2'], subset['feature3'], color=color, edgecolor='black')
 plt.show()
 ```
 
@@ -178,24 +170,14 @@ eigen_vectors = eigen_vectors[:, order]
 For this dataset, that produces eigenvalues of roughly `[1.35, 0.95, 0.78]`. The largest one, 1.35, belongs to PC1. Drawing the top 2 eigenvectors directly on top of the (standardized) data makes the abstraction concrete: these aren't arbitrary lines, they're the data's own computed axes of maximum spread.
 
 ```python
-fig = plt.figure(figsize=(8, 6))
-ax = fig.add_subplot(111, projection='3d')
-for target, color in [(1, 'tab:blue'), (2, 'tab:orange')]:
-    mask = df['target'].values == target
-    ax.scatter(X[mask, 0], X[mask, 1], X[mask, 2],
-               color=color, edgecolor='black', label=f'class {target}')
+ax = plt.figure().add_subplot(projection='3d')
+ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=df['target'], edgecolor='black')
 
 t = np.linspace(-3, 3, 2)
 pc1_line = np.outer(t, eigen_vectors[:, 0])
 pc2_line = np.outer(t, eigen_vectors[:, 1])
-ax.plot(pc1_line[:, 0], pc1_line[:, 1], pc1_line[:, 2], color='black', linewidth=3, label='PC1 (largest eigenvalue)')
-ax.plot(pc2_line[:, 0], pc2_line[:, 1], pc2_line[:, 2], color='gray', linewidth=3, label='PC2 (2nd largest)')
-
-ax.set_xlabel('Feature 1 (scaled)')
-ax.set_ylabel('Feature 2 (scaled)')
-ax.set_zlabel('Feature 3 (scaled)')
-ax.set_title('Eigenvectors of the Covariance Matrix')
-ax.legend()
+ax.plot(*pc1_line.T, color='black', linewidth=3)   # PC1
+ax.plot(*pc2_line.T, color='gray', linewidth=3)    # PC2
 plt.show()
 ```
 
@@ -216,15 +198,10 @@ new_df['target'] = df['target'].values
 That single dot product is the entire dimensionality reduction step. The result is a brand-new 2-column dataset, `PC1` and `PC2`, standing in for the original three features:
 
 ```python
-plt.figure(figsize=(8, 6))
-for target, color in [(1, 'tab:blue'), (2, 'tab:orange')]:
-    subset = new_df[new_df['target'] == target]
-    plt.scatter(subset['PC1'], subset['PC2'], color=color, edgecolor='black', label=f'class {target}')
-
+plt.scatter(new_df['PC1'], new_df['PC2'], c=new_df['target'], edgecolor='black')
 plt.xlabel('PC1')
 plt.ylabel('PC2')
 plt.title('Data Projected onto the Top 2 Principal Components')
-plt.legend()
 plt.show()
 ```
 
