@@ -50,11 +50,13 @@ This is PCA's entire mathematical objective in one line: **find the unit vector 
 **Covariance** fixes this. For two variables $X$ and $Y$:
 
 $$
-\rho(X, Y) = \frac{\text{Cov}(X, Y)}{\sigma_X \sigma_Y}
+\text{Cov}(X, Y) = \frac{1}{n}\sum_{i=1}^{n} (x_i - \bar{x})(y_i - \bar{y})
 $$
 
+This is the correlation formula:
+
 $$
-\text{Cov}(X, Y) = \frac{1}{n}\sum_{i=1}^{n} (x_i - \bar{x})(y_i - \bar{y})
+\rho(X, Y) = \frac{\text{Cov}(X, Y)}{\sigma_X \sigma_Y}
 $$
 
 The sign is what carries the information:
