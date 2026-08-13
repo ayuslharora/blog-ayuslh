@@ -23,6 +23,7 @@ import UdpHeaderTable from '../../../components/UdpHeaderTable';
 import DnsHeaderTable from '../../../components/DnsHeaderTable';
 import MtuMssDiagram from '../../../components/MtuMssDiagram';
 import MnistPca3d from '../../../components/MnistPca3d';
+import LinRegCostSurface from '../../../components/LinRegCostSurface';
 import TableOfContents from '../../../components/TableOfContents';
 import RelatedPosts from '../../../components/RelatedPosts';
 import MdxImage from '../../../components/MdxImage';
@@ -142,6 +143,7 @@ export default async function PostPage({
             DnsHeaderTable,
             MtuMssDiagram,
             MnistPca3d,
+            LinRegCostSurface,
             Mermaid,
             img: MdxImage,
             MdxImage,

@@ -1,0 +1,128 @@
+---
+title: "Ch.2: Simple Linear Regression - The Math"
+description: "Deriving the closed-form OLS solution for simple linear regression by hand, coding a linear regression class from scratch, and comparing it to sklearn on the same placement dataset."
+date: "2026-08-13T22:30:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "linear-regression", "sklearn", "regression", "ols"]
+subtopic: "Linear Regression"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=dXHIDLPKdmA)
+
+[The last post](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) covered the geometric intuition of simple linear regression: fit a line `y = mx + b` that minimizes overall error across the data. This post fills in the part that was skipped: where `m` and `b` actually come from. The full derivation gets coded from scratch, then checked against sklearn to confirm both land on the same line.
+
+## Restating the Goal
+
+Same placement dataset as before, 200 students, `cgpa` predicting `package`. A prediction for any student `i` looks like:
+
+```
+ŷᵢ = m·xᵢ + b
+```
+
+The error on that student is `yᵢ - ŷᵢ`, the gap between what they actually got and what the line predicts. Some errors are positive, some negative, so they can't just be summed directly, positive and negative errors would cancel out and hide how wrong the line actually is. Squaring fixes that, and summing the squared errors across every student gives a single number that measures how bad a line is:
+
+```
+E = Σ (yᵢ - mxᵢ - b)²
+```
+
+This is the **cost function**. The best fit line is whatever `m` and `b` make `E` as small as possible. That turns "find the best line" into a calculus problem: minimize `E` with respect to two variables.
+
+## Minimizing the Cost Function
+
+A function is at its minimum where its slope is zero. With two variables, that means both partial derivatives, with respect to `m` and with respect to `b`, have to be zero simultaneously.
+
+Starting with `b`:
+
+```
+∂E/∂b = -2 Σ (yᵢ - mxᵢ - b) = 0
+```
+
+Dividing out the constant and splitting the sum:
+
+```
+Σyᵢ - m Σxᵢ - nb = 0
+b = ȳ - m·x̄
+```
+
+where `x̄` and `ȳ` are the means of the input and output columns. That's already a meaningful result: the best fit line always passes through the point `(x̄, ȳ)`, the "center of mass" of the data.
+
+Now `m`. Taking the partial derivative with respect to `m` and setting it to zero:
+
+```
+∂E/∂m = -2 Σ xᵢ(yᵢ - mxᵢ - b) = 0
+```
+
+Substituting the expression for `b` found above and simplifying (expanding, grouping the `xᵢ` and `x̄` terms, and factoring) eventually collapses to:
+
+```
+m = Σ (xᵢ - x̄)(yᵢ - ȳ) / Σ (xᵢ - x̄)²
+```
+
+That's the whole derivation. `m` is a ratio of two sums, and `b` falls out once `m` is known. No iteration, no gradient descent, this is a **closed-form solution**: plug in the data and the answer comes out directly. That's a property specific to simple linear regression with squared error, not something every ML algorithm gets.
+
+<LinRegCostSurface />
+
+That surface is the cost function `E(m, b)` plotted over a range of slope and intercept values for this exact dataset, drag to rotate, scroll to zoom. It's a bowl, and the red dot sitting at the bottom is the exact `(m, b)` the formulas above solve for. The two partial derivative equations are just the condition "this point is the bottom of the bowl", stated in calculus. There's no cleverer search needed here because the bowl only has one minimum, no dips, no ridges to get stuck on.
+
+## Coding It From Scratch
+
+The formulas translate directly into a small class, deliberately mirroring sklearn's `fit` / `predict` interface:
+
+```python
+class MeraLR:
+
+    def __init__(self):
+        self.m = None
+        self.b = None
+
+    def fit(self, X_train, y_train):
+        num = 0
+        den = 0
+        for i in range(X_train.shape[0]):
+            num = num + (X_train[i] - X_train.mean()) * (y_train[i] - y_train.mean())
+            den = den + (X_train[i] - X_train.mean()) ** 2
+
+        self.m = num / den
+        self.b = y_train.mean() - (self.m * X_train.mean())
+
+    def predict(self, X_test):
+        return self.m * X_test + self.b
+```
+
+The loop is a direct line-by-line translation of `Σ(xᵢ - x̄)(yᵢ - ȳ)` and `Σ(xᵢ - x̄)²`. Nothing here is a sklearn shortcut, it's the derivation above and nothing else.
+
+```python
+X = df.iloc[:, 0].values
+y = df.iloc[:, 1].values
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=2)
+
+lr = MeraLR()
+lr.fit(X_train, y_train)
+```
+
+```
+m = 0.5580
+b = -0.8961
+```
+
+Same slope and intercept as the sklearn model from the last post, down to four decimal places. That's expected, sklearn's `LinearRegression` is solving the exact same closed-form OLS problem under the hood, just with a more optimized implementation.
+
+## Checking a Prediction
+
+The same test student from before, CGPA 8.58:
+
+```python
+print(lr.predict(X_test[0]))
+```
+
+```
+3.891116009744203
+```
+
+sklearn's model predicted `3.89` for this student. `MeraLR` predicts `3.8911`. Two completely independent code paths, hand-derived calculus in one, an optimized library routine in the other, agreeing to four decimal places is a good sanity check that the math actually holds up outside of theory.
+
+## What's Next
+
+The closed-form solution here only exists because the cost function is a smooth bowl with exactly one minimum, a special case of simple linear regression. Most models don't get that luxury: their cost surfaces don't have a clean algebraic solution, so the minimum has to be found by walking downhill instead, gradient descent. That's the next post.
