@@ -82,7 +82,13 @@ cum_variance = np.cumsum(pca.explained_variance_ratio_)
 
 <img src="/images/ch40-explained-variance-cumsum.png" alt="Line chart of cumulative explained variance against number of principal components for real MNIST data, rising steeply at first and flattening near 1.0, with a marker showing 232 components are needed to cross 90% cumulative variance out of 784 total" className="w-full h-auto" />
 
-The rule of thumb used throughout the source material: keep adding components until the curve crosses **90% explained variance**, then stop. Here that happens at **232 components**, less than a third of the original 784. (The curve climbs much more slowly than it would on a toy digit dataset, because real handwritten strokes vary across a genuinely large number of independent directions, corner thickness, slant, loop width, stroke pressure, and so on. 90% variance needs 232 components out of 784; 95% needs 325.)
+The rule of thumb used throughout the source material: keep adding components until the curve crosses **90% explained variance**, then stop. Rather than eyeballing that crossing point off the chart, `np.argmax` finds it directly, it returns the index of the first `True` in the boolean array `cum_variance >= 0.90`:
+
+```python
+n_components_90 = np.argmax(cum_variance >= 0.90) + 1
+```
+
+Here that happens at **232 components**, less than a third of the original 784. (The curve climbs much more slowly than it would on a toy digit dataset, because real handwritten strokes vary across a genuinely large number of independent directions, corner thickness, slant, loop width, stroke pressure, and so on. 90% variance needs 232 components out of 784; 95% needs 325.)
 
 ### Accuracy After Reduction
 
