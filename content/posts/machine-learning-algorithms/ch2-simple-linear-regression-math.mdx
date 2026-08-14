@@ -33,9 +33,9 @@ A function is at its minimum where its slope is zero. With two variables, that m
 
 Starting with `b`:
 
-```
-∂E/∂b = -2 Σ (yᵢ - mxᵢ - b) = 0
-```
+$$
+\frac{\partial E}{\partial b} = -2 \sum_{i=1}^{n} (y_i - mx_i - b) = 0
+$$
 
 Dividing out the constant and splitting the sum:
 
@@ -48,15 +48,15 @@ where `x̄` and `ȳ` are the means of the input and output columns. That's alrea
 
 Now `m`. Taking the partial derivative with respect to `m` and setting it to zero:
 
-```
-∂E/∂m = -2 Σ xᵢ(yᵢ - mxᵢ - b) = 0
-```
+$$
+\frac{\partial E}{\partial m} = -2 \sum_{i=1}^{n} x_i(y_i - mx_i - b) = 0
+$$
 
 Substituting the expression for `b` found above and simplifying (expanding, grouping the `xᵢ` and `x̄` terms, and factoring) eventually collapses to:
 
-```
-m = Σ (xᵢ - x̄)(yᵢ - ȳ) / Σ (xᵢ - x̄)²
-```
+$$
+m = \frac{\sum_{i=1}^{n} (x_i - \bar{x})(y_i - \bar{y})}{\sum_{i=1}^{n} (x_i - \bar{x})^2}
+$$
 
 That's the whole derivation. `m` is a ratio of two sums, and `b` falls out once `m` is known. No iteration, no gradient descent, this is a **closed-form solution**: plug in the data and the answer comes out directly. That's a property specific to simple linear regression with squared error, not something every ML algorithm gets.
 

@@ -49,9 +49,9 @@ The green dashed lines are the residuals: the vertical distance between each tes
 
 The simplest idea: for each point, measure how far off the prediction was (ignoring sign), then average those distances.
 
-```
-MAE = (1/n) Σ |yᵢ - ŷᵢ|
-```
+$$
+MAE = \frac{1}{n} \sum_{i=1}^{n} |y_i - \hat{y}_i|
+$$
 
 Geometrically, MAE is the average absolute vertical distance between each point and the regression line. If MAE is zero, the line passes through every point exactly.
 
@@ -78,9 +78,9 @@ MAE 0.2884710931878175
 
 Instead of taking the absolute value of each error, square it.
 
-```
-MSE = (1/n) Σ (yᵢ - ŷᵢ)²
-```
+$$
+MSE = \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2
+$$
 
 Geometrically, if you imagine drawing a square on each residual line (with side length equal to the error), MSE is the average area of those squares. The optimizer is trying to minimize the total area.
 
@@ -107,9 +107,9 @@ MSE 0.12129235313495527
 
 Just take the square root of MSE.
 
-```
-RMSE = √MSE = √[(1/n) Σ (yᵢ - ŷᵢ)²]
-```
+$$
+RMSE = \sqrt{MSE} = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}
+$$
 
 ```python
 print("RMSE", np.sqrt(mean_squared_error(y_test, y_pred)))
@@ -137,9 +137,9 @@ MAE, MSE, and RMSE all tell you how much error the model makes, but those number
 
 R² solves this by measuring how good the model is *relative to the simplest possible baseline*: just predicting the mean of y for every input. If you had no input column at all, the best you could do is predict `ȳ` (the mean package) for every student. R² measures how much better your actual regression line is than that naive strategy.
 
-```
-R² = 1 - (SSres / SStotal)
-```
+$$
+R^2 = 1 - \frac{SS_{res}}{SS_{total}}
+$$
 
 where:
 
@@ -235,9 +235,9 @@ R² went up slightly despite the second column being pure noise. On training dat
 
 Adjusted R² fixes this by explicitly penalizing the addition of columns that don't pull their weight.
 
-```
-Adjusted R² = 1 - [(1 - R²)(n - 1) / (n - k - 1)]
-```
+$$
+\text{Adjusted } R^2 = 1 - \frac{(1 - R^2)(n - 1)}{n - k - 1}
+$$
 
 where `n` is the number of rows and `k` is the number of input columns.
 

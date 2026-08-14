@@ -99,9 +99,9 @@ This single expression is the cost function in matrix form.
 
 To find the vector $\beta$ that minimizes $E(\beta)$, compute the gradient with respect to $\beta$ and set it to zero:
 
-```
-∂E/∂β = 0
-```
+$$
+\frac{\partial E}{\partial \beta} = 0
+$$
 
 Differentiating each term in the cost function with respect to $\beta$:
 
@@ -111,9 +111,9 @@ Differentiating each term in the cost function with respect to $\beta$:
 
 Putting these derivatives together:
 
-```
-∂E/∂β = -2·Xᵀ·y + 2·Xᵀ·X·β = 0
-```
+$$
+\frac{\partial E}{\partial \beta} = -2 X^T y + 2 X^T X \beta = 0
+$$
 
 Dividing by 2 and moving terms gives:
 
