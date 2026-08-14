@@ -29,6 +29,7 @@ import MultiRegPlane3d from '../../../components/MultiRegPlane3d';
 import TableOfContents from '../../../components/TableOfContents';
 import RelatedPosts from '../../../components/RelatedPosts';
 import MdxImage from '../../../components/MdxImage';
+import KatexCopyFix from '../../../components/KatexCopyFix';
 
 // Chapters with this many H2 sections or more get an in-page table of
 // contents (currently: ddia-ch1 at 10, ch1-http-request at 6). A count
@@ -188,6 +189,7 @@ export default async function PostPage({
           </Link>
         </div>
       </article>
+      <KatexCopyFix />
       <ChatWidget postContext={post.content} />
     </>
   );

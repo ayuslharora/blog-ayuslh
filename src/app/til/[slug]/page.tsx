@@ -16,6 +16,7 @@ import ChatWidget from '../../../components/ChatWidget';
 import IpConverter from '../../../components/IpConverter';
 import Mermaid from '../../../components/Mermaid';
 import MdxImage from '../../../components/MdxImage';
+import KatexCopyFix from '../../../components/KatexCopyFix';
 
 export const dynamicParams = false;
 
@@ -175,6 +176,7 @@ export default async function TilPostPage({
           </Link>
         </div>
       </article>
+      <KatexCopyFix />
       <ChatWidget postContext={post.content} />
     </>
   );
