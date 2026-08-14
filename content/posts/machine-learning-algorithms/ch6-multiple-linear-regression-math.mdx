@@ -1,5 +1,5 @@
 ---
-title: "Ch.5: Multiple Linear Regression - The Math"
+title: "Ch.6: Multiple Linear Regression - The Math"
 description: "Deriving the closed-form normal equation for multiple linear regression in matrix form, coding a custom estimator from scratch, and validating it against sklearn on the diabetes dataset."
 date: "2026-08-14T20:30:00+05:30"
 tags: ["machine-learning", "machine-learning-algorithms", "linear-regression", "sklearn", "regression", "ols"]
@@ -9,7 +9,7 @@ draft: false
 
 *Inspired by:* [YouTube](https://www.youtube.com/watch?v=NU37mF5q8VE)
 
-[Ch.1](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) and [Ch.2](/machine-learning-algorithms/ch2-simple-linear-regression-math) introduced simple linear regression and derived its closed-form OLS solution for a single input feature. [Ch.3](/machine-learning-algorithms/ch3-regression-metrics) established how to measure regression model performance using metrics like MAE, MSE, and R². [Ch.4](/machine-learning-algorithms/ch4-multiple-linear-regression-intuition) extended the intuition to multiple dimensions, fitting a plane or hyperplane through data with multiple input columns.
+[Ch.1](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) and [Ch.2](/machine-learning-algorithms/ch2-simple-linear-regression-math) introduced simple linear regression and derived its closed-form OLS solution for a single input feature. [Ch.3](/machine-learning-algorithms/ch3-regression-metrics) established how to measure regression model performance using metrics like MAE, MSE, and R². [Ch.4](/machine-learning-algorithms/ch4-assumptions-of-linear-regression) covered the assumptions a fitted line needs to roughly satisfy to be trustworthy. [Ch.5](/machine-learning-algorithms/ch5-multiple-linear-regression-intuition) extended the intuition to multiple dimensions, fitting a plane or hyperplane through data with multiple input columns.
 
 This post completes the picture for multiple linear regression. Trying to calculate partial derivatives scalar-by-scalar for $k$ features quickly becomes unmanageable. Matrix algebra provides a clean way to solve for all coefficients at once. Below is the full derivation of the closed-form normal equation, an implementation built from scratch in NumPy, and a side-by-side comparison against scikit-learn on the diabetes dataset.
 

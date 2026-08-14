@@ -1,5 +1,5 @@
 ---
-title: "Ch.4: Multiple Linear Regression - The Intuition"
+title: "Ch.5: Multiple Linear Regression - The Intuition"
 description: "Extending simple linear regression to more than one input column: fitting a plane through 3D data instead of a line, and what the hyperplane equation looks like in n dimensions."
 date: "2026-08-14T15:20:00+05:30"
 tags: ["machine-learning", "machine-learning-algorithms", "linear-regression", "sklearn", "regression", "plotly"]
@@ -9,7 +9,7 @@ draft: false
 
 *Inspired by:* [YouTube](https://www.youtube.com/watch?v=ashGekqstI8)
 
-[Ch.1](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) and [Ch.2](/machine-learning-algorithms/ch2-simple-linear-regression-math) covered simple linear regression: one input column, one output column, a line drawn through 2D data. [Ch.3](/machine-learning-algorithms/ch3-regression-metrics) covered how to judge whether that line is any good. Most real-world datasets don't look like a single input column though, they usually have more than one. That's multiple linear regression, and the good news is it's not a new idea, it's the same idea extended by one dimension at a time.
+[Ch.1](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) and [Ch.2](/machine-learning-algorithms/ch2-simple-linear-regression-math) covered simple linear regression: one input column, one output column, a line drawn through 2D data. [Ch.3](/machine-learning-algorithms/ch3-regression-metrics) covered how to judge whether that line is any good, and [Ch.4](/machine-learning-algorithms/ch4-assumptions-of-linear-regression) covered the assumptions that need to roughly hold for it to be trustworthy. Most real-world datasets don't look like a single input column though, they usually have more than one. That's multiple linear regression, and the good news is it's not a new idea, it's the same idea extended by one dimension at a time.
 
 ## From One Input to Two
 
@@ -113,3 +113,5 @@ If `beta_2` had come out close to zero, that would say `iq` barely moves the pre
 ## What's Next
 
 This covered the geometric intuition behind multiple linear regression: more inputs means more dimensions, and the best fit line becomes a best fit plane (or hyperplane, beyond 3D), described by one coefficient per input plus an intercept. The next post works out where those coefficients actually come from, deriving the closed-form solution for multiple linear regression the same way Ch.2 did for the simple case.
+
+Also worth revisiting now that there's more than one input column: the [multicollinearity assumption from Ch.4](/machine-learning-algorithms/ch4-assumptions-of-linear-regression#2-no-multicollinearity) applies directly here, `cgpa` and `iq` need to be reasonably independent of each other for the coefficients above to mean what they claim to mean.
