@@ -1,0 +1,228 @@
+---
+title: "Ch.4: Assumptions of Linear Regression"
+description: "The five core assumptions of ordinary least squares linear regression, why each one matters, what happens when it is violated, and how to verify them using Python."
+date: "2026-08-14T12:00:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "linear-regression", "sklearn", "regression", "statsmodels"]
+subtopic: "Linear Regression"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=EmSNAtcHLm8&list=PLKnIA16_Rmvbr7zKYQuBfsVkjoLcJgxHH&index=56)
+
+[Ch.1](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) through [Ch.3](/machine-learning-algorithms/ch3-regression-metrics) covered how linear regression fits a line and how to measure whether it's any good. But a fitted line, and the metrics computed from it, are only trustworthy if the data actually satisfies a handful of conditions linear regression assumes are true. This post covers all five: why each one matters, what breaks when it's violated, and how to check each one in code.
+
+## Setup and Source Data
+
+To test these assumptions in Python, we follow the structure of the [source notebook](https://github.com/campusx-official/linear-regression-assumptions). We generate a synthetic regression dataset using `scikit-learn` with 200 samples and 3 independent continuous features (`feature1`, `feature2`, `feature3`) predicting a continuous `target`.
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.datasets import make_regression
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+
+# Generate synthetic dataset matching notebook structure
+X_raw, y_raw = make_regression(n_samples=200, n_features=3, n_informative=3, noise=15, random_state=1)
+df = pd.DataFrame(X_raw, columns=['feature1', 'feature2', 'feature3'])
+df['target'] = y_raw
+
+X = df.iloc[:, 0:3].values
+y = df.iloc[:, -1].values
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1)
+
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+y_pred = model.predict(X_test)
+residual = y_test - y_pred
+```
+
+Evaluating the model on the test set yields an \(R^2\) score of `0.9531`, with learned coefficients `[18.89692854, 64.70864512, 35.1871182]` and intercept `-2.40088535`.
+
+Now let us check each of the five assumptions against this dataset.
+
+## 1. Linear Relationship
+
+### What it means
+The relationship between each input feature and the target variable must be linear (or approximately linear). In mathematical terms, the expected value of \(y\) is a linear combination of the input features: \(y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \dots + \beta_n x_n\).
+
+### Why it matters
+Ordinary Least Squares (OLS) fits a line (or hyperplane) through the feature space. If the true underlying relationship is non-linear (for example quadratic, exponential, or logarithmic), a straight line will systematically underfit the data. The resulting model will produce biased predictions and poor generalizability.
+
+### How to check it
+Plot a scatter plot of each individual feature against the target column.
+
+```python
+fig, axes = plt.subplots(1, 3, figsize=(15, 4.5), sharey=True)
+for i, col in enumerate(['feature1', 'feature2', 'feature3']):
+    axes[i].scatter(df[col], df['target'], alpha=0.7, color='#2b5c8f', edgecolors='w', s=40)
+    axes[i].set_title(f'{col} vs Target')
+    axes[i].set_xlabel(col)
+    if i == 0:
+        axes[i].set_ylabel('Target')
+plt.tight_layout()
+plt.show()
+```
+
+<img src="/images/ch4-linear-relationship-scatter.png" alt="Three-panel scatter plot showing feature1, feature2, and feature3 plotted individually against the target variable, showing clear linear trends" className="w-full h-auto" />
+
+### How to interpret the results
+In the scatter plots above, as each feature value increases, the target value trends upward linearly without curve patterns or sharp bends. This confirms that all three features share a strong linear relationship with the target variable.
+
+## 2. No Multicollinearity
+
+### What it means
+The input features must be independent of one another. Multicollinearity occurs when two or more input features are highly correlated, meaning one feature can be linearly predicted from the others with substantial accuracy.
+
+### Why it matters
+To understand why multicollinearity is problematic, consider an intuitive analogy: imagine two scientists collaborating on a research project. If scientist A specializes in particle physics and scientist B specializes in organic chemistry, you can easily evaluate their individual contributions to the joint paper. But if both scientists have completely identical skill sets and perform the exact same tasks, it becomes impossible to attribute who contributed what to the outcome.
+
+In linear regression, each coefficient \(\beta_i\) represents the partial derivative of \(y\) with respect to \(x_i\), holding all other features constant. When two features move together in lockstep, OLS cannot isolate the individual contribution of each feature. The model matrices become ill-conditioned, causing coefficient estimates to become unstable and highly sensitive to tiny fluctuations in the data.
+
+### How to check it
+There are two complementary techniques to test for multicollinearity:
+
+1. **Variance Inflation Factor (VIF):** VIF measures how much the variance of an estimated regression coefficient is inflated due to collinearity with other features. A VIF value near 1 indicates no collinearity. A VIF value exceeding 5 (or 10) indicates severe multicollinearity that requires feature removal or transformation.
+2. **Correlation Heatmap:** A pairwise Pearson correlation matrix between all input features.
+
+```python
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+
+# Calculate VIF for each input feature
+vif = [variance_inflation_factor(X_train, i) for i in range(X_train.shape[1])]
+vif_df = pd.DataFrame({'vif': vif}, index=df.columns[0:3]).T
+print(vif_df)
+```
+
+```
+     feature1  feature2  feature3
+vif  1.004398  1.014349  1.011021
+```
+
+```python
+# Plot correlation heatmap between input features
+sns.heatmap(df.iloc[:, 0:3].corr(), annot=True, cmap='Blues', fmt=".3f")
+plt.title('Feature Correlation Heatmap')
+plt.show()
+```
+
+<img src="/images/ch4-multicollinearity-heatmap.png" alt="Annotated correlation heatmap of input features feature1, feature2, and feature3 showing near-zero cross-correlations between all feature pairs" className="w-full h-auto" />
+
+### How to interpret the results
+The calculated VIF values for `feature1`, `feature2`, and `feature3` are `1.0044`, `1.0143`, and `1.0110` respectively, all comfortably close to 1. Furthermore, the correlation heatmap shows pairwise correlations near zero (`-0.082`, `0.009`, and `0.078`). This confirms that there is no multicollinearity among the input features.
+
+## 3. Normality of Residuals
+
+### What it means
+The residuals (prediction errors \(e_i = y_i - \hat{y}_i\)) should be normally distributed with a mean of zero: \(e \sim \mathcal{N}(0, \sigma^2)\).
+
+### Why it matters
+The Gauss-Markov theorem guarantees that OLS remains the Best Linear Unbiased Estimator (BLUE) even if residuals are non-normal. However, statistical inference (computing p-values, hypothesis testing via t-tests and F-tests, and constructing confidence intervals for regression coefficients) strictly relies on the assumption of normal residuals. If residuals are heavily skewed or multi-modal, p-values and confidence bands become unreliable.
+
+### How to check it
+We use two complementary visual tools:
+1. **Kernel Density Estimate (KDE) / Histogram:** To inspect the shape of the error distribution.
+2. **Q-Q Plot (Quantile-Quantile Plot):** Plots sample quantiles against theoretical normal quantiles using `scipy.stats.probplot`.
+
+```python
+# KDE distribution plot of residuals
+sns.histplot(residual, kde=True, stat="density")
+plt.title('Distribution of Residuals')
+plt.xlabel('Residual')
+plt.show()
+```
+
+<img src="/images/ch4-residuals-kde.png" alt="KDE distribution plot of regression residuals showing a roughly bell-shaped normal curve centered at zero" className="w-full h-auto" />
+
+```python
+import scipy as sp
+
+# Q-Q plot of residuals
+fig, ax = plt.subplots(figsize=(6.5, 5))
+sp.stats.probplot(residual, plot=ax, fit=True)
+plt.title('Q-Q Plot of Residuals')
+plt.show()
+```
+
+<img src="/images/ch4-residuals-qqplot.png" alt="Q-Q plot of residuals showing ordered sample quantiles closely hugging the red theoretical normal line" className="w-full h-auto" />
+
+### How to interpret the results
+In the KDE plot, the residuals form a symmetrical, bell-shaped distribution centered around 0. In the Q-Q plot, the data points closely track the red 45-degree reference line with only minor deviations at the extreme tails. Both visualizations confirm that the residuals satisfy the normality assumption.
+
+## 4. Homoscedasticity
+
+### What it means
+"Homo" means same, and "scedasticity" means spread. Homoscedasticity requires that the variance of the residuals remains constant across all values of the predicted output \(\hat{y}\): \(\text{Var}(e_i \mid \hat{y}_i) = \sigma^2\).
+
+### Why it matters
+If residual variance changes as predictions grow larger or smaller (known as heteroscedasticity), OLS places equal weight on all data points despite some points having much higher variance. This distorts standard error calculations, producing inaccurate confidence intervals and misleading p-values.
+
+### How to check it
+Plot a scatter plot of predicted values (\(y\_pred\)) on the x-axis against residuals (\(residual\)) on the y-axis, along with a reference line at \(residual = 0\).
+
+```python
+# Predicted values vs Residuals scatter plot
+plt.scatter(y_pred, residual, alpha=0.7)
+plt.axhline(0, color='red', linestyle='--')
+plt.xlabel('Predicted Values')
+plt.ylabel('Residuals')
+plt.title('Predicted Values vs Residuals')
+plt.show()
+```
+
+<img src="/images/ch4-homoscedasticity-scatter.png" alt="Scatter plot of predicted values versus residuals showing an even, uniform band of points centered around the horizontal zero line" className="w-full h-auto" />
+
+To understand what a violation looks like, compare the well-behaved plot above with a heteroscedastic dataset where noise variance scales directly with the feature size:
+
+<img src="/images/ch4-homoscedasticity-bad-example.png" alt="Scatter plot demonstrating heteroscedasticity where residual spread fans out dramatically from left to right as predicted values increase" className="w-full h-auto" />
+
+### How to interpret the results
+In the model plot, the residuals form a uniform, rectangular band of random scatter across all predicted values without any expanding or contracting patterns. In contrast, the heteroscedastic example exhibits a distinct funnel or cone shape where residual spread widens as \(\hat{y}\) increases. Our model satisfies homoscedasticity.
+
+## 5. No Autocorrelation of Residuals
+
+### What it means
+The residuals must be independent of one another. Autocorrelation occurs when the error term of one observation is correlated with the error term of adjacent observations (for example, \(e_t\) being correlated with \(e_{t-1}\)).
+
+### Why it matters
+Autocorrelation is particularly common in time-series data or sequentially ordered samples. When positive autocorrelation is present, adjacent errors tend to have the same sign. OLS underestimates the true standard errors of the coefficients, making confidence intervals artificially narrow and leading to overly optimistic metric conclusions.
+
+### How to check it
+Plot the residuals in sequential observation order (row index order).
+
+```python
+# Residuals plotted in row order
+plt.plot(residual, marker='o', linestyle='-')
+plt.axhline(0, color='red', linestyle='--')
+plt.xlabel('Observation Index')
+plt.ylabel('Residual')
+plt.title('Residuals in Row Order')
+plt.show()
+```
+
+<img src="/images/ch4-autocorrelation-plot.png" alt="Line plot of residuals in observation row order displaying unstructured random noise around zero" className="w-full h-auto" />
+
+To illustrate what a violation looks like, compare the random pattern above with a dataset exhibiting strong autocorrelation (such as a cyclical trend in residuals over time):
+
+<img src="/images/ch4-autocorrelation-bad-example.png" alt="Line plot showing positive autocorrelation with a distinct cyclical sine wave trend across row order" className="w-full h-auto" />
+
+### How to interpret the results
+In the model plot, residuals bounce randomly above and below zero across observation indices without any recognizable trend or wave. In contrast, the bad example displays a smooth, wave-like pattern where positive residuals cluster together followed by negative residuals. This confirms that our model residuals exhibit no autocorrelation.
+
+## Summary Checklist
+
+| Assumption | Diagnostic Tool | Desired Outcome |
+| :--- | :--- | :--- |
+| **1. Linear Relationship** | Scatter plot of feature vs target | Straight linear trend |
+| **2. No Multicollinearity** | VIF and Correlation Heatmap | VIF \(\approx 1\), correlation near 0 |
+| **3. Normality of Residuals** | KDE plot and Q-Q plot | Bell-shaped curve, points along Q-Q diagonal |
+| **4. Homoscedasticity** | Residuals vs Predicted scatter | Uniform spread band (no funnel shape) |
+| **5. No Autocorrelation** | Residuals in row order plot | Random noise (no cyclical pattern) |
+
+## What's Next
+
+These five assumptions apply to simple linear regression already, and they matter even more once there's more than one input column. [Ch.5](/machine-learning-algorithms/ch5-multiple-linear-regression-intuition) picks that up next: extending the line into a plane (or hyperplane) when there's more than one input feature.
