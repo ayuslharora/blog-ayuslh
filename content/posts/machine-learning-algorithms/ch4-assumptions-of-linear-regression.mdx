@@ -41,14 +41,14 @@ y_pred = model.predict(X_test)
 residual = y_test - y_pred
 ```
 
-Evaluating the model on the test set yields an \(R^2\) score of `0.9531`, with learned coefficients `[18.89692854, 64.70864512, 35.1871182]` and intercept `-2.40088535`.
+Evaluating the model on the test set yields an $R^2$ score of `0.9531`, with learned coefficients `[18.89692854, 64.70864512, 35.1871182]` and intercept `-2.40088535`.
 
 Now let us check each of the five assumptions against this dataset.
 
 ## 1. Linear Relationship
 
 ### What it means
-The relationship between each input feature and the target variable must be linear (or approximately linear). In mathematical terms, the expected value of \(y\) is a linear combination of the input features: \(y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \dots + \beta_n x_n\).
+The relationship between each input feature and the target variable must be linear (or approximately linear). In mathematical terms, the expected value of $y$ is a linear combination of the input features: $y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \dots + \beta_n x_n$.
 
 ### Why it matters
 Ordinary Least Squares (OLS) fits a line (or hyperplane) through the feature space. If the true underlying relationship is non-linear (for example quadratic, exponential, or logarithmic), a straight line will systematically underfit the data. The resulting model will produce biased predictions and poor generalizability.
@@ -81,7 +81,7 @@ The input features must be independent of one another. Multicollinearity occurs 
 ### Why it matters
 To understand why multicollinearity is problematic, consider an intuitive analogy: imagine two scientists collaborating on a research project. If scientist A specializes in particle physics and scientist B specializes in organic chemistry, you can easily evaluate their individual contributions to the joint paper. But if both scientists have completely identical skill sets and perform the exact same tasks, it becomes impossible to attribute who contributed what to the outcome.
 
-In linear regression, each coefficient \(\beta_i\) represents the partial derivative of \(y\) with respect to \(x_i\), holding all other features constant. When two features move together in lockstep, OLS cannot isolate the individual contribution of each feature. The model matrices become ill-conditioned, causing coefficient estimates to become unstable and highly sensitive to tiny fluctuations in the data.
+In linear regression, each coefficient $\beta_i$ represents the partial derivative of $y$ with respect to $x_i$, holding all other features constant. When two features move together in lockstep, OLS cannot isolate the individual contribution of each feature. The model matrices become ill-conditioned, causing coefficient estimates to become unstable and highly sensitive to tiny fluctuations in the data.
 
 ### How to check it
 There are two complementary techniques to test for multicollinearity:
@@ -118,7 +118,7 @@ The calculated VIF values for `feature1`, `feature2`, and `feature3` are `1.0044
 ## 3. Normality of Residuals
 
 ### What it means
-The residuals (prediction errors \(e_i = y_i - \hat{y}_i\)) should be normally distributed with a mean of zero: \(e \sim \mathcal{N}(0, \sigma^2)\).
+The residuals (prediction errors $e_i = y_i - \hat{y}_i$) should be normally distributed with a mean of zero: $e \sim \mathcal{N}(0, \sigma^2)$.
 
 ### Why it matters
 The Gauss-Markov theorem guarantees that OLS remains the Best Linear Unbiased Estimator (BLUE) even if residuals are non-normal. However, statistical inference (computing p-values, hypothesis testing via t-tests and F-tests, and constructing confidence intervals for regression coefficients) strictly relies on the assumption of normal residuals. If residuals are heavily skewed or multi-modal, p-values and confidence bands become unreliable.
@@ -156,13 +156,13 @@ In the KDE plot, the residuals form a symmetrical, bell-shaped distribution cent
 ## 4. Homoscedasticity
 
 ### What it means
-"Homo" means same, and "scedasticity" means spread. Homoscedasticity requires that the variance of the residuals remains constant across all values of the predicted output \(\hat{y}\): \(\text{Var}(e_i \mid \hat{y}_i) = \sigma^2\).
+"Homo" means same, and "scedasticity" means spread. Homoscedasticity requires that the variance of the residuals remains constant across all values of the predicted output $\hat{y}$: $\text{Var}(e_i \mid \hat{y}_i) = \sigma^2$.
 
 ### Why it matters
 If residual variance changes as predictions grow larger or smaller (known as heteroscedasticity), OLS places equal weight on all data points despite some points having much higher variance. This distorts standard error calculations, producing inaccurate confidence intervals and misleading p-values.
 
 ### How to check it
-Plot a scatter plot of predicted values (\(y\_pred\)) on the x-axis against residuals (\(residual\)) on the y-axis, along with a reference line at \(residual = 0\).
+Plot a scatter plot of predicted values (`y_pred`) on the x-axis against residuals (`residual`) on the y-axis, along with a reference line at `residual = 0`.
 
 ```python
 # Predicted values vs Residuals scatter plot
@@ -181,12 +181,12 @@ To understand what a violation looks like, compare the well-behaved plot above w
 <img src="/images/ch4-homoscedasticity-bad-example.png" alt="Scatter plot demonstrating heteroscedasticity where residual spread fans out dramatically from left to right as predicted values increase" className="w-full h-auto" />
 
 ### How to interpret the results
-In the model plot, the residuals form a uniform, rectangular band of random scatter across all predicted values without any expanding or contracting patterns. In contrast, the heteroscedastic example exhibits a distinct funnel or cone shape where residual spread widens as \(\hat{y}\) increases. Our model satisfies homoscedasticity.
+In the model plot, the residuals form a uniform, rectangular band of random scatter across all predicted values without any expanding or contracting patterns. In contrast, the heteroscedastic example exhibits a distinct funnel or cone shape where residual spread widens as $\hat{y}$ increases. Our model satisfies homoscedasticity.
 
 ## 5. No Autocorrelation of Residuals
 
 ### What it means
-The residuals must be independent of one another. Autocorrelation occurs when the error term of one observation is correlated with the error term of adjacent observations (for example, \(e_t\) being correlated with \(e_{t-1}\)).
+The residuals must be independent of one another. Autocorrelation occurs when the error term of one observation is correlated with the error term of adjacent observations (for example, $e_t$ being correlated with $e_{t-1}$).
 
 ### Why it matters
 Autocorrelation is particularly common in time-series data or sequentially ordered samples. When positive autocorrelation is present, adjacent errors tend to have the same sign. OLS underestimates the true standard errors of the coefficients, making confidence intervals artificially narrow and leading to overly optimistic metric conclusions.
@@ -218,7 +218,7 @@ In the model plot, residuals bounce randomly above and below zero across observa
 | Assumption | Diagnostic Tool | Desired Outcome |
 | :--- | :--- | :--- |
 | **1. Linear Relationship** | Scatter plot of feature vs target | Straight linear trend |
-| **2. No Multicollinearity** | VIF and Correlation Heatmap | VIF \(\approx 1\), correlation near 0 |
+| **2. No Multicollinearity** | VIF and Correlation Heatmap | VIF $\approx 1$, correlation near 0 |
 | **3. Normality of Residuals** | KDE plot and Q-Q plot | Bell-shaped curve, points along Q-Q diagonal |
 | **4. Homoscedasticity** | Residuals vs Predicted scatter | Uniform spread band (no funnel shape) |
 | **5. No Autocorrelation** | Residuals in row order plot | Random noise (no cyclical pattern) |
