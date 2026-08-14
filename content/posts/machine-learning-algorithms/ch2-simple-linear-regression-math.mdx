@@ -125,4 +125,4 @@ sklearn's model predicted `3.89` for this student. `MeraLR` predicts `3.8911`. T
 
 ## What's Next
 
-The closed-form solution here only exists because the cost function is a smooth bowl with exactly one minimum, a special case of simple linear regression. Most models don't get that luxury: their cost surfaces don't have a clean algebraic solution, so the minimum has to be found by walking downhill instead, gradient descent. That's the next post.
+`m` and `b` are only useful if there's a way to tell whether the line they produce is actually any good. The next post covers exactly that: the standard metrics (MAE, MSE, RMSE, R², and adjusted R²) used to score a regression model, what each one actually measures, and where each one falls short.
