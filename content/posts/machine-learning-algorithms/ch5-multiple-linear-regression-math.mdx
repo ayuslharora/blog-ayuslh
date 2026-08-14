@@ -1,0 +1,223 @@
+---
+title: "Ch.5: Multiple Linear Regression - The Math"
+description: "Deriving the closed-form normal equation for multiple linear regression in matrix form, coding a custom estimator from scratch, and validating it against sklearn on the diabetes dataset."
+date: "2026-08-14T20:30:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "linear-regression", "sklearn", "regression", "ols"]
+subtopic: "Linear Regression"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=NU37mF5q8VE)
+
+[Ch.1](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) and [Ch.2](/machine-learning-algorithms/ch2-simple-linear-regression-math) introduced simple linear regression and derived its closed-form OLS solution for a single input feature. [Ch.3](/machine-learning-algorithms/ch3-regression-metrics) established how to measure regression model performance using metrics like MAE, MSE, and R². [Ch.4](/machine-learning-algorithms/ch4-multiple-linear-regression-intuition) extended the intuition to multiple dimensions, fitting a plane or hyperplane through data with multiple input columns.
+
+This post completes the picture for multiple linear regression. Trying to calculate partial derivatives scalar-by-scalar for $k$ features quickly becomes unmanageable. Matrix algebra provides a clean way to solve for all coefficients at once. Below is the full derivation of the closed-form normal equation, an implementation built from scratch in NumPy, and a side-by-side comparison against scikit-learn on the diabetes dataset.
+
+## Matrix Form of the Equation
+
+In simple linear regression, the model equation is $y = m x + b$. When moving to multiple input features $x_1, x_2, \dots, x_k$, the prediction for a single row $i$ becomes:
+
+```
+ŷᵢ = β₀ + β₁·xᵢ₁ + β₂·xᵢ₂ + ... + βₖ·xᵢₖ
+```
+
+For a dataset with $n$ rows and $k$ features, writing $n$ individual equations is tedious. Matrix notation packs all of them into a single line.
+
+First, prepend a column of 1s to the feature matrix $X$. This column acts as a multiplier for the intercept $\beta_0$. The augmented matrix $X$ has shape $(n, k+1)$:
+
+```
+     │ 1  x₁₁  x₁₂  ...  x₁ₖ │
+     │ 1  x₂₁  x₂₂  ...  x₂ₖ │
+X =  │ .   .    .    .    .  │
+     │ .   .    .    .    .  │
+     │ 1  xₙ₁  xₙ₂  ...  xₙₖ │
+```
+
+Next, represent all target values in a vector $y$ of shape $(n, 1)$, and all parameters in a coefficient vector $\beta$ of shape $(k+1, 1)$:
+
+```
+     │ y₁ │          │ β₀ │
+     │ y₂ │          │ β₁ │
+y =  │ .  │    β =   │ .  │
+     │ .  │          │ .  │
+     │ yₙ │          │ βₖ │
+```
+
+With these definitions, the predictions for every single row in the dataset are computed simultaneously via matrix multiplication:
+
+```
+ŷ = X · β
+```
+
+Where $\hat{y}$ is a column vector of shape $(n, 1)$.
+
+## Formulating the Cost Function
+
+Just as in simple linear regression, the goal is to minimize the Sum of Squared Errors across all $n$ samples. Define the error vector $e$ as the difference between actual targets and predictions:
+
+```
+e = y - ŷ = y - X · β
+```
+
+The sum of squared errors $E(\beta)$ is equal to the inner product of the error vector with itself, $e^T e$:
+
+```
+E(β) = eᵀ · e = (y - X·β)ᵀ · (y - X·β)
+```
+
+Expanding the transpose $(A - B)^T = A^T - B^T$:
+
+```
+E(β) = (yᵀ - βᵀ·Xᵀ) · (y - X·β)
+```
+
+Distributing terms across the product:
+
+```
+E(β) = yᵀ·y - yᵀ·X·β - βᵀ·Xᵀ·y + βᵀ·Xᵀ·X·β
+```
+
+Look closely at the middle two terms: $y^T X \beta$ and $\beta^T X^T y$. 
+
+The vector dimensions are $y^T$ of shape $(1, n)$, $X$ of shape $(n, k+1)$, and $\beta$ of shape $(k+1, 1)$. Their product $y^T X \beta$ is a $1 \times 1$ scalar. 
+
+Since the transpose of a scalar is itself, taking the transpose of $y^T X \beta$ yields:
+
+```
+(yᵀ · X · β)ᵀ = βᵀ · Xᵀ · (yᵀ)ᵀ = βᵀ · Xᵀ · y
+```
+
+Because both middle terms represent the exact same scalar value, they can be combined:
+
+```
+E(β) = yᵀ·y - 2·βᵀ·Xᵀ·y + βᵀ·Xᵀ·X·β
+```
+
+This single expression is the cost function in matrix form.
+
+## Minimizing the Cost Function
+
+To find the vector $\beta$ that minimizes $E(\beta)$, compute the gradient with respect to $\beta$ and set it to zero:
+
+```
+∂E/∂β = 0
+```
+
+Differentiating each term in the cost function with respect to $\beta$:
+
+1. $\frac{\partial}{\partial \beta}(y^T y) = 0$, since $y^T y$ does not depend on $\beta$.
+2. $\frac{\partial}{\partial \beta}(-2 \beta^T X^T y) = -2 X^T y$, using the matrix derivative identity $\frac{\partial}{\partial x}(x^T A) = A^T$.
+3. $\frac{\partial}{\partial \beta}(\beta^T X^T X \beta) = 2 X^T X \beta$, using the quadratic derivative identity $\frac{\partial}{\partial x}(x^T A x) = 2 A x$ for symmetric matrices $A = X^T X$.
+
+Putting these derivatives together:
+
+```
+∂E/∂β = -2·Xᵀ·y + 2·Xᵀ·X·β = 0
+```
+
+Dividing by 2 and moving terms gives:
+
+```
+Xᵀ·X·β = Xᵀ·y
+```
+
+This matrix equation is known as the **Normal Equation**. 
+
+Assuming $X^T X$ is invertible (non-singular), multiply both sides by $(X^T X)^{-1}$:
+
+```
+β = (Xᵀ · X)⁻¹ · Xᵀ · y
+```
+
+That is the complete closed-form solution. A single matrix expression solves for every coefficient, including the intercept, in one step.
+
+## Computational Complexity and Limitations
+
+The closed-form OLS formula is elegant, but it comes with a practical computational trade-off. Computing $(X^T X)^{-1}$ requires inverting a matrix of shape $(k+1, k+1)$, where $k$ is the number of features. Using Gaussian elimination, matrix inversion has a computational complexity of roughly $O(k^3)$. With 10 or even 100 features this is instantaneous, but for image data, text data, or any dataset with a very large number of columns, computing $k^3$ operations becomes extremely slow.
+
+That's the motivation for **Gradient Descent**: an approximation technique that arrives at the coefficients iteratively instead of via a single formula. It doesn't produce the exact same answer as the normal equation, but it lands close, and it stays fast regardless of feature count. Most of the time sklearn's `LinearRegression` class (which uses the closed-form solution) is enough, but `SGDRegressor` is available when gradient descent is the better fit.
+
+## Coding It From Scratch
+
+The normal equation $\beta = (X^T X)^{-1} X^T y$ translates into a compact Python class using NumPy:
+
+```python
+import numpy as np
+
+class MeraLR:
+
+    def __init__(self):
+        self.coef_ = None
+        self.intercept_ = None
+
+    def fit(self, X_train, y_train):
+        # Step 1: Prepend a column of 1s for the intercept
+        X_train = np.insert(X_train, 0, 1, axis=1)
+        
+        # Step 2: Calculate betas using the Normal Equation
+        # beta = (X^T * X)^-1 * X^T * y
+        betas = np.linalg.inv(np.dot(X_train.T, X_train)).dot(X_train.T).dot(y_train)
+        
+        # Step 3: Extract intercept (beta_0) and feature coefficients (beta_1 to beta_k)
+        self.intercept_ = betas[0]
+        self.coef_ = betas[1:]
+
+    def predict(self, X_test):
+        y_pred = np.dot(X_test, self.coef_) + self.intercept_
+        return y_pred
+```
+
+To verify the implementation, compare `MeraLR` against scikit-learn's `LinearRegression` using the standard diabetes dataset (10 input features):
+
+```python
+from sklearn.datasets import load_diabetes
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+
+# Load diabetes dataset (10 features)
+X, y = load_diabetes(return_X_y=True)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=2)
+
+# Benchmark 1: sklearn LinearRegression
+sk_lr = LinearRegression()
+sk_lr.fit(X_train, y_train)
+y_pred_sk = sk_lr.predict(X_test)
+
+print("--- Sklearn LinearRegression ---")
+print("Intercept:", sk_lr.intercept_)
+print("Coefs:", sk_lr.coef_)
+print("R2 score:", r2_score(y_test, y_pred_sk))
+
+# Benchmark 2: Custom MeraLR
+mera_lr = MeraLR()
+mera_lr.fit(X_train, y_train)
+y_pred_mera = mera_lr.predict(X_test)
+
+print("\n--- Custom MeraLR ---")
+print("Intercept:", mera_lr.intercept_)
+print("Coefs:", mera_lr.coef_)
+print("R2 score:", r2_score(y_test, y_pred_mera))
+```
+
+Running this code produces the following empirical output:
+
+```
+--- Sklearn LinearRegression ---
+Intercept: 151.88331005254165
+Coefs: [  -9.15865318 -205.45432163  516.69374454  340.61999905 -895.5520019
+  561.22067904  153.89310954  126.73139688  861.12700152   52.42112238]
+R2 score: 0.439933866156897
+
+--- Custom MeraLR ---
+Intercept: 151.8833100525417
+Coefs: [  -9.15865318 -205.45432163  516.69374454  340.61999905 -895.5520019
+  561.22067904  153.89310954  126.73139688  861.12700152   52.42112238]
+R2 score: 0.4399338661568968
+```
+
+Both implementations match to 14 decimal places. The custom class derived strictly from matrix calculus produces the exact same predictions, intercept, feature coefficients, and $R^2$ score ($0.4399$) as scikit-learn's built-in model.
+
+## What's Next
+
+The closed-form normal equation works well when the number of features is manageable, but its $O(k^3)$ computational cost becomes a bottleneck on large, high-dimensional datasets. The next topic in optimization addresses this limitation: **Gradient Descent**, an iterative approach that finds optimal regression parameters step-by-step without computing matrix inverses.
