@@ -1,0 +1,115 @@
+---
+title: "Ch.3: Multiple Linear Regression - The Intuition"
+description: "Extending simple linear regression to more than one input column: fitting a plane through 3D data instead of a line, and what the hyperplane equation looks like in n dimensions."
+date: "2026-08-14T15:20:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "linear-regression", "sklearn", "regression", "plotly"]
+subtopic: "Linear Regression"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=ashGekqstI8)
+
+[Ch.1](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) and [Ch.2](/machine-learning-algorithms/ch2-simple-linear-regression-math) covered simple linear regression: one input column, one output column, a line drawn through 2D data. Most real-world datasets don't look like that though, they usually have more than one input column. That's multiple linear regression, and the good news is it's not a new idea, it's the same idea extended by one dimension at a time.
+
+## From One Input to Two
+
+Take the placement dataset from before and add a second input column, say `iq` alongside `cgpa`, both used to predict `package`. Now there are three columns total: two inputs and one output. That's exactly the kind of dataset that needs multiple linear regression instead of simple linear regression.
+
+With one input, the data lived in 2D and the model fit a line. With two inputs, the data lives in 3D, `cgpa` on one axis, `iq` on another, `package` on the third, and a line can no longer separate anything meaningful in three dimensions. What replaces it is a **plane**.
+
+Here's a synthetic dataset shaped exactly like that, generated the same way the underlying tutorial does it, with sklearn's `make_regression`:
+
+```python
+from sklearn.datasets import make_regression
+import pandas as pd
+
+X, y = make_regression(n_samples=100, n_features=2, n_informative=2, n_targets=1, noise=50, random_state=13)
+df = pd.DataFrame({'cgpa': X[:, 0], 'iq': X[:, 1], 'package': y})
+
+import plotly.express as px
+px.scatter_3d(df, x='cgpa', y='iq', z='package')
+```
+
+<MultiRegScatter3d />
+
+Rotate that around and the same story from simple linear regression repeats: the points roughly trend upward as both inputs increase, but they don't sit on a perfect surface. There's noise, same as before.
+
+## Fitting a Plane Instead of a Line
+
+In 2D, the best fit line was the one that stayed as close as possible to every point. In 3D, the same idea holds, except now it's a plane trying to stay close to every point, some sitting above it, some below, cutting through the cloud of data as evenly as it can.
+
+```python
+from sklearn.linear_model import LinearRegression
+
+lr = LinearRegression()
+lr.fit(X, y)
+```
+
+Training didn't change at all, still just `.fit()`. What changed is what got fit: instead of two numbers (`m` and `b`), there are now three (`beta_1`, `beta_2`, and `beta_0`), because there's an extra input column to account for.
+
+```python
+import numpy as np
+
+x_grid = np.linspace(X[:, 0].min(), X[:, 0].max(), 10)
+y_grid = np.linspace(X[:, 1].min(), X[:, 1].max(), 10)
+xGrid, yGrid = np.meshgrid(x_grid, y_grid)
+
+final = np.vstack((xGrid.ravel(), yGrid.ravel())).T
+z_final = lr.predict(final).reshape(xGrid.shape)
+```
+
+> The plane can't be drawn directly, it has to be predicted. Build a grid of `(cgpa, iq)` pairs spanning the data's range, run every pair through the fitted model to get a predicted `package`, and reshape those predictions back into a grid. That grid of predicted heights is what draws the surface.
+
+```python
+import plotly.graph_objects as go
+
+fig = px.scatter_3d(df, x='cgpa', y='iq', z='package')
+fig.add_trace(go.Surface(x=x_grid, y=y_grid, z=z_final))
+fig.show()
+```
+
+<MultiRegPlane3d />
+
+That orange surface is the model. Same principle as the red line in Ch.1, it doesn't touch most of the points, it's just positioned to keep the total error across all of them as small as possible. In higher dimensions than 3, this surface is called a **hyperplane** rather than a plane, since it can no longer be drawn or even really visualized, but the math generalizes exactly the same way.
+
+## The Equation, Extended
+
+The simple linear regression equation was `y = mx + b`. With two inputs, `x1` and `x2`, it becomes:
+
+```
+ŷ = beta_0 + beta_1·x1 + beta_2·x2
+```
+
+Written in the more standard notation, with `cgpa` as `x1` and `iq` as `x2`:
+
+```python
+b0, (b1, b2) = lr.intercept_, lr.coef_
+```
+
+```
+beta_0 = -1.3994
+beta_1 = 85.5640
+beta_2 = 30.8590
+```
+
+For any number of input columns `n`, the pattern just keeps extending:
+
+```
+ŷ = beta_0 + beta_1·x1 + beta_2·x2 + ... + beta_n·xn
+```
+
+If there are `n` input columns, there are `n + 1` coefficients to solve for, one weight per input, plus the intercept. Simple linear regression is just this same equation with `n = 1`.
+
+## What the Coefficients Mean
+
+Each `beta_i` plays the same role `m` played in simple linear regression: it's how much that specific input matters to the prediction, holding the others fixed.
+
+- `beta_1 = 85.56` for `cgpa`: a large coefficient means `package` is highly sensitive to `cgpa`, small changes in `cgpa` swing the prediction a lot.
+- `beta_2 = 30.86` for `iq`: smaller than `beta_1`, meaning `iq` still matters but less than `cgpa` does in this particular fitted model.
+- `beta_0 = -1.40`, the intercept, plays exactly the same correcting role it did before: it's what keeps the plane anchored correctly, not a meaningful real-world prediction at `cgpa = iq = 0`.
+
+If `beta_2` had come out close to zero, that would say `iq` barely moves the prediction at all, `package` would be mostly explained by `cgpa` alone. That's the same read as a near-zero slope in the 2D case, just applied per input column instead of to the one input column there used to be.
+
+## What's Next
+
+This covered the geometric intuition behind multiple linear regression: more inputs means more dimensions, and the best fit line becomes a best fit plane (or hyperplane, beyond 3D), described by one coefficient per input plus an intercept. The next post works out where those coefficients actually come from, deriving the closed-form solution for multiple linear regression the same way Ch.2 did for the simple case.
