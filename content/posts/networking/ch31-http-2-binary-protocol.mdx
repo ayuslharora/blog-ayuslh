@@ -95,6 +95,8 @@ This traversal happens for *every single HTTP request and response*. There is no
 
 HTTP/2 takes an entirely different approach. Instead of sending a text blob and asking the receiver to hunt for delimiters, HTTP/2 wraps everything in **frames** with a fixed 9-byte binary header (covered in detail in [Ch.30](/networking/ch30-http-2-frames)).
 
+<Http2FrameHeaderTable />
+
 ### The frame replaces string traversal
 
 Recall the 9-byte frame header layout from RFC 9113 section 4.1:
