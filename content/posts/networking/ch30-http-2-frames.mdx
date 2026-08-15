@@ -38,19 +38,9 @@ RFC 9113 specifies several frame types (such as PRIORITY, RST_STREAM, SETTINGS, 
 
 ## Frame header format: RFC 9113 section 4.1
 
-According to **RFC 9113 section 4.1 ("Frame Format")**, every HTTP/2 frame begins with a mandatory 9-byte (72-bit) header, followed by a variable-length payload. 
+According to **RFC 9113 section 4.1 ("Frame Format")**, every HTTP/2 frame begins with a mandatory 9-byte (72-bit) header, followed by a variable-length payload.
 
-```text
-+---------------------------------------------------------------+
-|                   Length (24 bits / 3 bytes)                  |
-+-------------------------------+-------------------------------+
-|        Type (8 bits)          |        Flags (8 bits)         |
-+-+-----------------------------+-------------------------------+
-|R|                     Stream Identifier (31 bits)             |
-+=+=============================================================+
-|                   Frame Payload (Length bytes)                |
-+---------------------------------------------------------------+
-```
+<Http2FrameHeaderTable />
 
 The fields inside the 9-byte frame header perform specific control functions:
 

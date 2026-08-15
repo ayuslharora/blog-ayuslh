@@ -21,6 +21,7 @@ import Mermaid from '../../../components/Mermaid';
 import TcpHeaderTable from '../../../components/TcpHeaderTable';
 import UdpHeaderTable from '../../../components/UdpHeaderTable';
 import DnsHeaderTable from '../../../components/DnsHeaderTable';
+import Http2FrameHeaderTable from '../../../components/Http2FrameHeaderTable';
 import MtuMssDiagram from '../../../components/MtuMssDiagram';
 import MnistPca3d from '../../../components/MnistPca3d';
 import LinRegCostSurface from '../../../components/LinRegCostSurface';
@@ -144,6 +145,7 @@ export default async function PostPage({
             TcpHeaderTable,
             UdpHeaderTable,
             DnsHeaderTable,
+            Http2FrameHeaderTable,
             MtuMssDiagram,
             MnistPca3d,
             LinRegCostSurface,
