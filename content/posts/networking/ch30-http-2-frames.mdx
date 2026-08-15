@@ -78,6 +78,8 @@ A GET request carries metadata headers (`:method: GET`, `:path: /api/v1/orders`,
 
 HTTP responses follow the exact same structural pattern. A server returning data sends a HEADERS frame containing status codes (`:status: 200`) and response headers (`END_STREAM=0`), followed by one or more DATA frames containing the response body payload (`END_STREAM=1` on the final DATA frame).
 
+> **Note:** HTTP/2 can have another HEADERS frame later in the same stream for trailing headers (trailers). This is not common in regular web traffic, but is used by protocols like gRPC.
+
 ```mermaid
 sequenceDiagram
     participant Client as Client (Browser)
