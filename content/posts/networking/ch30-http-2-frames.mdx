@@ -113,6 +113,8 @@ sequenceDiagram
 
 In the sequence diagram above, the client sends a POST request on Stream 1 (split into a HEADERS frame and a DATA frame) and a GET request on Stream 3 (a single HEADERS frame). Because each frame embeds its Stream ID in its 9-byte header, the server processes Stream 3 faster and returns its response frames first. The client uses the Stream ID on each incoming frame to correctly reassemble the responses out of order without confusion.
 
+> Frames from different streams can be sent in any order: for example, Stream ID 3's frames can travel before Stream ID 1's frames. What HTTP/2 does not allow is reordering frames within the same stream. A DATA frame for Stream ID 1 can never arrive before the HEADERS frame for Stream ID 1; each stream's own frame sequence stays in order, only the interleaving across streams is free.
+
 ---
 
 ## Inspecting HTTP/2 frames on the wire: a Wireshark walkthrough
