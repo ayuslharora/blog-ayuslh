@@ -99,17 +99,7 @@ HTTP/2 takes an entirely different approach. Instead of sending a text blob and 
 
 ### The frame replaces string traversal
 
-Recall the 9-byte frame header layout from RFC 9113 section 4.1:
-
-| Field | Size | Bit range |
-|-------|------|-----------|
-| Length | 24 bits (3 bytes) | Bits 0–23 |
-| Type | 8 bits (1 byte) | Bits 24–31 |
-| Flags | 8 bits (1 byte) | Bits 32–39 |
-| Reserved (R) | 1 bit | Bit 40 |
-| Stream Identifier | 31 bits | Bits 41–71 |
-
-Every HTTP/2 frame, regardless of whether it carries headers or data, begins with these exact fields at these exact bit positions. The receiver does not need to search for any delimiter. It simply reads:
+Recall the 9-byte frame header layout from RFC 9113 section 4.1, shown above. Every HTTP/2 frame, regardless of whether it carries headers or data, begins with these exact fields at these exact bit positions. The receiver does not need to search for any delimiter. It simply reads:
 
 1. **First 24 bits** → payload length (how many bytes of payload follow the 9-byte header).
 2. **Next 8 bits** → frame type (is this a HEADERS frame or a DATA frame?).
