@@ -1,8 +1,24 @@
+import { execSync } from 'node:child_process';
 import type { Post, PostMeta } from './posts';
 
 export const SITE_URL = 'https://blog.ayuslh.in';
 export const AUTHOR_URL = 'https://ayuslh.in';
 export const AUTHOR_ID = `${AUTHOR_URL}/#person`;
+
+// Same approach as sitemap.ts: real content-change signal instead of
+// lying with datePublished. Falls back to the publish date if git isn't
+// available (e.g. a shallow clone without history).
+function gitLastModified(post: Post | PostMeta, fallback: string): string {
+  try {
+    const date = execSync(
+      `git log -1 --format=%cs -- content/posts/${post.series}/${post.slug}.mdx`,
+      { cwd: process.cwd(), encoding: 'utf8' }
+    ).trim();
+    return date || fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 export function serializeJsonLd(value: unknown) {
   return JSON.stringify(value).replace(/</g, '\\u003c');
@@ -52,7 +68,7 @@ export function buildBlogPostingJsonLd(post: Post | PostMeta) {
     headline: post.title,
     description: post.description,
     datePublished: post.date,
-    dateModified: post.date,
+    dateModified: gitLastModified(post, post.date),
     url,
     image: `${url}/opengraph-image`,
     mainEntityOfPage: {
