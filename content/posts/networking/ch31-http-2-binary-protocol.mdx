@@ -172,6 +172,8 @@ Stream ID is `1`.
 
 The server now knows: this is a 47-byte data payload for Stream ID 1, and it is the final frame. The server already received the HEADERS frame for Stream ID 1 earlier (the rule is that a HEADERS frame must arrive before a DATA frame for any given stream). It joins the two, and the complete request is assembled.
 
+<MdxImage src="/images/ch31-http2-data-frame-example.png" alt="Annotated diagram of an HTTP/2 DATA frame's 9-byte binary header: 24 bits of Length reading 00000000 00000000 00101111 (47 bytes), 8 bits of Type reading 00000000 (DATA), 8 bits of Flags reading 00000001 (END_STREAM set), a single Reserved bit of 0, and 31 bits of Stream Identifier reading 0000000 00000000 00000000 00000001 (Stream ID 1), followed by the frame payload region carrying application data" className="w-full h-auto rounded-lg my-6" />
+
 ### No string traversal anywhere
 
 Notice what the server *never* did during HTTP/2 parsing:
