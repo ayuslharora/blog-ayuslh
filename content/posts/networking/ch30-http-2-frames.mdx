@@ -19,7 +19,7 @@ source:
 
 ## The frame: HTTP/2's atomic unit of exchange
 
-In HTTP/1.1, a request or response was transmitted as a single, contiguous text block formatted with headers separated by `\r\n` CRLF delimiters and an optional body at the end. HTTP/2 fundamentally changes this model by breaking protocol communication down into discrete binary messages called **frames**.
+In HTTP/1.1, a request or response was transmitted as a single, contiguous text block formatted with headers separated by `\r\n` CRLF (carriage return + line feed) delimiters and an optional body at the end. HTTP/2 fundamentally changes this model by breaking protocol communication down into discrete binary messages called **frames**.
 
 Every layer of the networking stack operates with its own specific data unit:
 * **Data Link Layer**: Ethernet frames
