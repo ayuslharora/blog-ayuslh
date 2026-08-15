@@ -78,7 +78,7 @@ A GET request carries metadata headers (`:method: GET`, `:path: /api/v1/orders`,
 
 HTTP responses follow the exact same structural pattern. A server returning data sends a HEADERS frame containing status codes (`:status: 200`) and response headers (`END_STREAM=0`), followed by one or more DATA frames containing the response body payload (`END_STREAM=1` on the final DATA frame).
 
-> **Note:** HTTP/2 can have another HEADERS frame later in the same stream for trailing headers (trailers). This is not common in regular web traffic, but is used by protocols like gRPC.
+> **Note:** a stream doesn't always end with a DATA frame. Sometimes the sender only knows a piece of metadata after the body has already gone out, for example a checksum of the data, or whether the operation succeeded, so HTTP/2 allows one more HEADERS frame at the very end to carry that metadata. These are called trailers, and that final HEADERS frame is the one with `END_STREAM=1`. Regular web traffic almost never needs this, but gRPC (which runs on top of HTTP/2) uses trailers to report the RPC's success or failure status after streaming the response body.
 
 ```mermaid
 sequenceDiagram
