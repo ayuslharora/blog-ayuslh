@@ -389,4 +389,7 @@ To maintain high throughput and low query latencies when scaling PostgreSQL:
 
 1. **Smaller pools are almost always faster than larger pools**: Restricting pool size reduces OS context switching, CPU cache misses, and lock contention.
 2. **Always test your workload under realistic concurrency**: Measure **p50**, **p90**, and **p99** query latencies using load testing tools before declaring an architecture production-ready.
+
+   > Run the same query many times and sort the latencies from fastest to slowest. **p50** is the middle value: half your queries were faster, half slower, so it represents the typical case. **p90** is the value below which 90% of queries fall, the first hint of the slow tail. **p99** is the value below which 99% of queries fall, essentially your worst-case experience. An average can hide a handful of very slow queries by blending them with many fast ones; percentiles expose that tail directly, which is exactly what causes connections to be held open longer and pools to run dry under load.
+
 3. **Maximize useful throughput, not connection count**: High connection counts are an overhead metric, not a performance achievement. Goal metrics should always focus on maximizing useful query throughput per second at acceptable latency thresholds.
