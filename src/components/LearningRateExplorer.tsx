@@ -9,12 +9,12 @@ type GdData = {
   bStar: number;
 };
 
-const WIDTH = 560;
-const HEIGHT = 360;
-const PAD_L = 64;
+const WIDTH = 640;
+const HEIGHT = 220;
+const PAD_L = 60;
 const PAD_R = 20;
-const PAD_T = 20;
-const PAD_B = 40;
+const PAD_T = 16;
+const PAD_B = 32;
 
 const B_START = -120;
 // dL/db = -2 * sum(y - m*x - b) is linear in b, so this 1D slice is an exact
@@ -55,7 +55,7 @@ export default function LearningRateExplorer() {
   }, [lossAt]);
 
   if (!data || !lossAt || !gradAt || history.length === 0) {
-    return <div className="animate-pulse h-[440px] w-full bg-black/5 dark:bg-white/5 rounded-2xl my-8" />;
+    return <div className="animate-pulse h-[280px] w-full bg-black/5 dark:bg-white/5 rounded-2xl my-8" />;
   }
 
   const current = history[history.length - 1];
@@ -91,10 +91,10 @@ export default function LearningRateExplorer() {
   const sy = (l: number) => HEIGHT - PAD_B - (l / lossMax) * (HEIGHT - PAD_T - PAD_B);
 
   return (
-    <div className="not-prose my-8 rounded-2xl border border-black/5 dark:border-white/5 bg-white dark:bg-black/20 p-4 sm:p-6">
-      <div className="flex flex-col gap-3 mb-4">
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium w-32 shrink-0">Learning rate</label>
+    <div className="not-prose my-6 rounded-2xl border border-black/5 dark:border-white/5 bg-white dark:bg-black/20 p-3 sm:p-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-2">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium shrink-0">Learning rate</label>
           <input
             type="range"
             min={LR_MIN}
@@ -102,33 +102,31 @@ export default function LearningRateExplorer() {
             step={0.0001}
             value={lr}
             onChange={(e) => setLr(Number(e.target.value))}
-            className="flex-1"
+            className="w-28 sm:w-40"
           />
-          <span className="text-sm tabular-nums w-16 text-right">{lr.toFixed(4)}</span>
+          <span className="text-xs tabular-nums w-14 text-right">{lr.toFixed(4)}</span>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={doStep}
-            className="px-3 py-1.5 rounded-lg border border-black/10 dark:border-white/10 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-          >
-            Step
-          </button>
-          <button
-            onClick={doReset}
-            className="px-3 py-1.5 rounded-lg border border-black/10 dark:border-white/10 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-          >
-            Reset
-          </button>
-          <span className="text-xs text-[var(--text-secondary)] tabular-nums">
-            step {step} · b={current.b.toFixed(2)} · loss={Math.round(current.loss).toLocaleString()}
-          </span>
-        </div>
-        {stuckWarning && (
-          <div className="text-xs px-3 py-2 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
-            Gradient descent will never reach the minimum loss at this learning rate. Try again with a smaller one (below {(1 / data.x.length).toFixed(3)}).
-          </div>
-        )}
+        <button
+          onClick={doStep}
+          className="px-2.5 py-1 rounded-lg border border-black/10 dark:border-white/10 text-xs font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+        >
+          Step
+        </button>
+        <button
+          onClick={doReset}
+          className="px-2.5 py-1 rounded-lg border border-black/10 dark:border-white/10 text-xs font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+        >
+          Reset
+        </button>
+        <span className="text-xs text-[var(--text-secondary)] tabular-nums">
+          step {step} · b={current.b.toFixed(2)} · loss={Math.round(current.loss).toLocaleString()}
+        </span>
       </div>
+      {stuckWarning && (
+        <div className="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 mb-2">
+          Gradient descent will never reach the minimum loss at this learning rate. Try again with a smaller one (below {(1 / data.x.length).toFixed(3)}).
+        </div>
+      )}
 
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-auto text-[var(--text-secondary)]">
         <text x={12} y={PAD_T - 6} className="fill-current text-[10px]">
