@@ -163,7 +163,9 @@ In the KDE plot, the residuals form a symmetrical, bell-shaped distribution cent
 "Homo" means same, and "scedasticity" means spread. Homoscedasticity requires that the variance of the residuals remains constant across all values of the predicted output $\hat{y}$: $\text{Var}(e_i \mid \hat{y}_i) = \sigma^2$.
 
 ### Why it matters
-If residual variance changes as predictions grow larger or smaller (known as heteroscedasticity), OLS places equal weight on all data points despite some points having much higher variance. This distorts standard error calculations, producing inaccurate confidence intervals and misleading p-values.
+Picture predicting house prices. For cheap houses, the model's errors might be small and tight, off by a few thousand dollars. But for expensive houses, the errors can swing wildly, off by tens of thousands. That's heteroscedasticity: the size of the error depends on where you are in the data, instead of staying roughly constant everywhere.
+
+OLS doesn't know this is happening. It treats every point as equally reliable and weighs them all the same when fitting the line. But a house with huge, erratic errors really shouldn't get the same vote as one where the model is nailing it consistently. Because OLS ignores this, its standard error calculations get thrown off, which again means the confidence intervals and p-values built on top of them can't be trusted. You could end up thinking a coefficient is precisely estimated when really the model is just much shakier in one region of the data than another.
 
 ### How to check it
 Plot a scatter plot of predicted values (`y_pred`) on the x-axis against residuals (`residual`) on the y-axis, along with a reference line at `residual = 0`.
