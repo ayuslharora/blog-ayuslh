@@ -23,7 +23,7 @@ In simple linear regression, the model equation is $y = m x + b$. When moving to
 
 For a dataset with $n$ rows and $k$ features, writing $n$ individual equations is tedious. Matrix notation packs all of them into a single line.
 
-First, prepend a column of 1s to the feature matrix $X$. This column acts as a multiplier for the intercept $\beta_0$. The augmented matrix $X$ has shape $(n, k+1)$:
+First, prepend a column of 1s to the feature matrix $X$. Multiplying that all-ones column by $\beta_0$ contributes exactly $\beta_0$ to every single row's prediction, no matter what the row's other features are, which is exactly what an intercept is supposed to do. It's the matrix equivalent of writing $y = mx + b \cdot 1$ instead of $y = mx + b$: same equation, but now every term is "some coefficient times some column," which is what lets the whole thing collapse into one matrix multiplication. The augmented matrix $X$ has shape $(n, k+1)$:
 
 ```
      │ 1  x₁₁  x₁₂  ...  x₁ₖ │
@@ -97,17 +97,17 @@ This single expression is the cost function in matrix form.
 
 ## Minimizing the Cost Function
 
-To find the vector $\beta$ that minimizes $E(\beta)$, compute the gradient with respect to $\beta$ and set it to zero:
+$E(\beta)$ is a quadratic function of $\beta$: expand it out and every term is either constant, linear in $\beta$, or $\beta$ multiplied by itself. In one dimension, a quadratic like $E(\beta) = a\beta^2 - 2b\beta + c$ traces out a parabola, a single bowl shape with one lowest point, and calculus finds that point by setting $\frac{dE}{d\beta} = 0$. With $k+1$ coefficients instead of one, $E(\beta)$ traces out a $(k+2)$-dimensional bowl (a paraboloid) instead of a 2D parabola, but it is still convex: one global minimum, no other flat spots to get stuck at. Setting every partial derivative to zero at once, i.e. the full gradient $\frac{\partial E}{\partial \beta} = 0$, finds that single lowest point directly, the same way ordinary calculus finds the bottom of a parabola.
 
 $$
 \frac{\partial E}{\partial \beta} = 0
 $$
 
-Differentiating each term in the cost function with respect to $\beta$:
+Differentiating each term in the cost function with respect to $\beta$, term by term:
 
-1. $\frac{\partial}{\partial \beta}(y^T y) = 0$, since $y^T y$ does not depend on $\beta$.
-2. $\frac{\partial}{\partial \beta}(-2 \beta^T X^T y) = -2 X^T y$, using the matrix derivative identity $\frac{\partial}{\partial x}(x^T A) = A^T$.
-3. $\frac{\partial}{\partial \beta}(\beta^T X^T X \beta) = 2 X^T X \beta$, using the quadratic derivative identity $\frac{\partial}{\partial x}(x^T A x) = 2 A x$ for symmetric matrices $A = X^T X$.
+1. $\frac{\partial}{\partial \beta}(y^T y) = 0$, since $y^T y$ does not depend on $\beta$ at all, it's a constant with respect to what we're differentiating, same as how $\frac{d}{dx}(5) = 0$ in ordinary calculus.
+2. $\frac{\partial}{\partial \beta}(-2 \beta^T X^T y) = -2 X^T y$. This term is linear in $\beta$ (no $\beta$ multiplied by itself), so it behaves like differentiating $-2a\beta$ with respect to $\beta$ in scalar calculus, which gives the constant $-2a$ back. Here that "constant" is the vector $X^T y$. Formally this uses the matrix derivative identity $\frac{\partial}{\partial x}(x^T A) = A^T$.
+3. $\frac{\partial}{\partial \beta}(\beta^T X^T X \beta) = 2 X^T X \beta$. This term is quadratic in $\beta$ (it appears twice), the matrix analog of $\frac{d}{dx}(ax^2) = 2ax$ in scalar calculus. Formally this uses the identity $\frac{\partial}{\partial x}(x^T A x) = 2 A x$ for symmetric matrices $A = X^T X$.
 
 Putting these derivatives together:
 
