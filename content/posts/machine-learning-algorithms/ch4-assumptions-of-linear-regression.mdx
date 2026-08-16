@@ -121,7 +121,11 @@ The calculated VIF values for `feature1`, `feature2`, and `feature3` are `1.0044
 The residuals (prediction errors $e_i = y_i - \hat{y}_i$) should be normally distributed with a mean of zero: $e \sim \mathcal{N}(0, \sigma^2)$.
 
 ### Why it matters
-The Gauss-Markov theorem guarantees that OLS remains the Best Linear Unbiased Estimator (BLUE) even if residuals are non-normal. However, statistical inference (computing p-values, hypothesis testing via t-tests and F-tests, and constructing confidence intervals for regression coefficients) strictly relies on the assumption of normal residuals. If residuals are heavily skewed or multi-modal, p-values and confidence bands become unreliable.
+Here's the reassuring part first: even if the residuals aren't normal, the line itself is still fine. The coefficients OLS gives you are still the best possible linear, unbiased estimates, that's what the Gauss-Markov theorem guarantees, and normality has nothing to do with it.
+
+What normality actually affects is how much you can trust the *statistics* built on top of that line, things like p-values, t-tests, F-tests, and confidence intervals. All of these are ways of asking "how sure are we about this coefficient, really?" and that question is answered by assuming the errors follow a bell curve. If the residuals are badly skewed or come in two separate clumps, those p-values and confidence intervals start lying to you: a coefficient might look statistically significant when it isn't, or a confidence interval might be narrower or wider than it should be.
+
+So in short: non-normal residuals won't wreck your predictions, but they will make you overconfident (or underconfident) about which features actually matter and by how much.
 
 ### How to check it
 We use two complementary visual tools:
