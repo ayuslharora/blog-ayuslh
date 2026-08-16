@@ -233,6 +233,34 @@ An **epoch** represents one full iteration over the training dataset.
 
 ---
 
+## Why Feature Scaling Speeds Up Convergence
+
+For MSE-style loss, the curvature of $L$ along a weight's axis scales with that feature's variance, since the Hessian is $2 X^T X$, and the diagonal entry for feature $j$ is approximately $2n \cdot \sigma_j^2$. If one feature's standard deviation is $5\times$ another's, its axis carries roughly $25\times$ more curvature.
+
+That mismatch matters because gradient descent uses a single global learning rate $\eta$ shared across every parameter. $\eta$ has to stay small enough to remain stable on the steepest (highest-curvature) direction, which leaves it far too small to make timely progress on the shallow direction. The loss contours stretch into thin ellipses, and the update path zig-zags across the narrow axis while crawling along the wide one.
+
+<img src="/images/ch7-feature-scaling.png" alt="Two contour plots comparing gradient descent paths: unscaled features with 5:1 standard deviation ratio produce a zig-zag path barely progressing after 40 steps, standardized features with equal variance produce a direct path reaching the minimum in the same 40 steps" className="w-full h-auto" />
+
+Both panels above run real gradient descent for 40 steps from the same starting point, on quadratic bowls $L(w_1, w_2) = a w_1^2 + b w_2^2$ that model this curvature relationship directly. With $a{:}b = 25{:}1$ (mimicking a $5{:}1$ feature standard-deviation ratio), the largest stable learning rate is dictated by $a$, and $w_2$ is still at $0.274$ after 40 steps while $w_1$ has already oscillated its way to convergence. Standardizing so both features have unit variance ($a = b = 1$) makes the bowl circular: the same 40-step budget with a much larger learning rate lands within $10^{-16}$ of the minimum, no zig-zag required.
+
+This is why `StandardScaler` (subtracting the mean, dividing by the standard deviation) is standard practice before gradient-based training, closed-form OLS doesn't care about feature scale since it solves for the minimum directly, but gradient descent's convergence speed depends heavily on it.
+
+---
+
+## Non-Convex Loss Surfaces and the Saddle Point Problem
+
+Every loss surface in this post so far has been a convex bowl (a paraboloid) with exactly one minimum, which is guaranteed for linear regression's squared-error loss: no matter where gradient descent starts, it eventually reaches the same global optimum. Logistic regression, neural networks, and most other models people apply gradient descent to do not get this guarantee. Their loss surfaces can be **non-convex**: full of dips, ridges, and flat regions where the same algorithm behaves very differently depending on where it starts.
+
+A minimal function that captures this is $f(x, y) = x^4 - 2x^2 + y^2$. Setting both partial derivatives to zero, $\frac{\partial f}{\partial x} = 4x^3 - 4x = 4x(x^2 - 1) = 0$ and $\frac{\partial f}{\partial y} = 2y = 0$, gives three critical points: $(-1, 0)$, $(0, 0)$, and $(1, 0)$. Checking the second derivative along $x$, $\frac{\partial^2 f}{\partial x^2} = 12x^2 - 4$, shows $(\pm 1, 0)$ are curved upward ($+8$, a local minimum along $x$) while $(0, 0)$ is curved downward ($-4$, a local maximum along $x$). Combined with $y^2$ always curving upward along $y$, the origin is concave in one direction and convex in the other: a **saddle point**, not a minimum, even though its gradient is exactly zero there.
+
+<NonConvexSaddleSurface />
+
+The plot runs real batch gradient descent (learning rate $0.05$, analytic gradients, no approximation) from three starting points on this exact surface. Paths starting clearly to one side of the saddle converge quickly, reaching within $10^{-4}$ of a global minimum in around 15 steps. The path starting almost directly above the saddle at $(0.01, 1.0)$ behaves very differently: $x$ crawls from $0.01$ to only $0.06$ over the first 10 steps, because the gradient $4x(x^2-1)$ is nearly zero when $x$ is near zero. It takes roughly 30 steps of this near-flat plateau before $x$ escapes and accelerates into the same basin the direct paths reached in half the time.
+
+This is the practical saddle point problem: near a saddle, the gradient magnitude shrinks toward zero just like it does near a true minimum, so a plain fixed-step gradient descent update slows to a crawl without actually being close to done. In low dimensions like this 2D example, the descent does eventually escape (a random or off-axis start almost never lands exactly on the unstable direction). In the very high-dimensional loss landscapes typical of neural networks, saddle points vastly outnumber true local minima, which is part of why optimizers used in practice (momentum, Adam, and similar) add mechanisms specifically to accelerate through these flat, low-gradient regions rather than relying on plain gradient descent alone.
+
+---
+
 ## Summary & Key Takeaways
 
 1. **Why Gradient Descent**: Matrix inversion in the OLS normal equation scales as $\mathcal{O}(k^3)$, making it computationally intractable for large feature counts. Gradient descent scales as $\mathcal{O}(k \cdot n)$ per epoch and generalizes to non-linear models and deep learning.
@@ -240,5 +268,7 @@ An **epoch** represents one full iteration over the training dataset.
 3. **Partial Derivatives**: For SSE loss $L(m, b) = \sum (y_i - (m x_i + b))^2$, partial derivatives are $\frac{\partial L}{\partial b} = -2 \sum (y_i - \hat{y}_i)$ and $\frac{\partial L}{\partial m} = -2 \sum (y_i - \hat{y}_i) x_i$.
 4. **Hyperparameter Tuning**: Learning rate $\eta$ controls step size. Too small leads to slow convergence; too large causes oscillation and divergence.
 5. **Exact OLS Match**: Our custom `GDRegressor` built from scratch converges to $m = 27.83, b = -2.29$ on synthetic data, matching scikit-learn's `LinearRegression` benchmark.
+6. **Feature Scaling**: Loss curvature scales with feature variance, so unscaled features stretch the loss surface into thin ellipses. A single global learning rate then zig-zags on the steep axis while crawling on the shallow one; standardizing features to unit variance makes the surface circular and convergence direct.
+7. **Non-Convexity and Saddle Points**: Linear regression's loss is convex with one guaranteed global minimum, but models like neural networks have non-convex loss surfaces with local minima and saddle points, flat regions with zero gradient that aren't minima, where plain gradient descent slows to a crawl before escaping.
 
 In the next post, we explore variants of gradient descent (Batch, Stochastic, and Mini-Batch Gradient Descent) to optimize performance on massive datasets.
