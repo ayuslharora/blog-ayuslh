@@ -1,0 +1,238 @@
+---
+title: "Ch.7: Gradient Descent - Intuition, Math, and Implementation"
+description: "Deriving batch gradient descent for linear regression, building a custom GDRegressor class from scratch, animating live convergence, and comparing converged parameters against OLS."
+date: "2026-08-16T15:54:46+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "gradient-descent", "linear-regression", "optimization", "sklearn"]
+subtopic: "Linear Regression"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=ORyfPJypKuU)
+
+[Ch.1](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) and [Ch.2](/machine-learning-algorithms/ch2-simple-linear-regression-math) derived the closed-form Ordinary Least Squares (OLS) solution for simple linear regression. [Ch.3](/machine-learning-algorithms/ch3-regression-metrics) and [Ch.4](/machine-learning-algorithms/ch4-assumptions-of-linear-regression) covered evaluation metrics and core diagnostic assumptions. [Ch.5](/machine-learning-algorithms/ch5-multiple-linear-regression-intuition) and [Ch.6](/machine-learning-algorithms/ch6-multiple-linear-regression-math) extended linear regression to $k$ features using matrix algebra, solving for parameters directly with the closed-form normal equation $\hat{\beta} = (X^T X)^{-1} X^T y$.
+
+In this post, we introduce **Gradient Descent**, the foundational optimization algorithm that powers modern machine learning and deep learning. We examine why gradient descent is essential when closed-form solutions become computationally intractable, derive its partial derivatives step by step, animate its convergence live, build a custom estimator from scratch in Python, and analyze the impact of learning rate and epochs.
+
+## Why Gradient Descent Matters: Beyond Closed-Form Solutions
+
+In the previous post on multiple linear regression math, we solved for parameter vector $\beta$ using the normal equation:
+
+$$\hat{\beta} = (X^T X)^{-1} X^T y$$
+
+While mathematically elegant, the normal equation suffers from a severe computational limitation: matrix inversion. For a dataset with $n$ rows and $k$ features, the matrix $X^T X$ has dimensions $(k+1) \times (k+1)$. Inverting a matrix of shape $(k, k)$ requires roughly $\mathcal{O}(k^3)$ operations (or $\mathcal{O}(k^{2.81})$ using Strassen's algorithm).
+
+When feature count $k$ is small (e.g., $k = 10$ or $k = 100$), matrix inversion completes in milliseconds. However, when working with high-dimensional datasets such as text embeddings, genomic data, or image pixels where $k$ reaches $100{,}000$ or $1{,}000{,}000$, computing $(X^T X)^{-1}$ requires extreme computational time and exceeds available RAM.
+
+Furthermore, closed-form solutions exist only for a small family of algorithms like linear regression. Non-linear models, logistic regression, Support Vector Machines, and Deep Neural Networks do not have closed-form solutions.
+
+Gradient descent solves both problems. Instead of calculating optimal parameters in a single massive matrix calculation, gradient descent starts with arbitrary initial guesses and iteratively steps down the loss function surface until it converges to the optimal solution.
+
+| Property | Closed-Form Normal Equation | Gradient Descent |
+| :--- | :--- | :--- |
+| **Computation Model** | Analytical (single matrix inversion step) | Iterative (repeated small update steps) |
+| **Time Complexity** | $\mathcal{O}(k^3)$ w.r.t features $k$ | $\mathcal{O}(k \cdot n)$ per epoch |
+| **Memory Usage** | High (stores $(k, k)$ matrix in memory) | Low (processes data sequentially or in batches) |
+| **Scalability ($k > 100{,}000$)** | Fails or slows dramatically | Scales efficiently to millions of features |
+| **Generality** | Specific to Linear Regression | Universal (Logistic Regression, Neural Networks, Deep Learning) |
+
+---
+
+## 1D Intuition: Fixing Slope $m$ and Optimizing Intercept $b$
+
+To build intuition, consider simple linear regression $y = m x + b$. Suppose slope $m$ is fixed to a known constant (e.g., $m = 27.83$). The model must optimize a single parameter: intercept $b$.
+
+The objective is to minimize the Sum of Squared Errors (SSE) loss function $L(b)$:
+
+$$L(b) = \sum_{i=1}^n \left(y_i - (m x_i + b)\right)^2$$
+
+Because $L(b)$ is a quadratic function of $b$, plotting $L(b)$ against $b$ creates a 1D convex parabola with a single global minimum $b^*$.
+
+<img src="/images/ch7-1d-loss-parabola.png" alt="1D loss parabola L(b) showing negative slope on left requiring right step, positive slope on right requiring left step, and vertical translation of fitted regression line" className="w-full h-auto" />
+
+Imagine standing on this loss parabola blindfolded. You cannot view the whole curve, but you can feel the local incline (the derivative or slope of the tangent line):
+
+1. **If you start at $b_0 = -80$ (left side of minimum)**: The tangent slope $\frac{\mathrm{d}L}{\mathrm{d}b}$ is negative. To move closer to the minimum $b^*$, you must increase $b$ (step to the right).
+2. **If you start at $b_0 = 70$ (right side of minimum)**: The tangent slope $\frac{\mathrm{d}L}{\mathrm{d}b}$ is positive. To move closer to the minimum $b^*$, you must decrease $b$ (step to the left).
+
+This yields the fundamental update rule:
+
+$$b_{\text{new}} = b_{\text{old}} - \eta \cdot \frac{\mathrm{d}L}{\mathrm{d}b}$$
+
+where $\eta$ (eta) is the **learning rate**, a small positive scalar (e.g., $\eta = 0.001$). The minus sign automatically handles direction:
+- When slope is negative ($\frac{\mathrm{d}L}{\mathrm{d}b} < 0$), subtracting a negative quantity adds to $b_{\text{old}}$, moving $b$ rightward.
+- When slope is positive ($\frac{\mathrm{d}L}{\mathrm{d}b} > 0$), subtracting a positive quantity reduces $b_{\text{old}}$, moving $b$ leftward.
+
+---
+
+## Batch Gradient Descent Derivation for $m$ and $b$
+
+Now consider the full simple linear regression problem where both slope $m$ and intercept $b$ are unknown.
+
+The target model is $\hat{y}_i = m x_i + b$. The total loss across all $n$ data points is:
+
+$$L(m, b) = \sum_{i=1}^n \left(y_i - (m x_i + b)\right)^2$$
+
+Because $L(m, b)$ depends on two parameters, the loss function forms a 3D bowl-shaped surface (a paraboloid). To find the direction of steepest descent, we compute the **gradient vector** $\nabla L(m, b)$, which contains partial derivatives with respect to each parameter.
+
+<img src="/images/ch7-3d-loss-surface.png" alt="3D loss surface contour map L(m, b) showing batch gradient descent trajectory starting from (100, -120) and converging to global minimum (27.83, -2.29)" className="w-full h-auto" />
+
+### Deriving the Partial Derivative w.r.t Intercept $b$
+
+Using the chain rule:
+
+$$\frac{\partial L}{\partial b} = \frac{\partial}{\partial b} \sum_{i=1}^n \left(y_i - m x_i - b\right)^2$$
+
+Bring the derivative inside the summation and apply the power rule:
+
+$$\frac{\partial L}{\partial b} = \sum_{i=1}^n 2 \left(y_i - m x_i - b\right) \cdot \frac{\partial}{\partial b}\left(y_i - m x_i - b\right)$$
+
+Since $\frac{\partial}{\partial b}(y_i - m x_i - b) = -1$:
+
+$$\frac{\partial L}{\partial b} = -2 \sum_{i=1}^n \left(y_i - (m x_i + b)\right) = -2 \sum_{i=1}^n (y_i - \hat{y}_i)$$
+
+### Deriving the Partial Derivative w.r.t Slope $m$
+
+Similarly, differentiate $L(m, b)$ with respect to $m$:
+
+$$\frac{\partial L}{\partial m} = \frac{\partial}{\partial m} \sum_{i=1}^n \left(y_i - m x_i - b\right)^2$$
+
+Apply the chain rule:
+
+$$\frac{\partial L}{\partial m} = \sum_{i=1}^n 2 \left(y_i - m x_i - b\right) \cdot \frac{\partial}{\partial m}\left(y_i - m x_i - b\right)$$
+
+Since $\frac{\partial}{\partial m}(y_i - m x_i - b) = -x_i$:
+
+$$\frac{\partial L}{\partial m} = -2 \sum_{i=1}^n \left(y_i - (m x_i + b)\right) x_i = -2 \sum_{i=1}^n (y_i - \hat{y}_i) x_i$$
+
+### Simultaneous Parameter Update Rules
+
+At each epoch $k$, both parameters are updated simultaneously using their respective partial derivatives and learning rate $\eta$:
+
+$$b^{(k+1)} = b^{(k)} - \eta \cdot \left( -2 \sum_{i=1}^n (y_i - \hat{y}_i) \right)$$
+
+$$m^{(k+1)} = m^{(k)} - \eta \cdot \left( -2 \sum_{i=1}^n (y_i - \hat{y}_i) x_i \right)$$
+
+Notice how step size is governed by gradient magnitude. Far from the minimum, residuals $(y_i - \hat{y}_i)$ and gradients are large, producing larger initial steps. As parameters approach optimal values $(m^*, b^*)$, gradients diminish toward zero, naturally slowing step sizes so the algorithm settles cleanly into the minimum.
+
+---
+
+## Live Convergence Animation
+
+The interactive component below demonstrates 60 epochs of batch gradient descent starting from initial parameters $m_0 = 100, b_0 = -120$ with learning rate $\eta = 0.001$. Watch the fitted line rotate and translate in real time as the cost curve drops smoothly toward zero.
+
+<GradientDescentAnimation />
+
+---
+
+## Building `GDRegressor` from Scratch in Python
+
+We validate our derivation by constructing a custom estimator class named `GDRegressor`, following the implementation structure in the source notebook [`gradient-descent-code-from-scratch.ipynb`](https://github.com/campusx-official/100-days-of-machine-learning/tree/main/day51-gradient-descent).
+
+We generate a synthetic regression dataset using `sklearn.datasets.make_regression` with 100 samples, 1 feature, noise level 20, and `random_state=13`.
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_regression
+from sklearn.linear_model import LinearRegression
+
+# Generate synthetic dataset matching source notebook
+X, y = make_regression(
+    n_samples=100, 
+    n_features=1, 
+    n_informative=1, 
+    n_targets=1, 
+    noise=20, 
+    random_state=13
+)
+
+# Benchmark using scikit-learn's OLS LinearRegression
+ols = LinearRegression()
+ols.fit(X, y)
+
+print(f"OLS Slope (m): {ols.coef_[0]:.2f}")
+print(f"OLS Intercept (b): {ols.intercept_:.2f}")
+# Output:
+# OLS Slope (m): 27.83
+# OLS Intercept (b): -2.29
+```
+
+Now we build the custom `GDRegressor` class implementing batch gradient descent:
+
+```python
+class GDRegressor:
+    def __init__(self, learning_rate=0.001, epochs=100):
+        self.lr = learning_rate
+        self.epochs = epochs
+        # Initial guesses far from true values (m=27.83, b=-2.29)
+        self.m = 100.0
+        self.b = -120.0
+
+    def fit(self, X, y):
+        X_ravel = X.ravel()
+        n_samples = len(y)
+
+        for epoch in range(self.epochs):
+            # Compute current predictions
+            y_pred = self.m * X_ravel + self.b
+            
+            # Compute partial derivatives (Sum of Squared Errors)
+            loss_slope_b = -2 * np.sum(y - y_pred)
+            loss_slope_m = -2 * np.sum((y - y_pred) * X_ravel)
+
+            # Update parameters simultaneously
+            self.b = self.b - self.lr * loss_slope_b
+            self.m = self.m - self.lr * loss_slope_m
+
+    def predict(self, X):
+        return self.m * X.ravel() + self.b
+```
+
+We instantiate `GDRegressor`, fit it on the exact same dataset, and print the converged parameters:
+
+```python
+# Instantiate and fit custom estimator
+gd = GDRegressor(learning_rate=0.001, epochs=100)
+gd.fit(X, y)
+
+print(f"GD Slope (m): {gd.m:.2f}")
+print(f"GD Intercept (b): {gd.b:.2f}")
+# Output:
+# GD Slope (m): 27.83
+# GD Intercept (b): -2.29
+```
+
+Our from-scratch gradient descent implementation converges to $m = 27.83$ and $b = -2.29$, matching scikit-learn's OLS values to two decimal places.
+
+---
+
+## Conceptual Analysis: Learning Rate and Epochs
+
+The performance and stability of gradient descent depend directly on two key hyperparameters: learning rate $\eta$ and number of epochs.
+
+<img src="/images/ch7-learning-rate-effects.png" alt="Three panel comparison showing learning rate too small causing slow crawling, optimal learning rate showing smooth convergence, and learning rate too large causing overshooting and divergence" className="w-full h-auto" />
+
+### Impact of Learning Rate ($\eta$)
+
+1. **Learning Rate Too Small ($\eta = 0.00005$)**: Step sizes are tiny. The algorithm takes hundreds or thousands of epochs to make progress, crawling slowly down the loss surface. While safe, it is computationally wasteful.
+2. **Optimal Learning Rate ($\eta = 0.001$)**: Steps are well-sized. The loss decreases smoothly every epoch and levels off neatly near the global minimum.
+3. **Learning Rate Too Large ($\eta = 0.012$)**: Step sizes overshoot the valley floor. Instead of descending, parameters bounce back and forth between opposite walls of the loss bowl, causing the loss function to explode exponentially toward infinity (divergence).
+
+### Impact of Epochs
+
+An **epoch** represents one full iteration over the training dataset. 
+- If epochs are too low (e.g., 5 epochs), training stops prematurely before parameters reach the minimum (underfitting).
+- As epochs increase, parameter changes $\Delta m = |m^{(k+1)} - m^{(k)}|$ and $\Delta b = |b^{(k+1)} - b^{(k)}|$ shrink toward zero.
+- Practical stopping criteria include setting a fixed max epoch budget or monitoring convergence: stopping early when $|L^{(k+1)} - L^{(k)}| < \epsilon$ (where $\epsilon = 10^{-5}$).
+
+---
+
+## Summary & Key Takeaways
+
+1. **Why Gradient Descent**: Matrix inversion in the OLS normal equation scales as $\mathcal{O}(k^3)$, making it computationally intractable for large feature counts. Gradient descent scales as $\mathcal{O}(k \cdot n)$ per epoch and generalizes to non-linear models and deep learning.
+2. **Direction via Derivative**: The negative gradient direction $-\nabla L$ always points toward steepest loss reduction. The minus sign in $p_{\text{new}} = p_{\text{old}} - \eta \cdot \frac{\partial L}{\partial p}$ ensures updates move opposite to the gradient.
+3. **Partial Derivatives**: For SSE loss $L(m, b) = \sum (y_i - (m x_i + b))^2$, partial derivatives are $\frac{\partial L}{\partial b} = -2 \sum (y_i - \hat{y}_i)$ and $\frac{\partial L}{\partial m} = -2 \sum (y_i - \hat{y}_i) x_i$.
+4. **Hyperparameter Tuning**: Learning rate $\eta$ controls step size. Too small leads to slow convergence; too large causes oscillation and divergence.
+5. **Exact OLS Match**: Our custom `GDRegressor` built from scratch converges to $m = 27.83, b = -2.29$ on synthetic data, matching scikit-learn's `LinearRegression` benchmark.
+
+In the next post, we explore variants of gradient descent (Batch, Stochastic, and Mini-Batch Gradient Descent) to optimize performance on massive datasets.
