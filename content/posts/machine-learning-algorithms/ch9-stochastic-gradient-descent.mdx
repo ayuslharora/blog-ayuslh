@@ -1,0 +1,259 @@
+---
+title: "Ch.9: Stochastic Gradient Descent"
+description: "Why batch GD breaks on large data, how SGD fixes it by updating parameters one random row at a time, implementing SGDRegressor from scratch, and understanding the noise-vs-speed tradeoff with a real convergence comparison."
+date: "2026-08-16T19:40:28+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "gradient-descent", "stochastic-gradient-descent", "linear-regression", "optimization", "sklearn"]
+subtopic: "Linear Regression"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=V7KBAa_gh4c)
+
+The previous post implemented `GDRegressor`, a batch gradient descent class that trains on the full 353-row diabetes dataset and hits test R² = 0.4535 in 1000 epochs. Before moving on, it is worth asking: what happens when the dataset has 1 million rows instead of 353? Or 100,000 features? The batch GD loop does not scale to either case, and understanding exactly why motivates every variant of gradient descent that follows.
+
+---
+
+## The Scaling Problem with Batch GD
+
+Recall the batch GD update rule for a single coefficient $\beta_j$:
+
+$$\frac{\partial L}{\partial \beta_j} = -\frac{2}{n} \sum_{i=1}^n (y_i - \hat{y}_i) \cdot x_{ij}$$
+
+The key word is $\sum_{i=1}^n$: every derivative you compute requires visiting all $n$ rows. For $n = 1000$ rows and $k = 5$ features (so $k + 1 = 6$ parameters), and 15 epochs, you compute approximately $1000 \times 6 \times 15 = 90{,}000$ derivative terms per training run. Push that to $n = 10^5$ rows, $k = 100$ features, and $10^3$ epochs, and the total is $10^5 \times 101 \times 10^3 \approx 10^{10}$ derivative terms. That is a lot of computation for one model fit, and it compounds as the model gets deeper or wider.
+
+There is a second, more fundamental problem: memory. The vectorized batch GD update, `y_hat = X_train @ coef_ + intercept_`, requires the entire `X_train` matrix to be resident in RAM at the same time. For a dataset with $10^6$ rows and $100$ float64 columns, `X_train` alone occupies roughly $10^6 \times 100 \times 8 \approx 800$ MB. Larger datasets do not fit at all, or they do but leave no headroom for the model, gradients, or anything else. When the system runs out of memory, the computation fails entirely. This is not a solvable problem by buying a faster CPU; it is a structural limitation of the algorithm.
+
+These two problems are distinct:
+
+1. **Computational cost**: too many multiply-accumulate operations per epoch.
+2. **Memory cost**: must load all of `X_train` into RAM before a single update can happen.
+
+Stochastic Gradient Descent solves both.
+
+---
+
+## The SGD Idea: One Row at a Time
+
+The insight behind SGD is simple: you do not need the exact gradient to make progress. You need a gradient that, on average over many steps, points in the right direction. A single randomly selected row gives you a noisy but unbiased estimate of the true gradient.
+
+Instead of one update per epoch using all $n$ rows:
+
+$$\text{batch GD: } \theta \leftarrow \theta - \eta \cdot \nabla_\theta L_{\text{full}}$$
+
+SGD takes $n$ updates per epoch, one per row, using only that row's gradient:
+
+$$\text{SGD: } \theta \leftarrow \theta - \eta \cdot \nabla_\theta L_{\text{row } i}$$
+
+where row $i$ is chosen **randomly** each time. The randomness is not incidental; it is the defining characteristic of the algorithm (the word "stochastic" comes from the Greek for "random" or "probabilistic").
+
+### What Changes in the Derivative
+
+For a single row $i$, the prediction is just one number:
+
+$$\hat{y}_i = \boldsymbol{\beta}^T \mathbf{x}_i + \beta_0$$
+
+The loss for that single row is the squared error $(y_i - \hat{y}_i)^2$. Differentiating with respect to $\beta_0$ and $\beta_j$:
+
+$$\frac{\partial}{\partial \beta_0}(y_i - \hat{y}_i)^2 = -2(y_i - \hat{y}_i)$$
+
+$$\frac{\partial}{\partial \beta_j}(y_i - \hat{y}_i)^2 = -2(y_i - \hat{y}_i) \cdot x_{ij}$$
+
+Compare these to the batch GD derivatives. The batch version sums over all $n$ rows and divides by $n$ (taking a mean). The SGD version has no sum, no mean, no division. It is just $-2$ times the residual for that single row, times the feature value for the intercept or coefficient respectively. Because there is only one row, the summation collapses to a single term, and averaging it would just divide by 1.
+
+This is the only mathematical difference between batch GD and SGD. The update rule structure is identical; only the scope of the gradient estimate changes.
+
+---
+
+## Implementing `SGDRegressor` from Scratch
+
+The implementation follows the [source notebook in `day52-types-of-gradient-descent`](https://github.com/campusx-official/100-days-of-machine-learning/tree/main/day52-types-of-gradient-descent). The class structure mirrors `GDRegressor` from the previous post exactly; the only changes are inside the `fit` loop.
+
+### The Dataset (Same as Ch.8)
+
+```python
+from sklearn.datasets import load_diabetes
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+from sklearn.model_selection import train_test_split
+
+X, y = load_diabetes(return_X_y=True)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=2
+)
+print(X_train.shape)  # (353, 10)
+```
+
+Same split, same `random_state=2`, so our results are directly comparable to Ch.8.
+
+### The `SGDRegressor` Class
+
+```python
+class SGDRegressor:
+    def __init__(self, learning_rate=0.01, epochs=1000):
+        self.lr = learning_rate
+        self.epochs = epochs
+        self.coef_ = None
+        self.intercept_ = None
+
+    def fit(self, X_train, y_train):
+        # Initialize exactly like GDRegressor
+        self.intercept_ = 0
+        self.coef_ = np.ones(X_train.shape[1])
+
+        for i in range(self.epochs):
+            for j in range(X_train.shape[0]):
+                # Pick one row at random
+                idx = np.random.randint(0, X_train.shape[0])
+
+                # Prediction for that single row
+                y_hat = np.dot(X_train[idx], self.coef_) + self.intercept_
+
+                # Intercept gradient: -2 * residual (no mean, single sample)
+                intercept_der = -2 * (y_train[idx] - y_hat)
+                self.intercept_ -= self.lr * intercept_der
+
+                # Coefficient gradient: -2 * residual * feature_row (no mean)
+                coef_der = -2 * (y_train[idx] - y_hat) * X_train[idx]
+                self.coef_ -= self.lr * coef_der
+
+    def predict(self, X):
+        return X @ self.coef_ + self.intercept_
+```
+
+A few design points worth noting carefully:
+
+**The inner loop runs `X_train.shape[0]` times per epoch.** Each iteration picks one random index and does one parameter update. So in a single epoch, the model updates its parameters 353 times (once per row in the training set). Batch GD updates once per epoch. This means one epoch of SGD involves 353 times more parameter updates than one epoch of batch GD.
+
+**`np.random.randint(0, X_train.shape[0])`** samples uniformly from `[0, n)` with replacement. It is not shuffling and iterating in order; it is genuinely random each time. The same row index can be picked multiple times in the same epoch, and some rows might not be picked at all. This is intentional: it is the stochastic part.
+
+**`np.dot(X_train[idx], self.coef_)`** takes one row of `X_train` (shape `(10,)`) and dots it with the coefficient vector (shape `(10,)`), producing a single scalar prediction. There is no matrix multiply, no broadcasting; just one dot product per update. This is what avoids the memory problem: you only ever need one row in memory at a time, not the full `X_train`.
+
+**The intercept update uses the raw residual**, not its mean: `intercept_der = -2 * (y_train[idx] - y_hat)`. In batch GD, the factor was `-2 * np.mean(residuals)`. Here it is just `-2 * scalar_residual`. Both are valid gradient estimates for their respective loss functions. The learning rate absorbs the scaling difference.
+
+### Running and Evaluating
+
+```python
+np.random.seed(42)
+sgd = SGDRegressor(learning_rate=0.01, epochs=1000)
+sgd.fit(X_train, y_train)
+
+print("SGD intercept:", sgd.intercept_)
+# 151.81000
+
+print("SGD coef_:", sgd.coef_)
+# [ -12.14, -206.12,  533.12,  342.29, -137.17,
+#    -52.58, -169.54,   53.98,  578.12,   47.66]
+
+y_pred_sgd = sgd.predict(X_test)
+print("SGD R2:", r2_score(y_test, y_pred_sgd))
+# 0.4424
+```
+
+| Model | Test R² |
+| :--- | :--- |
+| sklearn OLS (Ch.8) | 0.4399 |
+| Batch GDRegressor (Ch.8) | 0.4535 |
+| **SGDRegressor (this post)** | **0.4424** |
+
+SGD lands between OLS and batch GD on this dataset. The intercept (151.81) is very close to OLS (151.88), confirming the model found roughly the right mean offset. The notable divergence is on $\beta_5$ through $\beta_{10}$, the six serum measurements: SGD lands at $-137$ for $\beta_5$ vs OLS's $-895$, and $+578$ for $\beta_9$ vs OLS's $+861$. These features are highly correlated with each other, so the loss surface along their directions is very flat, and both the random row selection and the noisier gradient path mean SGD arrives at a different point on the same nearly-flat ridge than either OLS or batch GD.
+
+Running the exact same code again with a different seed will give you slightly different numbers. That is expected, not a bug.
+
+---
+
+## The Noisy Path to Convergence
+
+The convergence behavior of SGD is fundamentally different from batch GD, and it is visible in the chart below.
+
+<img src="/images/ch9-convergence-comparison.png" alt="Side-by-side comparison of training R² per epoch: left panel shows SGD with a rapid rise to ~0.50 in the first 50 epochs then persistent jagged oscillations around 0.53 through epoch 1000; right panel shows batch GD rising smoothly from 0 to 0.52 over 600 epochs then nearly flat, both on matching y-axes from -0.05 to 0.70." className="w-full h-auto" />
+
+**Left (SGD):** The training R² shoots up from 0 to about 0.50 within the first 50 epochs, then oscillates around 0.53 for the remaining 950 epochs. The curve never settles. Every epoch introduces new randomness (a different sequence of 353 randomly chosen rows), so the gradient estimates are always noisy. After roughly 100 epochs, SGD has essentially found the neighborhood of the optimum, but it cannot converge to a single fixed point because there is no mechanism to quiet the noise as you approach it.
+
+**Right (Batch GD):** The curve rises smoothly and monotonically. Each epoch uses the same full-dataset gradient, which points precisely toward the optimum. The curve is still not flat at epoch 1000 (there is more improvement available with more epochs), but it does not oscillate at all. Every step is guaranteed to improve or maintain the loss.
+
+The key observation: **SGD reaches a good region much faster in epoch count, but it never truly "converges" in the way batch GD does.** It oscillates around the optimum permanently. This is a fundamental property of the algorithm, not a bug to be fixed with more epochs.
+
+There is a practical fix called a **learning schedule** (or learning rate decay): decrease the learning rate as training progresses. At a high learning rate, the large random steps help you find the right neighborhood quickly. As you reduce the learning rate, the step sizes shrink and the oscillation tightens. At a very small learning rate, SGD behaves more like batch GD in a small region around the optimum. In scikit-learn's `SGDRegressor`, the `learning_rate` parameter (`'constant'`, `'optimal'`, `'invscaling'`, or `'adaptive'`) controls this behavior directly.
+
+---
+
+## Wall-Clock Time: The Counterintuitive Result
+
+```python
+import time
+
+# Batch GD: 1000 epochs
+start = time.time()
+gd = GDRegressor(learning_rate=0.5, epochs=1000)
+gd.fit(X_train, y_train)
+print(f"Batch GD time: {time.time() - start:.4f}s")
+# Batch GD time: 0.0172s
+
+# SGD: same 1000 epochs
+np.random.seed(42)
+start = time.time()
+sgd = SGDRegressor(learning_rate=0.01, epochs=1000)
+sgd.fit(X_train, y_train)
+print(f"SGD time: {time.time() - start:.4f}s")
+# SGD time: 1.9050s
+```
+
+This surprises many people. SGD is supposed to be faster, but here it took about 110 times longer for the same number of epochs. How?
+
+The answer is in the update count. At $n = 353$ rows and 1000 epochs:
+
+| Algorithm | Updates per epoch | Total updates |
+| :--- | :--- | :--- |
+| Batch GD | 1 | 1,000 |
+| SGD | 353 | 353,000 |
+
+SGD does **353,000 parameter updates** to batch GD's **1,000**. Each update involves a Python loop iteration, a random index draw, a dot product, two gradient computations, and two in-place subtractions. Batch GD does all of that in one vectorized NumPy call per epoch. On a small dataset like this, NumPy's vectorized matrix operations are so fast that the pure Python overhead of 353,000 serial iterations dwarfs any per-epoch savings.
+
+**This is not a flaw in SGD. It is a dataset-size mismatch.** The efficiency argument for SGD is not that it is faster per update; it is that it needs far fewer epochs to reach a good solution. On this 353-row dataset, batch GD converges quickly too, so the epoch count advantage of SGD never materializes. On a dataset with 10 million rows:
+
+- **Batch GD** cannot even start: `X_train` is multiple GB, and one matrix multiply per epoch requires the entire thing in RAM.
+- **SGD** looks at one row per update, needs trivial memory, and reaches a useful model in far fewer total sweeps of the data.
+
+The real speed advantage of SGD only becomes visible when batch GD is struggling. On huge datasets, batch GD's overhead is not just slower; it is impossible. SGD is the algorithm that makes large-scale machine learning tractable.
+
+---
+
+## When to Use SGD
+
+Two cases where SGD is clearly superior to batch GD:
+
+**1. Big data.** When the dataset is large enough that loading all of `X_train` at once would exhaust RAM, batch GD cannot run at all. SGD only needs one row at a time. Its training-set memory footprint is $O(k)$ per update (one row of $k$ features) rather than $O(nk)$ for the whole matrix.
+
+**2. Non-convex loss functions.** Linear regression has a convex squared-error loss, so batch GD always finds the global minimum. Logistic regression, neural networks, and SVMs can have non-convex losses with multiple local minima. Batch GD, because it follows the gradient smoothly and monotonically, can get trapped in a local minimum and never escape. SGD's random noise acts like a perturbation: when the gradient estimate from a particular row points in an unusual direction, it can kick the parameters out of a shallow local minimum. The jagged convergence path that looks like a disadvantage on a convex problem is actually what allows SGD to escape local optima on non-convex ones. You need to tune the learning rate carefully to exploit this, but it is one reason SGD and its mini-batch variant are the standard optimizer for neural networks.
+
+### Sklearn's `SGDRegressor`
+
+For completeness, the transcript also demonstrates sklearn's built-in version:
+
+```python
+from sklearn.linear_model import SGDRegressor as SklearnSGD
+
+sk_sgd = SklearnSGD(max_iter=100, learning_rate='constant', eta0=0.01)
+sk_sgd.fit(X_train, y_train)
+y_pred_sk = sk_sgd.predict(X_test)
+print("sklearn SGD R2:", r2_score(y_test, y_pred_sk))
+```
+
+Sklearn's version supports multiple loss functions (not just squared error), regularization (L1, L2, ElasticNet via the `penalty` parameter), adaptive learning rate schedules, and early stopping via a `tol` parameter. It is the class you would use in production; our `SGDRegressor` above is the class you would use to understand what it is actually doing internally.
+
+---
+
+## Summary & Key Takeaways
+
+1. **Why batch GD doesn't scale**: computing the gradient requires visiting all $n$ rows and holding the full `X_train` in RAM simultaneously. For large $n$ or large feature count $k$, this becomes computationally and memory-prohibitive.
+2. **SGD's core idea**: replace the full-dataset gradient with a gradient computed from a single randomly chosen row. Update parameters immediately, before looking at the next row.
+3. **The derivative simplification**: with one row, the summation $\sum_{i=1}^n$ collapses to a single term; no mean is needed. The intercept gradient is $-2(y_i - \hat{y}_i)$; the coefficient gradient is $-2(y_i - \hat{y}_i) \cdot x_{ij}$.
+4. **Memory efficiency**: each update uses only one row of data. The memory footprint per update is $O(k)$ rather than $O(nk)$, so datasets too large for RAM become trainable.
+5. **More updates per epoch**: SGD takes $n$ parameter updates per epoch versus 1 for batch GD. Fewer epochs are needed to reach a good region of parameter space, which is the source of SGD's epoch-count advantage.
+6. **No convergence to a fixed point**: because each gradient estimate is random, SGD oscillates around the optimum permanently rather than settling. The solution varies slightly each time you run it.
+7. **The wall-clock time paradox**: on a small dataset like diabetes (353 rows), SGD is much slower per unit of time because its 353,000 Python-loop updates outpace any per-epoch savings. SGD's speed advantage only materializes on large datasets where batch GD cannot fit in memory at all.
+8. **Non-convex advantage**: SGD's noise can kick parameters out of local minima, making it the algorithm of choice for deep learning where non-convex loss surfaces are the norm.
+9. **Learning schedules**: reducing the learning rate over time narrows the oscillation band as training progresses, effectively turning SGD into a progressively finer search near the optimum. Sklearn's `SGDRegressor` offers `'constant'`, `'optimal'`, `'invscaling'`, and `'adaptive'` schedules for this purpose.
+
+In the next post, we cover **Mini-Batch Gradient Descent**: a middle ground between batch GD (one update per epoch over all $n$ rows) and SGD (one update per row). Mini-batch GD splits the data into small batches of $b$ rows, computes the gradient over each batch, and updates once per batch. It captures most of SGD's memory and convergence-speed benefits while using NumPy vectorization over the mini-batch to reduce Python loop overhead significantly.
