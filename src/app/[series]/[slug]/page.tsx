@@ -27,6 +27,7 @@ import MnistPca3d from '../../../components/MnistPca3d';
 import LinRegCostSurface from '../../../components/LinRegCostSurface';
 import GradientDescentAnimation from '../../../components/GradientDescentAnimation';
 import GdCostSurface3d from '../../../components/GdCostSurface3d';
+import LearningRateExplorer from '../../../components/LearningRateExplorer';
 import MultiRegScatter3d from '../../../components/MultiRegScatter3d';
 import MultiRegPlane3d from '../../../components/MultiRegPlane3d';
 import TableOfContents from '../../../components/TableOfContents';
@@ -153,6 +154,7 @@ export default async function PostPage({
             LinRegCostSurface,
             GradientDescentAnimation,
             GdCostSurface3d,
+            LearningRateExplorer,
             MultiRegScatter3d,
             MultiRegPlane3d,
             Mermaid,

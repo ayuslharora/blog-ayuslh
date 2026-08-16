@@ -212,13 +212,17 @@ Our from-scratch gradient descent implementation converges to $m = 27.83$ and $b
 
 The performance and stability of gradient descent depend directly on two key hyperparameters: learning rate $\eta$ and number of epochs.
 
-<img src="/images/ch7-learning-rate-effects.png" alt="Three panel comparison showing learning rate too small causing slow crawling, optimal learning rate showing smooth convergence, and learning rate too large causing overshooting and divergence" className="w-full h-auto" />
-
 ### Impact of Learning Rate ($\eta$)
 
-1. **Learning Rate Too Small ($\eta = 0.00005$)**: Step sizes are tiny. The algorithm takes hundreds or thousands of epochs to make progress, crawling slowly down the loss surface. While safe, it is computationally wasteful.
-2. **Optimal Learning Rate ($\eta = 0.001$)**: Steps are well-sized. The loss decreases smoothly every epoch and levels off neatly near the global minimum.
-3. **Learning Rate Too Large ($\eta = 0.012$)**: Step sizes overshoot the valley floor. Instead of descending, parameters bounce back and forth between opposite walls of the loss bowl, causing the loss function to explode exponentially toward infinity (divergence).
+The tool below fixes slope $m$ at its optimal value (the same 1D slice from earlier) and lets you drive gradient descent on $b$ by hand: drag the learning rate slider, hit **Step** to take one update, and watch where the orange marker lands on the loss curve.
+
+<LearningRateExplorer />
+
+Because this 1D slice is an exact parabola, the update has a closed form: $b^{(k+1)} - b^* = (1 - 2\eta n)(b^{(k)} - b^*)$, where $n = 100$ is the sample count. That geometric recurrence converges only when $|1 - 2\eta n| < 1$, i.e. $\eta < \frac{1}{n} = 0.01$ for this dataset:
+
+1. **Learning Rate Too Small ($\eta \approx 0.0005$)**: $(1 - 2\eta n)$ sits close to 1, so each step shrinks the distance to $b^*$ by only a sliver. The algorithm needs hundreds of steps to make visible progress, crawling slowly down the loss curve. Safe, but wasteful.
+2. **Optimal Learning Rate ($\eta \approx 0.004$)**: Steps are well-sized. Loss drops smoothly every step and settles at the minimum within a handful of clicks.
+3. **Learning Rate Too Large ($\eta \geq 0.01$)**: $|1 - 2\eta n|$ crosses 1, so each step overshoots $b^*$ by a larger margin than the last. Instead of descending, $b$ bounces between opposite walls of the parabola with growing amplitude, and loss explodes toward infinity, exactly the "will never reach the minimum" case the tool warns about.
 
 ### Impact of Epochs
 
