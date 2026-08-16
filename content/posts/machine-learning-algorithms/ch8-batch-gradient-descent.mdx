@@ -1,0 +1,251 @@
+---
+title: "Ch.8: Batch Gradient Descent for Multiple Linear Regression"
+description: "Extending gradient descent from one feature to many: deriving the vectorized coefficient update rule, implementing GDRegressor from scratch, and benchmarking it against sklearn's OLS on the diabetes dataset."
+date: "2026-08-16T19:04:28+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "gradient-descent", "linear-regression", "optimization", "sklearn"]
+subtopic: "Linear Regression"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=Jyo53pAyVAM)
+
+[Ch.1](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) through [Ch.6](/machine-learning-algorithms/ch6-multiple-linear-regression-math) built up the theory and closed-form OLS solution for both simple and multiple linear regression. [Ch.7](/machine-learning-algorithms/ch7-gradient-descent) introduced Gradient Descent, derived partial derivatives for the single-feature case ($\hat{y} = mx + b$), and showed that the update loop converges to the same solution as OLS on synthetic data.
+
+In this post, we extend that same logic to the **multi-feature** case: $k$ input columns, $k+1$ parameters to learn simultaneously. We will derive why the coefficient update becomes a dot product with $X_{\text{train}}^T$, implement a `GDRegressor` class that handles any number of features without changing a single line of the loop body, and benchmark it on sklearn's diabetes dataset against closed-form OLS.
+
+---
+
+## From One Feature to Many: The Setup
+
+In the previous post, the model had one slope $m$ and one intercept $b$. Every real dataset has more features. The diabetes dataset, for example, has 10 clinical measurements per patient. The general multiple linear regression model is:
+
+$$\hat{y}_i = \beta_0 + \beta_1 x_{i1} + \beta_2 x_{i2} + \cdots + \beta_k x_{ik}$$
+
+where $\beta_0$ is the intercept and $\beta_1, \ldots, \beta_k$ are the $k$ slope coefficients. For a dataset with $k$ input columns, you have $k + 1$ parameters to estimate.
+
+To apply gradient descent, you need partial derivatives of the loss with respect to each one. With 10 features that is 11 separate update equations, and with 1,000 features it is 1,001. Writing them out individually does not scale. The solution is to derive a single **vectorized update rule** that handles all $k$ coefficients in one matrix operation.
+
+---
+
+## Deriving the Vectorized Update Rule
+
+### Loss Function
+
+We use Mean Squared Error (MSE) loss averaged over all $n$ training rows:
+
+$$L(\beta_0, \boldsymbol{\beta}) = \frac{1}{n} \sum_{i=1}^n \left(y_i - \hat{y}_i\right)^2$$
+
+where $\boldsymbol{\beta} = [\beta_1, \beta_2, \ldots, \beta_k]^T$ is the coefficient vector. Whether you use MSE or SSE (sum, not mean) does not change which $\boldsymbol{\beta}$ minimizes the loss, only the scale of the gradient. We use MSE here to keep gradient magnitudes independent of dataset size.
+
+### Partial Derivative with Respect to the Intercept $\beta_0$
+
+Apply the chain rule to the MSE sum:
+
+$$\frac{\partial L}{\partial \beta_0} = \frac{1}{n} \sum_{i=1}^n 2(y_i - \hat{y}_i) \cdot \frac{\partial}{\partial \beta_0}(y_i - \hat{y}_i)$$
+
+Since $\hat{y}_i = \beta_0 + \boldsymbol{\beta}^T \mathbf{x}_i$, the derivative of $(y_i - \hat{y}_i)$ with respect to $\beta_0$ is $-1$:
+
+$$\frac{\partial L}{\partial \beta_0} = -\frac{2}{n} \sum_{i=1}^n (y_i - \hat{y}_i) = -2 \cdot \text{mean}(\mathbf{y} - \hat{\mathbf{y}})$$
+
+This is a single scalar: the negative average residual, scaled by 2. The update rule for the intercept is:
+
+$$\beta_0^{(\text{new})} = \beta_0 - \eta \cdot \left(-2 \cdot \text{mean}(\mathbf{y} - \hat{\mathbf{y}})\right)$$
+
+### Partial Derivative with Respect to Coefficient $\beta_j$
+
+For the $j$-th coefficient, the only change is what gets multiplied inside the chain rule. Since $\frac{\partial \hat{y}_i}{\partial \beta_j} = x_{ij}$, we get:
+
+$$\frac{\partial L}{\partial \beta_j} = -\frac{2}{n} \sum_{i=1}^n (y_i - \hat{y}_i) \cdot x_{ij}$$
+
+Written out in full, this is a dot product between the residual vector $(\mathbf{y} - \hat{\mathbf{y}})$ and the $j$-th column of $X_{\text{train}}$. Intuitively, this says: look at every row where feature $j$ was large and the model under- or over-predicted, and check whether the two line up. If large values of feature $j$ tend to occur alongside large positive residuals, nudging $\beta_j$ up would shrink those errors, so the gradient for $\beta_j$ comes out large and positive too. If feature $j$'s values have nothing to do with the sign of the residual, the products mostly cancel out and the gradient stays near zero, meaning that coefficient barely needs to move. The dot product is just this "does this column track the error" check, computed for every row and summed in one shot.
+
+The key insight: **the derivative for $\beta_j$ multiplies the residuals by the $j$-th feature column.** Gradient descent needs this derivative for every column, $j = 1, \ldots, k$. Computing them one at a time would require $k$ separate dot products. Computing them all at once is a single matrix operation.
+
+### Vectorizing All $k$ Coefficient Updates at Once
+
+Stacking all $k$ partial derivatives into a vector:
+
+$$\nabla_{\boldsymbol{\beta}} L = \begin{bmatrix} \frac{\partial L}{\partial \beta_1} \\ \vdots \\ \frac{\partial L}{\partial \beta_k} \end{bmatrix} = -\frac{2}{n} \begin{bmatrix} \sum_i (y_i - \hat{y}_i) x_{i1} \\ \vdots \\ \sum_i (y_i - \hat{y}_i) x_{ik} \end{bmatrix}$$
+
+Each row $j$ is $\sum_i (y_i - \hat{y}_i) x_{ij}$. That is exactly the matrix product of $X_{\text{train}}^T$ (shape $k \times n$) with the residual column vector $(\mathbf{y} - \hat{\mathbf{y}})$ (shape $n \times 1$), giving a $k \times 1$ result:
+
+$$\nabla_{\boldsymbol{\beta}} L = -\frac{2}{n} \, X_{\text{train}}^T \cdot (\mathbf{y} - \hat{\mathbf{y}})$$
+
+In code, `np.dot(X_train.T, residuals)` (or equivalently `residuals @ X_train` when residuals is a 1D array, using NumPy's broadcasting) gives a vector of length $k$, one gradient per coefficient. The full vectorized update rule at each epoch is:
+
+$$\boldsymbol{\beta}^{(\text{new})} = \boldsymbol{\beta} - \eta \cdot \left(-\frac{2}{n} \, X_{\text{train}}^T \cdot (\mathbf{y} - \hat{\mathbf{y}})\right)$$
+
+This replaces $k$ scalar equations with a single line of NumPy. The loop body does not grow as $k$ grows.
+
+### Why This Works: The Matrix Multiplication Intuition
+
+To see concretely why $X_{\text{train}}^T \cdot (\mathbf{y} - \hat{\mathbf{y}})$ gives all $k$ derivatives at once, consider a tiny example with $n = 2$ samples and $k = 2$ features:
+
+$$X_{\text{train}} = \begin{bmatrix} x_{11} & x_{12} \\ x_{21} & x_{22} \end{bmatrix}, \quad \mathbf{r} = \begin{bmatrix} y_1 - \hat{y}_1 \\ y_2 - \hat{y}_2 \end{bmatrix}$$
+
+$$X_{\text{train}}^T \cdot \mathbf{r} = \begin{bmatrix} x_{11} & x_{21} \\ x_{12} & x_{22} \end{bmatrix} \begin{bmatrix} r_1 \\ r_2 \end{bmatrix} = \begin{bmatrix} x_{11} r_1 + x_{21} r_2 \\ x_{12} r_1 + x_{22} r_2 \end{bmatrix}$$
+
+Row 1 of the result is $\sum_i r_i x_{i1}$, which is exactly $\frac{\partial L}{\partial \beta_1}$ (up to the $-2/n$ factor). Row 2 is $\sum_i r_i x_{i2}$, the derivative for $\beta_2$. For $k = 10$ or $k = 10{,}000$, the same `@` operator handles all of them in one call. This is the payoff of understanding the matrix structure of linear regression.
+
+---
+
+## Implementing `GDRegressor` from Scratch
+
+The implementation below follows the [source notebook `batch-gradient-descent.ipynb`](https://github.com/campusx-official/100-days-of-machine-learning/blob/main/day52-types-of-gradient-descent/batch-gradient-descent.ipynb) exactly.
+
+### Loading the Diabetes Dataset
+
+```python
+from sklearn.datasets import load_diabetes
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+from sklearn.model_selection import train_test_split
+
+X, y = load_diabetes(return_X_y=True)
+print(X.shape)  # (442, 10)
+print(y.shape)  # (442,)
+```
+
+The dataset has 442 patients, each described by 10 standardized clinical features (age, sex, BMI, blood pressure, and six serum measurements). The target is a quantitative measure of diabetes progression one year after baseline. Crucially, sklearn's `load_diabetes` already returns normalized features, so no additional scaling step is needed here.
+
+```python
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=2
+)
+print(X_train.shape)  # (353, 10)
+```
+
+### Benchmarking with sklearn's LinearRegression
+
+Before building our own optimizer, we establish the OLS ceiling:
+
+```python
+reg = LinearRegression()
+reg.fit(X_train, y_train)
+
+y_pred = reg.predict(X_test)
+print("OLS intercept:", reg.intercept_)
+# 151.88331005254165
+
+print("OLS coef_:", reg.coef_)
+# [ -9.16, -205.46,  516.69,  340.62, -895.55,
+#   561.22,  153.89,  126.73,  861.13,   52.42]
+
+print("OLS R2:", r2_score(y_test, y_pred))
+# 0.4399
+```
+
+The OLS model explains about 44% of the variance in test disease progression scores. This is our target to approach.
+
+### The `GDRegressor` Class
+
+```python
+class GDRegressor:
+    def __init__(self, learning_rate=0.5, epochs=1000):
+        self.lr = learning_rate
+        self.epochs = epochs
+        self.coef_ = None
+        self.intercept_ = None
+
+    def fit(self, X_train, y_train):
+        # Initialize: intercept to 0, all coefficients to 1
+        self.intercept_ = 0
+        self.coef_ = np.ones(X_train.shape[1])
+
+        for _ in range(self.epochs):
+            # Forward pass: compute predictions
+            y_hat = X_train @ self.coef_ + self.intercept_
+
+            # Intercept gradient: -2 * mean(residuals)
+            intercept_der = -2 * np.mean(y_train - y_hat)
+            self.intercept_ -= self.lr * intercept_der
+
+            # Coefficient gradient: -2/n * X_train.T @ residuals
+            coef_der = -2 * np.dot((y_train - y_hat), X_train) / X_train.shape[0]
+            self.coef_ -= self.lr * coef_der
+
+    def predict(self, X):
+        return X @ self.coef_ + self.intercept_
+```
+
+A few design details worth noting:
+
+**Initialization strategy.** The intercept starts at zero because it is a single scalar and zero is a neutral starting point. The coefficients are initialized to ones (`np.ones(X_train.shape[1])`), which avoids the symmetry-breaking problem of all-zeros initialization while remaining simple. The number of coefficients is inferred from `X_train.shape[1]` at fit time, so the class works for any number of features without modification.
+
+**`np.dot((y_train - y_hat), X_train)`** computes the dot product of a 1D residual array (shape `(n,)`) with a 2D matrix (shape `(n, k)`), yielding a 1D result of shape `(k,)`. NumPy lines up the residual array against the matrix's first axis (the $n$ rows) and sums over that axis for each of the $k$ columns independently, which is exactly the "multiply residuals by one feature column and sum" computation from the derivation above, done for all $k$ columns at once. This is equivalent to `X_train.T @ residuals` (transpose to shape $(k, n)$, then matrix-multiply by the residual vector), but skips the explicit transpose.
+
+**Simultaneous update.** Both `intercept_der` and `coef_der` are computed from the same `y_hat` at the start of the epoch, before either parameter is modified. This is important: if you updated the intercept first and then recomputed `y_hat` to get the coefficient gradient, the two updates would be using different parameter states, which is not the standard gradient descent algorithm.
+
+### Running and Evaluating
+
+```python
+gd = GDRegressor(learning_rate=0.5, epochs=1000)
+gd.fit(X_train, y_train)
+
+print("GD intercept:", gd.intercept_)
+# 152.01352
+
+print("GD coef_:", gd.coef_)
+# [ 14.39, -173.73,  491.55,  323.92, -39.33,
+#  -116.01, -194.04,  103.38,  451.63,   97.57]
+
+y_pred_gd = gd.predict(X_test)
+print("GD R2:", r2_score(y_test, y_pred_gd))
+# 0.4535
+```
+
+The custom `GDRegressor` achieves **R² = 0.4535 on the test set**, slightly above the OLS benchmark of 0.4399. The intercept converges to 152.01, close to OLS's 151.88. Most coefficients agree in sign and rough magnitude (negative $\beta_2$, large positive $\beta_3$ and $\beta_4$), but three flip sign entirely: $\beta_1$, $\beta_6$, and $\beta_7$. $\beta_1$ (`age`) is near zero in both models, so its flip is noise around a coefficient that barely matters. $\beta_6$ (`s2`) and $\beta_7$ (`s3`) are each strongly correlated with a third feature, $\beta_8$ (`s4`), with $r = 0.66$ and $r = -0.74$ respectively. That shared correlation flattens the loss surface along the directions those coefficients control: many different $(\beta_6, \beta_7, \beta_8)$ combinations produce nearly the same predictions, so the exact split OLS computes and the split 1000 epochs of gradient descent has reached can differ substantially, even in sign, without the R² score moving much. With more epochs or a finer learning rate sweep, the two solutions would align more closely.
+
+---
+
+## Convergence Behavior
+
+The chart below shows the training MSE and R² over the 1000 epochs, generated by running the exact `GDRegressor` loop above:
+
+<img src="/images/ch8-convergence-curves.png" alt="Two-panel chart showing MSE loss dropping sharply in the first 200 epochs then leveling off near 2866, and training R² rising steeply to 0.524 and plateauing, both over 1000 epochs of batch gradient descent on the diabetes dataset" className="w-full h-auto" />
+
+The convergence pattern is characteristic of batch gradient descent on a convex loss surface: the largest gains happen in the first 200 epochs as the parameters escape from their poor initialization (all coefficients at 1). After epoch 400 the curves flatten noticeably, and by epoch 800 improvement per epoch is marginal. The final training R² lands near 0.524, higher than the test R² of 0.454, which is normal: the training set is what the optimizer directly minimizes.
+
+An important note on the convergence rate here: the diabetes features are already normalized (zero mean, unit variance per feature), which is why a learning rate as high as 0.5 is stable. On raw unscaled data, that same learning rate would cause the coefficients for high-variance features to diverge.
+
+### Coefficient Comparison
+
+<img src="/images/ch8-coefficient-comparison.png" alt="Grouped bar chart comparing all 10 coefficients between sklearn OLS and the custom GDRegressor, showing sign agreement on seven of ten features, sign flips on beta1, beta6, and beta7, and the largest magnitude divergence on beta5 and beta9" className="w-full h-auto" />
+
+Seven of the ten coefficients agree in sign; $\beta_1$, $\beta_6$, and $\beta_7$ flip. $\beta_1$ is near zero in both models (OLS: $-9.2$, GD: $+14.4$), so the flip is noise around a coefficient that barely matters. $\beta_6$ and $\beta_7$ are more interesting: OLS puts them at $+561$ and $+154$, while GD lands at $-116$ and $-194$. Both are strongly correlated with $\beta_8$ ($r = 0.66$ and $r = -0.74$), which flattens the loss surface along their joint directions, so OLS's exact split between the three correlated coefficients and gradient descent's 1000-epoch approximation of that split can disagree substantially, even in sign. The magnitude divergence is largest for $\beta_5$ (OLS: $-895$, GD: $-39$) and $\beta_9$ (OLS: $+861$, GD: $+452$), features with the steepest loss curvature, meaning gradient descent has the most work to do along those axes. More epochs would close both gaps. The test R² gap is small (0.44 vs 0.45) because these large, partially-compensating coefficients affect individual predictions less than their raw magnitudes suggest.
+
+---
+
+## What Makes This "Batch" Gradient Descent
+
+The word "batch" in "Batch Gradient Descent" refers to the fact that **every single epoch processes all $n$ training rows before taking one parameter update step**.
+
+In the `fit` loop above, `y_hat = X_train @ self.coef_ + self.intercept_` computes predictions for all 353 training rows at once. The gradient `coef_der` is averaged over all 353 residuals. Only then do the parameters move. This is the defining characteristic of batch gradient descent: one gradient computation per epoch, using the full dataset.
+
+The alternative approaches, Stochastic Gradient Descent (SGD) and Mini-Batch Gradient Descent, change precisely this one aspect: how many rows are used per gradient estimate and update step. The mathematical form of the update rule, the chain rule derivation, and the parameter initialization are all identical. The entire difference is in the loop body:
+
+| Variant | Rows used per update | Updates per epoch |
+| :--- | :--- | :--- |
+| **Batch GD** (this post) | All $n$ rows | 1 |
+| Stochastic GD | 1 row | $n$ |
+| Mini-Batch GD | $b$ rows (batch size) | $n / b$ |
+
+For the diabetes dataset with $n = 353$ training rows, batch GD takes 1 update per epoch. Stochastic GD would take 353 updates per epoch, one per row. Mini-Batch GD with batch size 32 would take about 11 updates per epoch.
+
+The practical implication: batch GD is the safest choice when the dataset fits in memory and the loss surface is convex (guaranteed for linear regression's squared error). When the dataset is large or the loss is non-convex, SGD or mini-batch GD become preferable because they provide noisier but more frequent gradient signals.
+
+---
+
+## Summary & Key Takeaways
+
+1. **Extending to $k$ features**: Multiple linear regression requires $k + 1$ parameters ($k$ slopes plus one intercept). Gradient descent applies the same chain rule to each, producing $k + 1$ update equations per epoch.
+2. **Intercept update**: $\beta_0 \leftarrow \beta_0 - \eta \cdot \left(-2 \cdot \text{mean}(\mathbf{y} - \hat{\mathbf{y}})\right)$. The gradient is a single scalar: the negative mean residual.
+3. **Vectorized coefficient update**: $\boldsymbol{\beta} \leftarrow \boldsymbol{\beta} - \eta \cdot \left(-\frac{2}{n} X_{\text{train}}^T (\mathbf{y} - \hat{\mathbf{y}})\right)$. The matrix transpose $X_{\text{train}}^T$ turns the per-residual, per-column products into a single dot product that yields all $k$ gradients simultaneously.
+4. **Why transposing works**: $X_{\text{train}}^T \cdot \mathbf{r}$ produces a $k$-dimensional vector where entry $j$ is $\sum_i r_i x_{ij}$, exactly the sum needed for $\frac{\partial L}{\partial \beta_j}$. The transpose swaps rows and columns so each feature's values end up in a row, enabling a single matrix-vector multiply.
+5. **Initialization**: Intercept to 0, coefficients to ones. The shape of the coefficient array is inferred from `X_train.shape[1]` at fit time, making the class feature-count agnostic.
+6. **Simultaneous update**: Both gradients are computed from the same `y_hat` before either parameter is updated. Updating intercept first and recomputing `y_hat` mid-epoch would violate the standard gradient descent algorithm.
+7. **Batch GD result on diabetes**: With `learning_rate=0.5` and `epochs=1000`, the custom `GDRegressor` achieves test R² = 0.4535, modestly above OLS's 0.4399. Seven of ten coefficients agree in sign; the three that flip include a near-zero coefficient and two strongly collinear features whose individual OLS values are unstable. More epochs would close the remaining magnitude gap.
+8. **What "batch" means**: Every epoch consumes all $n$ training rows before taking one gradient step. This is the defining property that distinguishes batch GD from its faster, noisier variants.
+
+In the next post, we explore **Stochastic Gradient Descent** (updating parameters after every single training row) and **Mini-Batch Gradient Descent** (updating after each small batch of rows), examining how each variant trades gradient accuracy for computational efficiency on large datasets.
