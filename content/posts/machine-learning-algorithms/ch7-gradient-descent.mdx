@@ -74,7 +74,9 @@ $$L(m, b) = \sum_{i=1}^n \left(y_i - (m x_i + b)\right)^2$$
 
 Because $L(m, b)$ depends on two parameters, the loss function forms a 3D bowl-shaped surface (a paraboloid). To find the direction of steepest descent, we compute the **gradient vector** $\nabla L(m, b)$, which contains partial derivatives with respect to each parameter.
 
-<img src="/images/ch7-3d-loss-surface.png" alt="3D loss surface contour map L(m, b) showing batch gradient descent trajectory starting from (100, -120) and converging to global minimum (27.83, -2.29)" className="w-full h-auto" />
+<GdCostSurface3d />
+
+That surface is the real cost function $L(m, b)$ for this exact dataset, drag to rotate, scroll to zoom. The orange trail is the actual batch gradient descent path from the 60-epoch run below, stepping from the starting guess down the bowl to the global minimum.
 
 ### Deriving the Partial Derivative w.r.t Intercept $b$
 
