@@ -183,6 +183,27 @@ When an intermediate router (such as `40.0.0.1`) determines that the destination
 
 ---
 
+## Latency, Bandwidth, and Throughput: The Tollbooth Analogy
+
+When Ping reports `RTT: 18ms`, what actually makes up those 18 milliseconds? And is that the same thing as your "100 Mbps" internet plan? These terms get mixed up constantly, so let's separate them with an analogy: cars traveling through a tollbooth onto a highway.
+
+Imagine a tollbooth (a router's outgoing link) feeding cars (packets) onto a highway (the physical cable) leading to a distant city (the destination):
+
+* **Bandwidth**: The maximum rate at which the tollbooth can physically push cars onto the highway, a theoretical ceiling (e.g., "100 Mbps"). It describes capacity, not actual usage.
+* **Throughput**: The actual number of cars getting through per second, in practice. If the tollbooth is congested or the highway is under construction, throughput is always less than or equal to bandwidth.
+* **Latency**: The total time for a single car to leave the tollbooth and arrive at the destination city, the delay experienced by that one car. This is roughly what Ping's RTT measures (doubled, since it's a round trip).
+
+### Transmission Delay vs. Propagation Delay
+
+Latency itself is made up of a few components, but these two are the most important, and the most commonly confused:
+
+* **Transmission Delay**: The time for the tollbooth to push *all* the cars (bits) of one packet onto the highway. A bigger packet takes longer to fully enter the highway. Formula: `Packet Size / Bandwidth`. This depends on how much data you're pushing out.
+* **Propagation Delay**: Once a car is on the highway, how long it takes to physically drive from one end to the other at a roughly fixed speed (close to the speed of light in the cable). Formula: `Distance / Propagation Speed`. This depends purely on physical distance, not how much data you're sending.
+
+A tiny ICMP Echo Request has a negligible transmission delay, but if you're pinging a server on the other side of the world, propagation delay (physical distance) dominates the RTT you see. (Two more delays exist: queuing delay, waiting in line at the tollbooth before your turn, and processing delay, the time a router takes to inspect and decide where to forward a packet, but transmission and propagation are the two intuitive ones to start with.)
+
+---
+
 ## Understanding TTL (Time-To-Live) Mechanics
 
 Without safeguards, a misconfigured router routing table could cause an IP packet to loop endlessly between routers, consuming network bandwidth indefinitely.
@@ -284,6 +305,8 @@ Because TTL was limited to 1, the packet reached your home router (`192.168.1.1`
 ## Traceroute: How It Works Under the Hood
 
 **Traceroute** (invoked as `traceroute` on macOS/Linux or `tracert` on Windows) is a diagnostic tool that maps the entire route (every router hop) taken by packets to reach a destination host.
+
+> **Try it yourself:** Run `traceroute google.com` in your terminal (macOS/Linux), or `tracert google.com` on Windows. You will see live output listing every router hop along the path, with three RTT measurements per hop, exactly like the example output we examine below.
 
 ### The Clever Mechanics of Traceroute
 

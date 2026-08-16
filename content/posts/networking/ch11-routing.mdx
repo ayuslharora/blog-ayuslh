@@ -145,6 +145,38 @@ To solve this, the Router performs **NAT (Network Address Translation)**:
 * It replaces the Private Source IP (`10.0.0.4`) with its own **Public IP** (`2.3.4.5`).
 * It assigns a random port (e.g., `54362`) and maps it to C's original source port (e.g., `3000`) in its internal NAT table.
 
+### Network Edge vs. Network Core
+
+Before the packet hops through "Router P" and "Router Q," it helps to know what those routers actually represent in the real world. The internet is conceptually split into two regions:
+
+* **Network Edge**: Where end systems live, your laptop, phone, and the servers you talk to (like the AWS EC2 instance). These are the "hosts" that generate and consume data, sitting at the outer boundary of the network.
+* **Network Core**: The mesh of interconnected routers that moves packets between edge devices. It is the "plumbing" of the internet, you never connect to it directly; you connect through it.
+
+### The Access Network: Your First Hop to the Internet
+
+The **access network** is the link that physically connects an end system at the network edge (Laptop C) to the first router in the network core (the edge router, in our case the Home Router). In the real world, this link is provided by an ISP and takes different forms:
+* **Home**: DSL, Cable, or Fiber (FTTH).
+* **Mobile**: Cellular data (4G/5G).
+* **Enterprise**: Ethernet or Wi-Fi within an office building.
+
+### How ISPs Talk to Each Other: IXPs
+
+Your home router hands the packet to "Router P" (your ISP), but no single ISP owns the entire internet. Eventually, your ISP needs to hand the packet off to a different ISP closer to the destination. This handoff typically happens at an **Internet Exchange Point (IXP)**: a physical facility where many ISPs plug their routers into a shared switch so they can exchange traffic directly, instead of paying a third party to carry it for them.
+
+Think of an IXP as a meeting point: ISP A's router and ISP B's router sit in the same building/rack, so a packet can hop directly from A to B instead of taking a long detour through some other network. Large cities host massive IXPs (like DE-CIX in Frankfurt or NIXI in Mumbai) that connect hundreds of networks simultaneously.
+
+### BGP: How Routers Decide Which ISP to Use
+
+Once traffic needs to cross from one ISP's network into another's, the ISPs need to agree on the best path between them. This is handled by **BGP (Border Gateway Protocol)**, the protocol ISPs use to advertise: *"I can reach these IP ranges, route traffic for them through me."* When Router P finishes processing your packet, it consults BGP-learned routes to decide which neighboring network offers the best path toward `3.4.5.6`, then forwards the packet accordingly. Every hop you'll see below (Router P to Router Q) is, in effect, one BGP-advertised path being followed.
+
+### Circuit Switching vs. Packet Switching
+
+One more foundational idea before we continue: how does the network actually move data? There are two classic approaches.
+* **Circuit Switching**: The network reserves a dedicated, exclusive path between source and destination for the entire session before any data is sent, like a traditional phone call. Once connected, that channel is reserved whether you're talking or sitting in silence. Resources are guaranteed but wasted when idle.
+* **Packet Switching**: What the internet actually uses. There is no dedicated path; data is broken into packets, and each one is sent independently, sharing links with everyone else's traffic. Routers decide the next hop for each packet individually, which is why the response to our packet could take a completely different path back.
+
+Packet switching is more efficient because links are only used when there is actual data to carry, no bandwidth is wasted holding a line open during silence. This is exactly why the internet can support billions of devices sharing the same infrastructure.
+
 ### The Journey Across the Internet
 
 Now, the packet begins its journey across multiple ISP routers (Router P and Router Q). At every single hop, the **Source and Destination MAC addresses change**, but the **Destination IP remains constant**. 
