@@ -25,6 +25,7 @@ import Http2FrameHeaderTable from '../../../components/Http2FrameHeaderTable';
 import MtuMssDiagram from '../../../components/MtuMssDiagram';
 import MnistPca3d from '../../../components/MnistPca3d';
 import LinRegCostSurface from '../../../components/LinRegCostSurface';
+import GradientDescentAnimation from '../../../components/GradientDescentAnimation';
 import MultiRegScatter3d from '../../../components/MultiRegScatter3d';
 import MultiRegPlane3d from '../../../components/MultiRegPlane3d';
 import TableOfContents from '../../../components/TableOfContents';
@@ -149,6 +150,7 @@ export default async function PostPage({
             MtuMssDiagram,
             MnistPca3d,
             LinRegCostSurface,
+            GradientDescentAnimation,
             MultiRegScatter3d,
             MultiRegPlane3d,
             Mermaid,
