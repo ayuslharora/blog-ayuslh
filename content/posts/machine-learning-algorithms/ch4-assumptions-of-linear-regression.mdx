@@ -193,7 +193,11 @@ In the model plot, the residuals form a uniform, rectangular band of random scat
 The residuals must be independent of one another. Autocorrelation occurs when the error term of one observation is correlated with the error term of adjacent observations (for example, $e_t$ being correlated with $e_{t-1}$).
 
 ### Why it matters
-Autocorrelation is particularly common in time-series data or sequentially ordered samples. When positive autocorrelation is present, adjacent errors tend to have the same sign. OLS underestimates the true standard errors of the coefficients, making confidence intervals artificially narrow and leading to overly optimistic metric conclusions.
+This shows up a lot in time-based or sequentially-ordered data. If the model underpredicts today, it's probably going to underpredict tomorrow too, because whatever it's missing (a trend, a seasonal effect, some momentum in the data) doesn't just vanish between rows. That's autocorrelation: the error at one point is correlated with the error right next to it.
+
+The problem is that OLS's math for standard errors assumes every error is independent, like each one is a fresh coin flip. When errors are actually correlated (say positively, clustering in the same direction for stretches), the model effectively has less independent information than it thinks, but it doesn't know that. So it reports standard errors that are smaller than they really should be.
+
+Smaller standard errors make confidence intervals narrower and p-values look more significant than they actually are. In practice, you end up more confident about your coefficients than you have any right to be; you might conclude a feature is meaningfully predictive when really you're just looking at a pattern the model failed to capture.
 
 ### How to check it
 Plot the residuals in sequential observation order (row index order).
