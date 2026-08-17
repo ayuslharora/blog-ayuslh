@@ -1,0 +1,311 @@
+---
+title: "Ch.11: Polynomial Regression"
+description: "Why plain linear regression fails on curved datasets, how feature transformation turns non-linear problems into linear ones with PolynomialFeatures, navigating the degree trade-off, and extending to multiple features."
+date: "2026-08-18T02:08:24+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "polynomial-regression", "linear-regression", "scikit-learn", "overfitting", "underfitting"]
+subtopic: "Linear Regression"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=BNWLf3cKdbQ)
+
+Throughout the previous posts in this series, every regression model we built shared one foundational assumption: the target variable $y$ holds a strictly linear relationship with the input features $X$. In simple linear regression (Ch.1), we fitted a straight line $y = \beta_0 + \beta_1 x$. In multiple linear regression (Ch.5), we fitted a flat hyperplane $y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \dots + \beta_n x_n$.
+
+Real-world data rarely stays straight. Salary growth vs experience eventually plateaus, crop yield vs fertilizer usage peaks before declining due to soil toxicity, and epidemic spread initially accelerates quadratically before saturating. 
+
+When you fit a straight line to naturally curved data, the model fails to capture the true underlying pattern. But does non-linear data require throwing away linear regression entirely and switching to complex non-parametric algorithms? 
+
+The answer is no. By applying a feature transformation trick, we can use standard linear regression to fit smooth polynomial curves. This approach is called **Polynomial Regression**.
+
+---
+
+## Why Polynomial Regression is STILL Linear Regression
+
+A common point of confusion for engineers learning polynomial regression is the name itself. If the model outputs a quadratic curve like $y = \beta_0 + \beta_1 x + \beta_2 x^2$, why is it still called *Linear* Regression?
+
+The distinction lies in what "linear" means in machine learning:
+
+> A regression model is defined as **linear** if it is linear in its **parameters** (the coefficients $\beta_i$), regardless of whether it is non-linear in its input features $X$.
+
+Consider a polynomial equation with a single input feature $x$:
+
+$$y = \beta_0 + \beta_1 x + \beta_2 x^2 + \beta_3 x^3 + \dots + \beta_d x^d + \epsilon$$
+
+While the terms $x, x^2, x^3, \dots, x^d$ are non-linear transformations of $x$, notice how the parameters $\beta_0, \beta_1, \dots, \beta_d$ enter the equation. None of the coefficients are squared ($\beta_1^2$), exponentiated ($e^{\beta_1}$), multiplied together ($\beta_1 \beta_2$), or passed into a trigonometric function ($\sin(\beta_1)$). Every coefficient enters as a simple scalar multiplier in a linear combination.
+
+If we define a set of derived features:
+
+$$z_1 = x, \quad z_2 = x^2, \quad z_3 = x^3, \quad \dots, \quad z_d = x^d$$
+
+We can rewrite the polynomial equation as:
+
+$$y = \beta_0 + \beta_1 z_1 + \beta_2 z_2 + \beta_3 z_3 + \dots + \beta_d z_d + \epsilon$$
+
+This equation is mathematically identical to Multiple Linear Regression on the transformed feature vector $\mathbf{z} = [z_1, z_2, \dots, z_d]^T$. 
+
+Because the algorithm treats $z_1, z_2, \dots, z_d$ as independent input columns, every OLS closed-form solver $(\mathbf{Z}^T \mathbf{Z})^{-1} \mathbf{Z}^T \mathbf{y}$ and every gradient descent variant (Batch GD, SGD, Mini-Batch GD) works without altering a single line of code.
+
+---
+
+## Step 1: The Non-Linear Data Problem
+
+To see where plain linear regression fails, let us generate a synthetic quadratic dataset using the same parameters as the [source notebook](https://github.com/campusx-official/100-days-of-machine-learning/blob/main/day53-polynomial-regression/polynomial-regression.ipynb):
+
+$$y = 0.8 x^2 + 0.9 x + 2 + \text{noise}$$
+
+Where $X$ is uniformly sampled between $-3$ and $3$, and Gaussian noise $\epsilon \sim \mathcal{N}(0, 1)$ is added to simulate real-world scatter.
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+
+# 1. Generate non-linear quadratic data
+np.random.seed(2)
+X = 6 * np.random.rand(200, 1) - 3
+y = 0.8 * X**2 + 0.9 * X + 2 + np.random.randn(200, 1)
+
+# 2. Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=2)
+
+# 3. Fit plain Linear Regression
+lr = LinearRegression()
+lr.fit(X_train, y_train)
+
+# 4. Evaluate R2 score on test set
+y_pred = lr.predict(X_test)
+print("Test R2 Score:", r2_score(y_test, y_pred))
+# Output: ~0.53
+```
+
+When we fit a standard linear regression model directly to $X$, the model tries to force a straight line through a parabolic distribution:
+
+<img src="/images/ch11-linear-fit-failure.png" alt="Plain Linear Regression fit failure on non-linear data" className="w-full h-auto" />
+
+The straight line gets an $R^2$ score of only $0.53$. It completely cuts through the middle of the parabola, systematically overestimating $y$ in the center range ($X \approx 0$) and underestimating $y$ at the extremes ($X < -2$ or $X > 2$).
+
+---
+
+## Step 2: Feature Transformation with `PolynomialFeatures`
+
+To allow our linear model to fit a curve, we must expand the input feature matrix from 1 dimension ($[x]$) to 2 dimensions ($[x, x^2]$).
+
+`scikit-learn` provides the `PolynomialFeatures` class inside `sklearn.preprocessing` specifically for this task:
+
+```python
+from sklearn.preprocessing import PolynomialFeatures
+
+# Create PolynomialFeatures transformer for degree 2
+poly = PolynomialFeatures(degree=2, include_bias=True)
+
+# Transform training and testing feature arrays
+X_train_trans = poly.fit_transform(X_train)
+X_test_trans = poly.transform(X_test)
+
+print("Original shape:", X_train.shape)
+print("Transformed shape:", X_train_trans.shape)
+# Output:
+# Original shape: (160, 1)
+# Transformed shape: (160, 3)
+```
+
+Let us look at a single raw input sample and its transformed representation:
+
+```python
+print("Raw input X_train[0]:", X_train[0])
+print("Transformed X_train_trans[0]:", X_train_trans[0])
+# Output (example value x = 0.441):
+# Raw input X_train[0]: [0.441142]
+# Transformed X_train_trans[0]: [1.0, 0.441142, 0.194606]
+```
+
+### The `include_bias` Parameter
+
+Notice that `PolynomialFeatures(degree=2, include_bias=True)` outputs 3 columns for a single input $x$:
+
+1. Column 0: $x^0 = 1.0$ (the bias / intercept term)
+2. Column 1: $x^1 = x$ (the original feature)
+3. Column 2: $x^2 = x^2$ (the squared feature)
+
+If `include_bias=True`, `PolynomialFeatures` automatically prepends a column of ones. If you pass this transformed matrix to `LinearRegression(fit_intercept=True)`, `LinearRegression` will fit an intercept coefficient for the column of ones in addition to its own internal intercept.
+
+In practice, if `include_bias=False`, the transformer outputs $[x, x^2]$, and `LinearRegression` fits its intercept parameter $\beta_0$ automatically. Both approaches yield identical fitted curves.
+
+---
+
+## Step 3: Fitting Linear Regression on Transformed Features
+
+Now that `X_train_trans` contains $[1, x, x^2]$, we pass it into standard `LinearRegression`:
+
+```python
+# Fit LinearRegression on transformed polynomial features
+lr_poly = LinearRegression()
+lr_poly.fit(X_train_trans, y_train)
+
+# Evaluate on transformed test features
+y_pred_poly = lr_poly.predict(X_test_trans)
+print("Polynomial Regressor R2 Score:", r2_score(y_test, y_pred_poly))
+# Output: ~0.82
+```
+
+The $R^2$ score jumps from $0.53$ up to $0.82$. Plotting the predictions reveals how well the fitted model captures the parabolic shape:
+
+```python
+# Plot fitted polynomial curve
+X_new = np.linspace(-3, 3, 200).reshape(200, 1)
+X_new_poly = poly.transform(X_new)
+y_new = lr_poly.predict(X_new_poly)
+
+plt.plot(X_new, y_new, "r-", linewidth=2.5, label="Predictions")
+plt.plot(X_train, y_train, "b.", label="Training points")
+plt.plot(X_test, y_test, "g.", label="Testing points")
+plt.xlabel("X")
+plt.ylabel("y")
+plt.legend()
+plt.show()
+```
+
+<img src="/images/ch11-polynomial-fit-degree2.png" alt="Degree 2 Polynomial Regression fit on quadratic data" className="w-full h-auto" />
+
+### Inspecting Model Coefficients vs Ground Truth
+
+Since we generated the synthetic data using $y = 0.8 x^2 + 0.9 x + 2 + \text{noise}$, let us inspect the coefficients learned by `lr_poly`:
+
+```python
+print("Coefficients (lr_poly.coef_):", lr_poly.coef_)
+print("Intercept (lr_poly.intercept_):", lr_poly.intercept_)
+# Output:
+# Coefficients: [[0.         0.89201556 0.78543881]]
+# Intercept: [1.94823058]
+```
+
+Matching each coefficient to its feature:
+- Intercept ($\hat{\beta}_0$): $1.95$ (True value: $2.00$)
+- Linear term ($\hat{\beta}_1$ for $x$): $0.89$ (True value: $0.90$)
+- Quadratic term ($\hat{\beta}_2$ for $x^2$): $0.79$ (True value: $0.80$)
+
+The learned model equation is $\hat{y} = 1.95 + 0.89 x + 0.79 x^2$. The slight discrepancy between estimated parameters and ground truth comes entirely from the random noise added during data creation.
+
+---
+
+## Gradient Descent with Polynomial Features
+
+Because polynomial regression is simply linear regression on transformed columns, we can also use iterative optimizers like `SGDRegressor` or Mini-Batch GD (from Ch.10):
+
+```python
+from sklearn.linear_model import SGDRegressor
+
+# Apply Stochastic Gradient Descent on transformed features
+sgd = SGDRegressor(max_iter=1000, tol=1e-3, random_state=42)
+sgd.fit(X_train_trans, y_train.ravel())
+
+y_pred_sgd = sgd.predict(X_test_trans)
+print("SGD Polynomial R2 Score:", r2_score(y_test, y_pred_sgd))
+```
+
+> **Important Note on Scaling:** When using high-degree polynomial features with gradient descent, feature scaling is mandatory. Because $x^d$ grows rapidly ($3^{10} = 59,049$), unscaled higher-order features create ill-conditioned loss surfaces, causing gradient descent to oscillate wildly or diverge unless features are passed through `StandardScaler`.
+
+---
+
+## The Degree Trade-off: Underfitting vs. Overfitting
+
+The `degree` hyperparameter controls the maximum exponent used in the transformation. Choosing the right degree is critical:
+
+- **Degree 1 (Underfitting / High Bias):** The model is constrained to a straight line $y = \beta_0 + \beta_1 x$. It lacks the capacity to capture curvature, leading to high error on both training and test data.
+- **Degree 2 (Optimal Fit / Balanced):** Matches the true quadratic nature of the data. It captures curvature while ignoring random noise fluctuations.
+- **Degree 25+ (Overfitting / High Variance):** A degree 25 polynomial has 25 flexible parameters. Instead of learning the smooth parabolic trend, the curve oscillates violently to pass directly through individual noise points in the training set.
+
+<img src="/images/ch11-underfitting-vs-overfitting.png" alt="Comparison of Polynomial Regression degrees showing underfitting, optimal fit, and overfitting" className="w-full h-auto" />
+
+### Why High-Degree Polynomials Overfit
+
+When degree $d$ is set to 25, the model attempts to minimize training MSE by bending its curve sharply between adjacent training samples. 
+
+While the training $R^2$ score approaches $1.00$, the test $R^2$ score collapses into negative territory (e.g., $-15.42$). The model completely loses its ability to generalize to new, unseen data points.
+
+In scikit-learn, building high-degree polynomial pipelines is best handled using `Pipeline`:
+
+```python
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+def fit_polynomial_pipeline(degree):
+    model = Pipeline([
+        ('poly_features', PolynomialFeatures(degree=degree, include_bias=False)),
+        ('std_scaler', StandardScaler()),
+        ('lin_reg', LinearRegression())
+    ])
+    model.fit(X_train, y_train)
+    return model
+```
+
+---
+
+## Multiple Feature Polynomial Regression (Higher Dimensions)
+
+What happens when our dataset contains more than one input feature? 
+
+Suppose we have two input features $x_1$ and $x_2$. Applying `PolynomialFeatures(degree=2)` generates 6 features:
+
+$$[1, \quad x_1, \quad x_2, \quad x_1^2, \quad x_1 x_2, \quad x_2^2]$$
+
+Notice the middle term $x_1 x_2$. This is an **interaction term**. Polynomial regression automatically creates interaction terms between features, allowing the model to capture dependencies where the effect of $x_1$ on $y$ depends on the current value of $x_2$.
+
+### Why $x_1^2 x_2^2$ is NOT Included in Degree 2
+
+A common question is: why does `PolynomialFeatures(degree=2)` include $x_1 x_2$, but not $x_1^2 x_2^2$?
+
+In algebra, the **degree of a monomial** $x_1^a x_2^b$ is defined as the sum of its exponents:
+
+$$\text{Degree}(x_1^a x_2^b) = a + b$$
+
+For `degree=2`, the constraint is $a + b \le 2$:
+- Term $x_1^1 x_2^0$: degree $1 + 0 = 1 \le 2$
+- Term $x_1^1 x_2^1$: degree $1 + 1 = 2 \le 2$
+- Term $x_1^2 x_2^2$: degree $2 + 2 = 4 > 2$ (excluded)
+
+### The Combinatorial Explosion of Features
+
+For $n$ input features and degree $d$, the total number of output features generated by `PolynomialFeatures` (including bias) is given by the combination formula:
+
+$$\text{Number of Features} = \binom{n + d}{d} = \frac{(n + d)!}{n! \, d!}$$
+
+As either $n$ or $d$ grows, the feature count explodes exponentially:
+
+| Input Features ($n$) | Degree ($d$) | Output Features ($\binom{n+d}{d}$) |
+| :--- | :--- | :--- |
+| 1 | 2 | 3 |
+| 2 | 2 | 6 |
+| 5 | 3 | 56 |
+| 10 | 4 | 1,001 |
+| 20 | 5 | 53,130 |
+
+With 20 features and degree 5, a dataset with only 1,000 rows explodes into 53,130 features, instantly triggering severe overfitting and massive memory consumption.
+
+### Visualizing 3D Polynomial Regression
+
+When we fit polynomial regression on 2 features $(x_1, x_2)$ predicting target $z$, plain multiple linear regression fits a flat 2D plane:
+
+$$z = \beta_0 + \beta_1 x_1 + \beta_2 x_2$$
+
+Polynomial regression of degree 2 fits a curved 3D surface (a paraboloid):
+
+$$z = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_3 x_1^2 + \beta_4 x_1 x_2 + \beta_5 x_2^2$$
+
+<img src="/images/ch11-3d-linear-vs-polynomial.png" alt="3D surface comparison between Linear Regression and Degree 2 Polynomial Regression" className="w-full h-auto" />
+
+As seen in the 3D plot above, while the flat plane cuts arbitrarily through the bowl-shaped data distribution, the degree 2 polynomial surface curves upward smoothly, capturing the true 3D curvature of the dataset.
+
+---
+
+## Summary & Key Takeaways
+
+1. **Linear in Parameters:** Polynomial regression fits curved lines using standard linear regression because the model equation remains linear with respect to its coefficients $\beta_i$.
+2. **Feature Transformation:** `PolynomialFeatures(degree=d)` transforms input vector $[x_1, x_2]$ into higher-order powers and cross-product interaction terms.
+3. **Hyperparameter Selection:** Degree 1 underfits (high bias); excessively high degrees overfit (high variance).
+4. **Combinatorial Explosion:** The feature count grows as $\binom{n+d}{d}$. For high-dimensional datasets ($n > 10$), high polynomial degrees quickly become computationally unfeasible and prone to extreme overfitting.
+5. **Preprocessing:** Always scale features with `StandardScaler` when applying gradient descent or regularization to polynomial features.
+
+In the next post, we will explore regularization techniques (Ridge, Lasso, and ElasticNet) to prevent high-degree polynomial models from overfitting.
