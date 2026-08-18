@@ -102,15 +102,13 @@ If there are `n` input columns, there are `n + 1` coefficients to solve for, one
 
 ## What the Coefficients Mean
 
-"Holding the others fixed" is easier to feel with an example closer to home than exam scores and job offers. Say you're predicting your daily spending from two inputs: your average monthly expense (a stand-in for how big your budget generally runs) and whether today is a weekend. Suppose the fitted model hands back a big positive coefficient on the weekend flag, that's the model saying: for two days pulled from the same monthly budget, the one that lands on a weekend costs more, probably because that's when you eat out, order in, or go watch a movie. The monthly-expense coefficient is answering a different question: among days with the same weekend/weekday status, does the person with the bigger overall budget spend more per day too? Each coefficient is isolating what its own input adds, while treating the other input as if it stayed put.
+Each `beta_i` plays the same role `m` played in simple linear regression: it's how much that specific input matters to the prediction, holding the others fixed.
 
-That's exactly what `beta_1` and `beta_2` are doing above, just with `cgpa` and `iq` in place of monthly expense and the weekend flag:
-
-- `beta_1 = 85.56` for `cgpa`: for two people with the same `iq`, every extra point of `cgpa` is worth about 85.56 units of `package`. A large coefficient means `package` is highly sensitive to `cgpa`, small changes in `cgpa` swing the prediction a lot.
-- `beta_2 = 30.86` for `iq`: for two people with the same `cgpa`, every extra point of `iq` is worth about 30.86 units of `package`, smaller than `beta_1`, meaning `iq` still matters but less than `cgpa` does in this particular fitted model.
+- `beta_1 = 85.56` for `cgpa`: a large coefficient means `package` is highly sensitive to `cgpa`, small changes in `cgpa` swing the prediction a lot.
+- `beta_2 = 30.86` for `iq`: smaller than `beta_1`, meaning `iq` still matters but less than `cgpa` does in this particular fitted model.
 - `beta_0 = -1.40`, the intercept, plays exactly the same correcting role it did before: it's what keeps the plane anchored correctly, not a meaningful real-world prediction at `cgpa = iq = 0`.
 
-If `beta_2` had come out close to zero, that would say `iq` barely moves the prediction at all once `cgpa` is already accounted for, `package` would be mostly explained by `cgpa` alone. That's the same read as a near-zero slope in the 2D case, just applied per input column instead of to the one input column there used to be.
+If `beta_2` had come out close to zero, that would say `iq` barely moves the prediction at all, `package` would be mostly explained by `cgpa` alone. That's the same read as a near-zero slope in the 2D case, just applied per input column instead of to the one input column there used to be.
 
 ## What's Next
 
