@@ -165,7 +165,7 @@ In the KDE plot, the residuals form a symmetrical, bell-shaped distribution cent
 ### Why it matters
 Homoscedasticity is really about whether the model is equally trustworthy everywhere, or great in some spots and shaky in others.
 
-Picture predicting house prices. For houses under $200k, the model might be consistently off by about $2,000. For houses over $2 million, it might sometimes be off by $2,000 and sometimes by $200,000, wildly inconsistent. That's heteroscedasticity: the size of the error depends on where you are in the data, instead of staying roughly constant everywhere.
+Picture predicting house prices. For houses under \$200k, the model might be consistently off by about \$2,000. For houses over \$2 million, it might sometimes be off by \$2,000 and sometimes by \$200,000, wildly inconsistent. That's heteroscedasticity: the size of the error depends on where you are in the data, instead of staying roughly constant everywhere.
 
 The formulas OLS uses to say "here's how confident you should be in this coefficient" (standard errors, confidence intervals, p-values) all assume the errors are roughly the same size everywhere. It's like calculating a margin of error assuming every measurement came from the same precise scale, when actually some came from a shaky bathroom scale. Because OLS can't tell its confidence should differ region by region, it ends up reporting confidence intervals and p-values that look tighter and more significant than the data actually supports. So the predictions themselves aren't necessarily wrong, but the "how sure are we" numbers that come with them can't be trusted.
 
