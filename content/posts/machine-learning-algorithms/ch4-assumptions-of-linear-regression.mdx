@@ -196,7 +196,7 @@ In the model plot, the residuals form a uniform, rectangular band of random scat
 ## 5. No Autocorrelation of Residuals
 
 ### What it means
-The residuals must be independent of one another. Autocorrelation occurs when the error term of one observation is correlated with the error term of adjacent observations (for example, $e_t$ being correlated with $e_{t-1}$).
+Knowing the error on one observation should tell you nothing about the error on another. Autocorrelation is a violation of that: it means residuals are correlated with each other in some systematic order, most commonly with their neighbors in time, so the error term at one point, $e_t$, is correlated with the error term just before it, $e_{t-1}$. If you plotted residuals in sequence and saw runs of consecutive positive values followed by runs of consecutive negative values (rather than a random up-down scatter), that's autocorrelation showing up visually.
 
 ### Why it matters
 This shows up a lot in time-based or sequentially-ordered data. If the model underpredicts today, it's probably going to underpredict tomorrow too, because whatever it's missing (a trend, a seasonal effect, some momentum in the data) doesn't just vanish between rows. That's autocorrelation: the error at one point is correlated with the error right next to it.
