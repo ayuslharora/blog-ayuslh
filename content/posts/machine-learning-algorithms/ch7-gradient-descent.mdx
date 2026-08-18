@@ -235,9 +235,11 @@ An **epoch** represents one full iteration over the training dataset.
 
 ## Why Feature Scaling Speeds Up Convergence
 
-For MSE-style loss, the curvature of $L$ along a weight's axis scales with that feature's variance, since the Hessian is $2 X^T X$, and the diagonal entry for feature $j$ is approximately $2n \cdot \sigma_j^2$. If one feature's standard deviation is $5\times$ another's, its axis carries roughly $25\times$ more curvature.
+Picture the loss surface as a valley, and gradient descent as walking downhill toward its lowest point. If every feature is on a similar scale, that valley is a nice round bowl, and a single step size works equally well no matter which direction you're walking. But if one feature ranges from 0 to 1 and another ranges from 0 to 100,000, the bowl gets stretched into a long, narrow canyon: steep, cliff-like walls along the large-scale feature's axis, and an almost flat, gentle slope along the small-scale one.
 
-That mismatch matters because gradient descent uses a single global learning rate $\eta$ shared across every parameter. $\eta$ has to stay small enough to remain stable on the steepest (highest-curvature) direction, which leaves it far too small to make timely progress on the shallow direction. The loss contours stretch into thin ellipses, and the update path zig-zags across the narrow axis while crawling along the wide one.
+Gradient descent only has one step size (the learning rate $\eta$), and it has to use that same step size in every direction at once. To avoid overshooting and bouncing off the steep canyon walls, $\eta$ has to be kept small, but that same small $\eta$ makes it crawl along the gentle slope. So instead of walking straight down to the bottom, it zig-zags back and forth across the narrow direction while barely creeping forward along the wide one, taking far more steps than it should to actually get anywhere.
+
+Formally: for MSE-style loss, the curvature of $L$ along a weight's axis scales with that feature's variance, since the Hessian is $2 X^T X$, and the diagonal entry for feature $j$ is approximately $2n \cdot \sigma_j^2$. If one feature's standard deviation is $5\times$ another's, its axis carries roughly $25\times$ more curvature, which is exactly the steep-canyon-vs-gentle-slope mismatch described above, just measured precisely instead of by eye.
 
 <img src="/images/ch7-feature-scaling.png" alt="Two contour plots comparing gradient descent paths: unscaled features with 5:1 standard deviation ratio produce a zig-zag path barely progressing after 40 steps, standardized features with equal variance produce a direct path reaching the minimum in the same 40 steps" className="w-full h-auto" />
 
