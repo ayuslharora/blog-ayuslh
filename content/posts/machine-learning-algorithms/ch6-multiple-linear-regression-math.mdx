@@ -60,6 +60,8 @@ e = y - ŷ = y - X · β
 
 The sum of squared errors $E(\beta)$ is equal to the inner product of the error vector with itself, $e^T e$:
 
+> **Why $e^Te$ gives the sum of squares:** The dot product of any vector with itself multiplies each element by itself and adds up the results: $e^T e = e_1 \cdot e_1 + e_2 \cdot e_2 + \dots + e_n \cdot e_n = e_1^2 + e_2^2 + \dots + e_n^2 = \sum_{i=1}^n e_i^2$. That's exactly the definition of sum of squared errors, just written as a single matrix product instead of a summation, which is what makes it possible to differentiate the whole cost function at once instead of term by term.
+
 ```
 E(β) = eᵀ · e = (y - X·β)ᵀ · (y - X·β)
 ```
