@@ -74,29 +74,21 @@ That orange surface is the model. Same principle as the red line in Ch.1, it doe
 
 ## The Equation, Extended
 
-The simple linear regression equation was `y = mx + b`. With two inputs, `x1` and `x2`, it becomes:
+The simple linear regression equation was `y = mx + b`. With two inputs, $x_1$ and $x_2$, it becomes:
 
-```
-ŷ = beta_0 + beta_1·x1 + beta_2·x2
-```
+$$\hat{y} = \beta_0 + \beta_1 x_1 + \beta_2 x_2$$
 
-Written in the more standard notation, with `cgpa` as `x1` and `iq` as `x2`:
+Written in the more standard notation, with `cgpa` as $x_1$ and `iq` as $x_2$:
 
 ```python
 b0, (b1, b2) = lr.intercept_, lr.coef_
 ```
 
-```
-beta_0 = -1.3994
-beta_1 = 85.5640
-beta_2 = 30.8590
-```
+$$\beta_0 = -1.3994 \qquad \beta_1 = 85.5640 \qquad \beta_2 = 30.8590$$
 
-For any number of input columns `n`, the pattern just keeps extending:
+For any number of input columns $n$, the pattern just keeps extending:
 
-```
-ŷ = beta_0 + beta_1·x1 + beta_2·x2 + ... + beta_n·xn
-```
+$$\hat{y} = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \dots + \beta_n x_n$$
 
 If there are `n` input columns, there are `n + 1` coefficients to solve for, one weight per input, plus the intercept. Simple linear regression is just this same equation with `n = 1`.
 
