@@ -162,6 +162,8 @@ In the KDE plot, the residuals form a symmetrical, bell-shaped distribution cent
 ### What it means
 "Homo" means same, and "scedasticity" means spread. Homoscedasticity requires that the variance of the residuals remains constant across all values of the predicted output $\hat{y}$.
 
+> **Not the same check as normality:** Point 3 asks whether the residuals, pooled together, are *shaped* like a bell curve. Point 4 asks whether the *size* of that spread stays constant across the range of $\hat{y}$. A model can pass one and fail the other, residuals can be normally distributed near every value of $\hat{y}$ while still growing wider as $\hat{y}$ increases (heteroscedastic), or stay a constant width everywhere while being skewed rather than bell-shaped (non-normal). They're independent checks, not restatements of each other.
+
 ### Why it matters
 Homoscedasticity is really about whether the model is equally trustworthy everywhere, or great in some spots and shaky in others.
 
