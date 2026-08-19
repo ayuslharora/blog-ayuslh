@@ -4,7 +4,7 @@ description: "Extending gradient descent from one feature to many: deriving the 
 date: "2026-08-16T19:04:28+05:30"
 tags: ["machine-learning", "machine-learning-algorithms", "gradient-descent", "linear-regression", "optimization", "sklearn"]
 subtopic: "Linear Regression"
-draft: true
+draft: false
 ---
 
 *Inspired by:* [YouTube](https://www.youtube.com/watch?v=Jyo53pAyVAM)
@@ -37,55 +37,53 @@ $$L(\beta_0, \boldsymbol{\beta}) = \frac{1}{n} \sum_{i=1}^n \left(y_i - \hat{y}_
 
 where $\boldsymbol{\beta} = [\beta_1, \beta_2, \ldots, \beta_k]^T$ is the coefficient vector. Whether you use MSE or SSE (sum, not mean) does not change which $\boldsymbol{\beta}$ minimizes the loss, only the scale of the gradient. We use MSE here to keep gradient magnitudes independent of dataset size.
 
-### Partial Derivative with Respect to the Intercept $\beta_0$
+### Folding the Intercept In: One Vector of $k + 1$ Parameters
 
-Apply the chain rule to the MSE sum:
+It's tempting to treat $\beta_0$ as a special case since it isn't multiplied by any feature. But recall the augmented-matrix trick from [Ch.6](/machine-learning-algorithms/ch6-multiple-linear-regression-math#matrix-form-of-the-equation): prepend a column of 1s to $X_{\text{train}}$, so every row picks up an extra entry $x_{i0} = 1$. The prediction equation becomes:
 
-$$\frac{\partial L}{\partial \beta_0} = \frac{1}{n} \sum_{i=1}^n 2(y_i - \hat{y}_i) \cdot \frac{\partial}{\partial \beta_0}(y_i - \hat{y}_i)$$
+$$\hat{y}_i = \sum_{j=0}^k \beta_j x_{ij}, \qquad x_{i0} = 1 \text{ for every row } i$$
 
-Since $\hat{y}_i = \beta_0 + \boldsymbol{\beta}^T \mathbf{x}_i$, the derivative of $(y_i - \hat{y}_i)$ with respect to $\beta_0$ is $-1$:
+With that column in place, $\beta_0$ is no longer conceptually different from $\beta_1, \dots, \beta_k$, it's just the coefficient tied to a column that happens to always equal 1. There's one parameter vector $\boldsymbol{\beta} = [\beta_0, \beta_1, \ldots, \beta_k]^T$ of length $k + 1$, and one derivation covers all of it at once.
 
-$$\frac{\partial L}{\partial \beta_0} = -\frac{2}{n} \sum_{i=1}^n (y_i - \hat{y}_i) = -2 \cdot \text{mean}(\mathbf{y} - \hat{\mathbf{y}})$$
+### Partial Derivative with Respect to Any Coefficient $\beta_j$
 
-This is a single scalar: the negative average residual, scaled by 2. The update rule for the intercept is:
-
-$$\beta_0^{(\text{new})} = \beta_0 - \eta \cdot \left(-2 \cdot \text{mean}(\mathbf{y} - \hat{\mathbf{y}})\right)$$
-
-### Partial Derivative with Respect to Coefficient $\beta_j$
-
-For the $j$-th coefficient, the only change is what gets multiplied inside the chain rule. Since $\frac{\partial \hat{y}_i}{\partial \beta_j} = x_{ij}$, we get:
+Apply the chain rule to the MSE sum. Since $\frac{\partial \hat{y}_i}{\partial \beta_j} = x_{ij}$, for any $j$ from $0$ to $k$:
 
 $$\frac{\partial L}{\partial \beta_j} = -\frac{2}{n} \sum_{i=1}^n (y_i - \hat{y}_i) \cdot x_{ij}$$
 
 Written out in full, this is a dot product between the residual vector $(\mathbf{y} - \hat{\mathbf{y}})$ and the $j$-th column of $X_{\text{train}}$. Intuitively, this says: look at every row where feature $j$ was large and the model under- or over-predicted, and check whether the two line up. If large values of feature $j$ tend to occur alongside large positive residuals, nudging $\beta_j$ up would shrink those errors, so the gradient for $\beta_j$ comes out large and positive too. If feature $j$'s values have nothing to do with the sign of the residual, the products mostly cancel out and the gradient stays near zero, meaning that coefficient barely needs to move. The dot product is just this "does this column track the error" check, computed for every row and summed in one shot.
 
-The key insight: **the derivative for $\beta_j$ multiplies the residuals by the $j$-th feature column.** Gradient descent needs this derivative for every column, $j = 1, \ldots, k$. Computing them one at a time would require $k$ separate dot products. Computing them all at once is a single matrix operation.
+Plug in $j = 0$ and this same formula recovers the intercept update without any extra derivation: since $x_{i0} = 1$ for every row, the sum collapses to $-\frac{2}{n} \sum_i (y_i - \hat{y}_i) = -2 \cdot \text{mean}(\mathbf{y} - \hat{\mathbf{y}})$, the negative average residual. It isn't a separate rule, it's this general rule with a column of constants plugged in.
 
-### Vectorizing All $k$ Coefficient Updates at Once
+The key insight: **the derivative for $\beta_j$ multiplies the residuals by the $j$-th column of the augmented $X_{\text{train}}$, intercept column included.** Gradient descent needs this derivative for every column, $j = 0, \ldots, k$. Computing them one at a time would require $k + 1$ separate dot products. Computing them all at once is a single matrix operation.
 
-Stacking all $k$ partial derivatives into a vector:
+### Vectorizing All $k + 1$ Updates at Once
 
-$$\nabla_{\boldsymbol{\beta}} L = \begin{bmatrix} \frac{\partial L}{\partial \beta_1} \\ \vdots \\ \frac{\partial L}{\partial \beta_k} \end{bmatrix} = -\frac{2}{n} \begin{bmatrix} \sum_i (y_i - \hat{y}_i) x_{i1} \\ \vdots \\ \sum_i (y_i - \hat{y}_i) x_{ik} \end{bmatrix}$$
+Stacking all $k + 1$ partial derivatives into a vector:
 
-Each row $j$ is $\sum_i (y_i - \hat{y}_i) x_{ij}$. That is exactly the matrix product of $X_{\text{train}}^T$ (shape $k \times n$) with the residual column vector $(\mathbf{y} - \hat{\mathbf{y}})$ (shape $n \times 1$), giving a $k \times 1$ result:
+$$\nabla_{\boldsymbol{\beta}} L = \begin{bmatrix} \frac{\partial L}{\partial \beta_0} \\ \frac{\partial L}{\partial \beta_1} \\ \vdots \\ \frac{\partial L}{\partial \beta_k} \end{bmatrix} = -\frac{2}{n} \begin{bmatrix} \sum_i (y_i - \hat{y}_i) x_{i0} \\ \sum_i (y_i - \hat{y}_i) x_{i1} \\ \vdots \\ \sum_i (y_i - \hat{y}_i) x_{ik} \end{bmatrix}$$
+
+Each row $j$ is $\sum_i (y_i - \hat{y}_i) x_{ij}$. That is exactly the matrix product of $X_{\text{train}}^T$ (shape $(k+1) \times n$, once the 1s column is included) with the residual column vector $(\mathbf{y} - \hat{\mathbf{y}})$ (shape $n \times 1$), giving a $(k+1) \times 1$ result:
 
 $$\nabla_{\boldsymbol{\beta}} L = -\frac{2}{n} \, X_{\text{train}}^T \cdot (\mathbf{y} - \hat{\mathbf{y}})$$
 
-In code, `np.dot(X_train.T, residuals)` (or equivalently `residuals @ X_train` when residuals is a 1D array, using NumPy's broadcasting) gives a vector of length $k$, one gradient per coefficient. The full vectorized update rule at each epoch is:
+In code, `np.dot(X_train.T, residuals)` (or equivalently `residuals @ X_train` when residuals is a 1D array, using NumPy's broadcasting) gives a vector of length $k + 1$, one gradient per coefficient including the intercept. The full vectorized update rule at each epoch is:
 
 $$\boldsymbol{\beta}^{(\text{new})} = \boldsymbol{\beta} - \eta \cdot \left(-\frac{2}{n} \, X_{\text{train}}^T \cdot (\mathbf{y} - \hat{\mathbf{y}})\right)$$
 
-This replaces $k$ scalar equations with a single line of NumPy. The loop body does not grow as $k$ grows.
+This replaces $k + 1$ scalar equations, intercept included, with a single line of NumPy. The loop body does not grow as $k$ grows.
+
+> **Why the code below still splits `intercept_` out separately:** Mathematically, $\beta_0$ is just row 0 of the same vector, that's the whole point of the augmented-matrix trick above. But NumPy code doesn't need to physically prepend a 1s column to get that benefit: $\sum_i (y_i - \hat{y}_i) \cdot 1$ is just `np.mean(residuals)`, so the intercept update can be computed directly without ever materializing the extra column. The `GDRegressor` class below does exactly that, one line for the intercept, one matrix operation for the rest, which is algebraically identical to running the single augmented update above and then splitting the result back into $\beta_0$ and $\boldsymbol{\beta}$.
 
 ### Why This Works: The Matrix Multiplication Intuition
 
-To see concretely why $X_{\text{train}}^T \cdot (\mathbf{y} - \hat{\mathbf{y}})$ gives all $k$ derivatives at once, consider a tiny example with $n = 2$ samples and $k = 2$ features:
+To see concretely why $X_{\text{train}}^T \cdot (\mathbf{y} - \hat{\mathbf{y}})$ gives all $k + 1$ derivatives at once, consider a tiny example with $n = 2$ samples and $k = 2$ features, augmented column included:
 
-$$X_{\text{train}} = \begin{bmatrix} x_{11} & x_{12} \\ x_{21} & x_{22} \end{bmatrix}, \quad \mathbf{r} = \begin{bmatrix} y_1 - \hat{y}_1 \\ y_2 - \hat{y}_2 \end{bmatrix}$$
+$$X_{\text{train}} = \begin{bmatrix} 1 & x_{11} & x_{12} \\ 1 & x_{21} & x_{22} \end{bmatrix}, \quad \mathbf{r} = \begin{bmatrix} y_1 - \hat{y}_1 \\ y_2 - \hat{y}_2 \end{bmatrix}$$
 
-$$X_{\text{train}}^T \cdot \mathbf{r} = \begin{bmatrix} x_{11} & x_{21} \\ x_{12} & x_{22} \end{bmatrix} \begin{bmatrix} r_1 \\ r_2 \end{bmatrix} = \begin{bmatrix} x_{11} r_1 + x_{21} r_2 \\ x_{12} r_1 + x_{22} r_2 \end{bmatrix}$$
+$$X_{\text{train}}^T \cdot \mathbf{r} = \begin{bmatrix} 1 & 1 \\ x_{11} & x_{21} \\ x_{12} & x_{22} \end{bmatrix} \begin{bmatrix} r_1 \\ r_2 \end{bmatrix} = \begin{bmatrix} r_1 + r_2 \\ x_{11} r_1 + x_{21} r_2 \\ x_{12} r_1 + x_{22} r_2 \end{bmatrix}$$
 
-Row 1 of the result is $\sum_i r_i x_{i1}$, which is exactly $\frac{\partial L}{\partial \beta_1}$ (up to the $-2/n$ factor). Row 2 is $\sum_i r_i x_{i2}$, the derivative for $\beta_2$. For $k = 10$ or $k = 10{,}000$, the same `@` operator handles all of them in one call. This is the payoff of understanding the matrix structure of linear regression.
+Row 0 of the result is $r_1 + r_2 = \sum_i r_i$, exactly $\frac{\partial L}{\partial \beta_0}$ (up to the $-2/n$ factor). Row 1 is $\sum_i r_i x_{i1}$, the derivative for $\beta_1$, and row 2 is $\sum_i r_i x_{i2}$, the derivative for $\beta_2$. For $k = 10$ or $k = 10{,}000$, the same `@` operator handles all $k + 1$ of them, intercept included, in one call. This is the payoff of understanding the matrix structure of linear regression.
 
 ---
 
@@ -240,9 +238,9 @@ The practical implication: batch GD is the safest choice when the dataset fits i
 ## Summary & Key Takeaways
 
 1. **Extending to $k$ features**: Multiple linear regression requires $k + 1$ parameters ($k$ slopes plus one intercept). Gradient descent applies the same chain rule to each, producing $k + 1$ update equations per epoch.
-2. **Intercept update**: $\beta_0 \leftarrow \beta_0 - \eta \cdot \left(-2 \cdot \text{mean}(\mathbf{y} - \hat{\mathbf{y}})\right)$. The gradient is a single scalar: the negative mean residual.
-3. **Vectorized coefficient update**: $\boldsymbol{\beta} \leftarrow \boldsymbol{\beta} - \eta \cdot \left(-\frac{2}{n} X_{\text{train}}^T (\mathbf{y} - \hat{\mathbf{y}})\right)$. The matrix transpose $X_{\text{train}}^T$ turns the per-residual, per-column products into a single dot product that yields all $k$ gradients simultaneously.
-4. **Why transposing works**: $X_{\text{train}}^T \cdot \mathbf{r}$ produces a $k$-dimensional vector where entry $j$ is $\sum_i r_i x_{ij}$, exactly the sum needed for $\frac{\partial L}{\partial \beta_j}$. The transpose swaps rows and columns so each feature's values end up in a row, enabling a single matrix-vector multiply.
+2. **The intercept isn't special**: with a column of 1s prepended to $X_{\text{train}}$ (the Ch.6 augmented-matrix trick), $\beta_0 \leftarrow \beta_0 - \eta \cdot \left(-2 \cdot \text{mean}(\mathbf{y} - \hat{\mathbf{y}})\right)$ is just the general $\beta_j$ update with $x_{i0} = 1$ plugged in, not a separately derived rule.
+3. **Vectorized update for all $k + 1$ parameters**: $\boldsymbol{\beta} \leftarrow \boldsymbol{\beta} - \eta \cdot \left(-\frac{2}{n} X_{\text{train}}^T (\mathbf{y} - \hat{\mathbf{y}})\right)$. The matrix transpose $X_{\text{train}}^T$ turns the per-residual, per-column products into a single dot product that yields all $k + 1$ gradients simultaneously, intercept included.
+4. **Why transposing works**: $X_{\text{train}}^T \cdot \mathbf{r}$ produces a $(k+1)$-dimensional vector where entry $j$ is $\sum_i r_i x_{ij}$, exactly the sum needed for $\frac{\partial L}{\partial \beta_j}$. The transpose swaps rows and columns so each feature's (and the intercept's constant "feature") values end up in a row, enabling a single matrix-vector multiply.
 5. **Initialization**: Intercept to 0, coefficients to ones. The shape of the coefficient array is inferred from `X_train.shape[1]` at fit time, making the class feature-count agnostic.
 6. **Simultaneous update**: Both gradients are computed from the same `y_hat` before either parameter is updated. Updating intercept first and recomputing `y_hat` mid-epoch would violate the standard gradient descent algorithm.
 7. **Batch GD result on diabetes**: With `learning_rate=0.5` and `epochs=1000`, the custom `GDRegressor` achieves test R² = 0.4535, modestly above OLS's 0.4399. Seven of ten coefficients agree in sign; the three that flip include a near-zero coefficient and two strongly collinear features whose individual OLS values are unstable. More epochs would close the remaining magnitude gap.
