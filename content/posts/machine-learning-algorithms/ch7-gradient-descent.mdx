@@ -241,7 +241,7 @@ Gradient descent only has one step size (the learning rate $\eta$), and it has t
 
 Formally: for MSE-style loss, the curvature of $L$ along a weight's axis scales with that feature's variance, since the Hessian is $2 X^T X$, and the diagonal entry for feature $j$ is approximately $2n \cdot \sigma_j^2$. If one feature's standard deviation is $5\times$ another's, its axis carries roughly $25\times$ more curvature, which is exactly the steep-canyon-vs-gentle-slope mismatch described above, just measured precisely instead of by eye.
 
-<img src="/images/ch7-feature-scaling.png" alt="Two contour plots comparing gradient descent paths: unscaled features with 5:1 standard deviation ratio produce a zig-zag path barely progressing after 40 steps, standardized features with equal variance produce a direct path reaching the minimum in the same 40 steps" className="w-full h-auto" />
+<FeatureScalingBowls3d />
 
 Both panels above run real gradient descent for 40 steps from the same starting point, on quadratic bowls $L(w_1, w_2) = a w_1^2 + b w_2^2$ that model this curvature relationship directly. With $a{:}b = 25{:}1$ (mimicking a $5{:}1$ feature standard-deviation ratio), the largest stable learning rate is dictated by $a$, and $w_2$ is still at $0.274$ after 40 steps while $w_1$ has already oscillated its way to convergence. Standardizing so both features have unit variance ($a = b = 1$) makes the bowl circular: the same 40-step budget with a much larger learning rate lands within $10^{-16}$ of the minimum, no zig-zag required.
 

@@ -29,6 +29,7 @@ import GradientDescentAnimation from '../../../components/GradientDescentAnimati
 import GdCostSurface3d from '../../../components/GdCostSurface3d';
 import LearningRateExplorer from '../../../components/LearningRateExplorer';
 import NonConvexSaddleSurface from '../../../components/NonConvexSaddleSurface';
+import FeatureScalingBowls3d from '../../../components/FeatureScalingBowls3d';
 import MultiRegScatter3d from '../../../components/MultiRegScatter3d';
 import MultiRegPlane3d from '../../../components/MultiRegPlane3d';
 import TableOfContents from '../../../components/TableOfContents';
@@ -157,6 +158,7 @@ export default async function PostPage({
             GdCostSurface3d,
             LearningRateExplorer,
             NonConvexSaddleSurface,
+            FeatureScalingBowls3d,
             MultiRegScatter3d,
             MultiRegPlane3d,
             Mermaid,
