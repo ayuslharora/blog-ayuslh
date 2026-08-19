@@ -131,6 +131,8 @@ export default function NonConvexSaddleSurface() {
               yaxis: { title: { text: 'y' } },
               zaxis: { title: { text: 'f(x, y)' } },
               camera: { eye: { x: 1.7, y: -1.7, z: 1.1 } },
+              aspectmode: 'manual',
+              aspectratio: { x: 1.3, y: 1.3, z: 0.6 },
             },
             showlegend: true,
             legend: { x: 0, y: 1 },
