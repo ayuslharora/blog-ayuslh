@@ -70,16 +70,6 @@ $$\boldsymbol{\beta}^{(\text{new})} = \boldsymbol{\beta} - \eta \cdot \left(-\fr
 
 In code, `np.dot(X_train.T, residuals)` (or equivalently `residuals @ X_train` when residuals is a 1D array, using NumPy's broadcasting) gives a vector of length $k + 1$, one gradient per coefficient including the intercept. This replaces $k + 1$ scalar equations with a single line of NumPy, and the loop body doesn't grow as $k$ grows.
 
-### Why This Works: The Matrix Multiplication Intuition
-
-To see concretely why $X_{\text{train}}^T \cdot (\mathbf{y} - \hat{\mathbf{y}})$ gives all $k + 1$ derivatives at once, consider a tiny example with $n = 2$ samples and $k = 2$ features, augmented column included:
-
-$$X_{\text{train}} = \begin{bmatrix} 1 & x_{11} & x_{12} \\ 1 & x_{21} & x_{22} \end{bmatrix}, \quad \mathbf{r} = \begin{bmatrix} y_1 - \hat{y}_1 \\ y_2 - \hat{y}_2 \end{bmatrix}$$
-
-$$X_{\text{train}}^T \cdot \mathbf{r} = \begin{bmatrix} 1 & 1 \\ x_{11} & x_{21} \\ x_{12} & x_{22} \end{bmatrix} \begin{bmatrix} r_1 \\ r_2 \end{bmatrix} = \begin{bmatrix} r_1 + r_2 \\ x_{11} r_1 + x_{21} r_2 \\ x_{12} r_1 + x_{22} r_2 \end{bmatrix}$$
-
-Row 0 of the result is $r_1 + r_2 = \sum_i r_i$, the gradient for $\beta_0$ (up to the $-2/n$ factor), coming out of exactly the same matrix multiply as every other row, not a separate rule. Row 1 is $\sum_i r_i x_{i1}$, the derivative for $\beta_1$, and row 2 is $\sum_i r_i x_{i2}$, the derivative for $\beta_2$. For $k = 10$ or $k = 10{,}000$, the same `@` operator handles all $k + 1$ of them, intercept included, in one call. This is the payoff of understanding the matrix structure of linear regression.
-
 > **Why the code below still splits `intercept_` out separately:** Mathematically $\beta_0$ is just row 0 of $\boldsymbol{\beta}$. But NumPy code doesn't need to physically prepend a 1s column to get that benefit: $\sum_i (y_i - \hat{y}_i) \cdot 1$ is just `np.mean(residuals)`, so the intercept update can be computed directly without ever materializing the extra column. The `GDRegressor` class below does exactly that, one line for the intercept, one matrix operation for the rest, algebraically identical to running the single augmented update above and splitting the result back into $\beta_0$ and $\boldsymbol{\beta}$.
 
 ---
