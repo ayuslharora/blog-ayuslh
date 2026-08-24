@@ -33,6 +33,8 @@ $M_1$ has **high bias**: a straight line is structurally too rigid to bend into 
 
 Bias, on its own, only tells you how well a model fits the data it has already seen. It says nothing yet about new data.
 
+> **A common mix-up:** "bias" here does not mean the model is *leaning toward* or *favoring* the training data, that's actually the opposite failure mode, described below as variance. Statistical bias means a systematic, built-in error that doesn't go away no matter how much training data you provide. $M_1$'s straight line is too rigid to bend into a curve regardless of how many points it sees, the error is baked into the model's assumption, not into which specific data it happened to train on.
+
 ---
 
 ## What Is Variance?
