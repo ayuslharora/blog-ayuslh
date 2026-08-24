@@ -129,9 +129,11 @@ Notice that `PolynomialFeatures(degree=2, include_bias=True)` outputs 3 columns 
 2. Column 1: $x^1 = x$ (the original feature)
 3. Column 2: $x^2 = x^2$ (the squared feature)
 
-If `include_bias=True`, `PolynomialFeatures` automatically prepends a column of ones. If you pass this transformed matrix to `LinearRegression(fit_intercept=True)`, `LinearRegression` will fit an intercept coefficient for the column of ones in addition to its own internal intercept.
+That leading column of `1.0`s is there because a linear model's prediction looks like $\hat{y} = \beta_0 \cdot 1 + \beta_1 x + \beta_2 x^2$. The $\beta_0$ term needs *something* to multiply, so `include_bias=True` manufactures a constant feature (always $1$) for it to attach to. This is the same trick used for the augmented $X$ matrix in plain linear regression, `PolynomialFeatures` is just generating it automatically alongside the polynomial terms.
 
-In practice, if `include_bias=False`, the transformer outputs $[x, x^2]$, and `LinearRegression` fits its intercept parameter $\beta_0$ automatically. Both approaches yield identical fitted curves.
+The catch is that `LinearRegression` already does this for you: by default `fit_intercept=True`, so it fits its own intercept $\beta_0$ internally without needing an explicit column of ones. If you feed it a matrix that already has one (from `include_bias=True`), you end up with two things both trying to represent the intercept, one from the transformer's bias column, one from `LinearRegression`'s own `fit_intercept`. This does not break the fit (the two collapse into an equivalent solution), but it is redundant and wastes a column.
+
+The practical rule: when your transformed features feed straight into `LinearRegression`, set `include_bias=False` and let `LinearRegression` handle the intercept on its own. Only set `include_bias=True` if you are handing the features to something that does *not* fit its own intercept, in which case you need to supply that constant column yourself.
 
 ---
 
