@@ -255,18 +255,18 @@ $$[1, \quad x_1, \quad x_2, \quad x_1^2, \quad x_1 x_2, \quad x_2^2]$$
 
 Notice the middle term $x_1 x_2$. This is an **interaction term**. Polynomial regression automatically creates interaction terms between features, allowing the model to capture dependencies where the effect of $x_1$ on $y$ depends on the current value of $x_2$.
 
-### Why $x_1^2 x_2^2$ is NOT Included in Degree 2
-
-A common question is: why does `PolynomialFeatures(degree=2)` include $x_1 x_2$, but not $x_1^2 x_2^2$?
-
-In algebra, the **degree of a monomial** $x_1^a x_2^b$ is defined as the sum of its exponents:
-
-$$\text{Degree}(x_1^a x_2^b) = a + b$$
-
-For `degree=2`, the constraint is $a + b \le 2$:
-- Term $x_1^1 x_2^0$: degree $1 + 0 = 1 \le 2$
-- Term $x_1^1 x_2^1$: degree $1 + 1 = 2 \le 2$
-- Term $x_1^2 x_2^2$: degree $2 + 2 = 4 > 2$ (excluded)
+> **Why $x_1^2 x_2^2$ is NOT Included in Degree 2**
+>
+> A common question is: why does `PolynomialFeatures(degree=2)` include $x_1 x_2$, but not $x_1^2 x_2^2$?
+>
+> In algebra, the **degree of a monomial** $x_1^a x_2^b$ is defined as the sum of its exponents:
+>
+> $$\text{Degree}(x_1^a x_2^b) = a + b$$
+>
+> For `degree=2`, the constraint is $a + b \le 2$:
+> - Term $x_1^1 x_2^0$: degree $1 + 0 = 1 \le 2$
+> - Term $x_1^1 x_2^1$: degree $1 + 1 = 2 \le 2$
+> - Term $x_1^2 x_2^2$: degree $2 + 2 = 4 > 2$ (excluded)
 
 ### The Combinatorial Explosion of Features
 
