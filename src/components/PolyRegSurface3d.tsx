@@ -100,13 +100,14 @@ export default function PolyRegSurface3d() {
           data={[scatter, plane, surface]}
           layout={{
             autosize: true,
-            height: 550,
-            margin: { l: 0, r: 0, t: 30, b: 0 },
+            height: 400,
+            margin: { l: 0, r: 0, t: 10, b: 0 },
             scene: {
               xaxis: { title: { text: 'x1' } },
               yaxis: { title: { text: 'x2' } },
               zaxis: { title: { text: 'z' } },
-              camera: { eye: { x: 1.7, y: -1.7, z: 0.9 } },
+              camera: { eye: { x: 2.1, y: -2.1, z: 0.7 } },
+              aspectratio: { x: 1.3, y: 1.3, z: 0.7 },
             },
             showlegend: false,
             paper_bgcolor: 'rgba(0,0,0,0)',
