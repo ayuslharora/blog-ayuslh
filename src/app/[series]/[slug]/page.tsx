@@ -32,6 +32,7 @@ import NonConvexSaddleSurface from '../../../components/NonConvexSaddleSurface';
 import FeatureScalingBowls3d from '../../../components/FeatureScalingBowls3d';
 import MultiRegScatter3d from '../../../components/MultiRegScatter3d';
 import MultiRegPlane3d from '../../../components/MultiRegPlane3d';
+import PolyRegSurface3d from '../../../components/PolyRegSurface3d';
 import TableOfContents from '../../../components/TableOfContents';
 import RelatedPosts from '../../../components/RelatedPosts';
 import MdxImage from '../../../components/MdxImage';
@@ -161,6 +162,7 @@ export default async function PostPage({
             FeatureScalingBowls3d,
             MultiRegScatter3d,
             MultiRegPlane3d,
+            PolyRegSurface3d,
             Mermaid,
             img: MdxImage,
             MdxImage,
