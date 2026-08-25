@@ -47,6 +47,8 @@ Two candidate lines are fit to them:
 
 The rest of the plot is a cloud of test points, marked as crosses, sitting further out and slightly off the trajectory the training points suggest. That gap between the two training dots and the crosses is deliberate: it is there to show what happens when a line is tuned tightly to only two points and then asked to predict a wider, noisier population. $L_N$, having been pulled steeply through the training pair, drifts away from the cross cluster. $L_R$, with its gentler slope, tracks the cross cluster far more closely even though it does not touch either training point exactly.
 
+<img src="/images/ch13-ridge-train-test-whiteboard.png" alt="Unregularized line LN overfitting two training points versus regularized line LR generalizing to test points" className="w-full h-auto" />
+
 Computing the plain OLS loss on the two training points for each line:
 
 $$L(L_N) = (2.3 - 2.3)^2 + (5.3 - 5.3)^2 = 0$$
