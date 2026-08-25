@@ -1,6 +1,6 @@
 import { Box, LaptopIcon, PhoneIcon, ServerIcon, DnsIcon, Arrow, Figure } from "./BookFigure";
 
-export default function Figure1_2() {
+export default function RequestFlowDiagram() {
   return (
     <Figure width={640} height={460} caption="Figure 1-2">
       <Box x={30} y={20} w={270} h={210} label="User" />

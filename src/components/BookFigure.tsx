@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 // Reusable primitives for recreating System Design Interview-style book
 // figures as crisp inline SVG (instead of Mermaid, which can't match the
 // book's icon-driven layout). Compose a new figure by building a <svg> with
-// these pieces; see Figure1_2.tsx for a full example.
+// these pieces; see RequestFlowDiagram.tsx for a full example.
 
 export function Box({
   x,
