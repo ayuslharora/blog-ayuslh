@@ -2,7 +2,7 @@ import { Box, LaptopIcon, PhoneIcon, ServerIcon, DnsIcon, Arrow, Figure } from "
 
 export default function RequestFlowDiagram() {
   return (
-    <Figure width={640} height={460} caption="Figure 1-2">
+    <Figure width={640} height={460}>
       <Box x={30} y={20} w={270} h={210} label="User" />
       <LaptopIcon x={90} y={70} label="Web browser" />
       <PhoneIcon x={210} y={66} label="Mobile app" />
