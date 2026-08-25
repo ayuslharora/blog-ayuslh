@@ -7,6 +7,11 @@ export const SERIES: Record<string, SeriesInfo> = {
       "Chapter-by-chapter notes on Martin Kleppmann's Designing Data-Intensive Applications, covering reliability, scalability, and the trade-offs behind real distributed systems.",
     category: "system-design",
   },
+  'system-design-foundation': {
+    title: "System Design Foundation",
+    description: "Building scalable systems, one concept at a time",
+    category: "system-design",
+  },
   networking: {
     title: "Networking Fundamentals",
     description:
