@@ -1,211 +1,74 @@
 ---
-title: "Ch.13: Ridge Regression: Geometric Intuition and Implementation"
-description: "Understanding regularization in linear models, why Ordinary Least Squares overfits high-dimensional or collinear data, the L2 penalty loss function, geometric intuition of coefficient shrinkage, the role of hyperparameter alpha, and practical implementation in Scikit-Learn."
-date: "2026-08-18T02:13:00+05:30"
-tags: ["machine-learning", "machine-learning-algorithms", "ridge-regression", "regularization", "linear-regression", "l2-penalty", "scikit-learn", "overfitting"]
+title: "Ch.13: Ridge Regression: Regularization and the L2 Penalty"
+description: "Understanding regularization in linear models: bagging, boosting, and regularization as the three tools against overfitting, why high coefficient values signal overfitting, and how the L2 penalty term reshapes the loss function to fix it."
+date: "2026-08-25T14:11:29+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "ridge-regression", "regularization", "linear-regression", "l2-penalty", "overfitting"]
 subtopic: "Linear Regression"
-draft: true
+draft: false
 ---
 
 *Inspired by:* [YouTube](https://www.youtube.com/watch?v=aEow1QoTLo0)
 
-In the [previous post on the Bias-Variance Tradeoff](/machine-learning-algorithms/ch12-bias-variance-tradeoff), we established that as model complexity increases, training error drops toward zero while variance can explode. When fitting a high-degree polynomial or training on a dataset with correlated features, Ordinary Least Squares (OLS) regression often memorizes noise rather than learning generalizable patterns. The post concluded by noting that to combat high variance without sacrificing model simplicity, we need a mechanism to constrain model parameters.
+In the [previous post on the Bias-Variance Tradeoff](/machine-learning-algorithms/ch12-bias-variance-tradeoff), we established that as model complexity increases, training error drops toward zero while variance can explode. The post concluded by noting that to combat high variance without sacrificing model simplicity, we need a mechanism to constrain model parameters.
 
 That mechanism is **Regularization**.
 
-In this post, we introduce **Ridge Regression** (also known as L2 Regularization), the most fundamental regularized linear model. We will explore why OLS coefficients explode during overfitting, how adding an L2 penalty to the loss function forces coefficient shrinkage, the geometric intuition behind the L2 constraint ball, how the hyperparameter $\alpha$ dictates the bias-variance tradeoff, and how to implement Ridge Regression in Scikit-Learn.
+## 1. What Is Regularization, and Where Do We Use It
 
----
+Regularization is a technique where we deliberately inject additional information into a model's optimization process so that it stops chasing every point in the training set and generalizes better to unseen data.
 
-## 1. The Overfitting Problem in Linear Regression
+It sits alongside two other well known techniques for fighting overfitting: **bagging** and **boosting**. Bagging trains many models on bootstrapped samples and averages them, boosting builds models sequentially to correct earlier errors, and regularization takes a different route entirely: it changes the loss function itself so that large, unstable coefficients get penalized during training. It is especially relevant to regression, linear regression, logistic regression, and any model built on top of a perceptron.
 
-To understand why regularization is necessary, let us examine how Ordinary Least Squares regression behaves when presented with complex datasets or noisy features.
-
-In multiple linear regression, the model makes predictions using a linear combination of input features:
-
-$$\hat{y} = w_1 x_1 + w_2 x_2 + \dots + w_p x_p + b$$
-
-The standard OLS objective minimizes the Sum of Squared Errors (SSE) on the training set:
-
-$$\text{Loss}_{\text{OLS}}(W, b) = \sum_{i=1}^n \left(y_i - \hat{y}_i\right)^2 = \sum_{i=1}^n \left(y_i - \left(\sum_{j=1}^p w_j x_{ij} + b\right)\right)^2$$
-
-Notice a crucial property of this objective function: **OLS places zero restriction on the magnitude of the weight coefficients $w_j$.** 
-
-When a dataset contains collinear features or when we transform inputs into high-degree polynomial features, the OLS optimization algorithm attempts to fit every training data point perfectly, including random noise and outliers. To force the regression surface through extreme training points, OLS compensates by assigning astronomically large positive and negative values to the feature weights $w_j$.
-
-### Why High Coefficient Magnitudes Cause High Variance
-
-When feature weights $w_j$ grow very large, the model becomes hypersensitive to tiny shifts in input values. Consider a single feature $x_1$ with a weight $w_1 = 1,000,000$. A microscopic variation of $\Delta x_1 = 0.001$ in a new test sample causes the predicted output $\hat{y}$ to swing wildly by $1,000$.
-
-The resulting prediction surface exhibits extreme oscillations. On training data, the residual errors are near zero, but on unseen test data, predictions collapse completely. This is the textbook definition of **high variance / overfitting**.
-
-### Enter Regularization
-
-**Regularization** is a technique where we intentionally inject additional information or constraints into the model optimization process to prevent overfitting and improve generalization performance on unseen data.
-
-In linear models, three main regularized algorithms exist:
-1. **Ridge Regression (L2 Regularization):** Adds a penalty proportional to the sum of squared coefficient magnitudes ($\sum w_j^2$).
+There are three regularized linear models, distinguished by the penalty they add to the loss function:
+1. **Ridge Regression (L2 Regularization):** Adds a penalty proportional to the sum of squared coefficient magnitudes ($\sum w_j^2$). This is the subject of this post.
 2. **Lasso Regression (L1 Regularization):** Adds a penalty proportional to the sum of absolute coefficient values ($\sum |w_j|$).
 3. **ElasticNet Regression:** Combines both L1 and L2 penalties into a single joint objective function.
 
 ---
 
-## 2. Mathematical Formulation of Ridge Regression
+## 2. Why Overfitting Shows Up as Large Coefficients
 
-Ridge Regression modifies the standard OLS loss function by appending an **L2 penalty term** (the squared Euclidean norm of the feature weight vector $W$):
+The whole idea of linear regression is to find the best fit line, $y = mx + b$. Left unconstrained, the standard Ordinary Least Squares (OLS) loss only cares about minimizing the error on the training points:
 
-$$\text{Loss}_{\text{Ridge}}(W, b) = \text{Loss}_{\text{OLS}}(W, b) + \lambda \sum_{j=1}^p w_j^2$$
+$$L = \sum_{i=1}^n \left(y_i - \hat{y}_i\right)^2$$
 
-Written in expanded notation:
+Nothing in this expression restricts how large the slope $m$ (or, in multiple regression, the weights $w_j$) is allowed to get. Given a training set with only a couple of points, or noisy points that do not sit on a clean line, OLS is happy to tilt the line as steeply as needed to pass through every single one of them, driving the slope higher and the training error toward zero. That is overfitting from the model's perspective: a high value of $m$ that fits the training data almost perfectly but has no reason to hold up on data it has not seen. Underfitting is the mirror image: the slope is pushed toward zero and the line stops responding to the data at all.
 
-$$\text{Loss}_{\text{Ridge}}(W, b) = \sum_{i=1}^n \left(y_i - \left(\sum_{j=1}^p w_j x_{ij} + b\right)\right)^2 + \lambda \sum_{j=1}^p w_j^2$$
+### A Concrete Whiteboard Example
 
-Where:
-- $\sum_{i=1}^n (y_i - \hat{y}_i)^2$ is the standard OLS residual sum of squares (measuring data fit quality).
-- $\sum_{j=1}^p w_j^2$ is the **L2 penalty term** (measuring model complexity via weight magnitudes).
-- $\lambda \ge 0$ (represented as `alpha` in Scikit-Learn) is the **regularization hyperparameter** that controls the trade-off between fitting the data and penalizing large coefficients.
+Here is the example used to make this tangible. Take two training points, drawn as the blue dots:
 
-> **Crucial Detail:** Notice that the summation in the penalty term runs from $j=1$ to $p$. The intercept term $b$ (or $w_0$) is **never penalized**. Penalizing $b$ would artificially force the regression line toward the origin $(0,0)$, shifting the overall baseline prediction regardless of feature values.
+$$(1,\ 2.3) \quad \text{and} \quad (3,\ 5.3)$$
 
-### Numerical Walkthrough: How Penalty Selection Works
+Two candidate lines are fit to them:
 
-To understand how Ridge Regression balances fit error and coefficient magnitude, let us examine a simplified 1D example with two candidate fitting lines for a noisy dataset:
+- $L_N$: $y = 1.5x + 0.8$, an unregularized line that passes through both training points exactly.
+- $L_R$: $y = 0.9x + 1.5$, a shallower, regularized line that misses both points by a small margin.
 
-- **Line 1 (Unregularized OLS Fit):** Steep slope $m = 1.5$. It passes directly through training points, yielding a residual error $\text{OLS Error} = 0.0$. However, its squared slope is $m^2 = 1.5^2 = 2.25$.
-- **Line 2 (Regularized Ridge Fit):** Shallower slope $m = 0.9$. It slightly misses training points, yielding a residual error $\text{OLS Error} = 1.2$. However, its squared slope is $m^2 = 0.9^2 = 0.81$.
+The rest of the plot is a cloud of test points, marked as crosses, sitting further out and slightly off the trajectory the training points suggest. That gap between the two training dots and the crosses is deliberate: it is there to show what happens when a line is tuned tightly to only two points and then asked to predict a wider, noisier population. $L_N$, having been pulled steeply through the training pair, drifts away from the cross cluster. $L_R$, with its gentler slope, tracks the cross cluster far more closely even though it does not touch either training point exactly.
 
-Now let us evaluate the total Ridge loss for both candidate lines when setting $\lambda = 1.0$:
+Computing the plain OLS loss on the two training points for each line:
 
-$$\text{Loss}_{\text{Ridge}}(\text{Line 1}) = \text{OLS Error} + \lambda \cdot m^2 = 0.0 + 1.0 \times 2.25 = 2.25$$
+$$L(L_N) = (2.3 - 2.3)^2 + (5.3 - 5.3)^2 = 0$$
 
-$$\text{Loss}_{\text{Ridge}}(\text{Line 2}) = \text{OLS Error} + \lambda \cdot m^2 = 1.2 + 1.0 \times 0.81 = 2.01$$
+$$L(L_R) = (2.3 - 2.4)^2 + (5.3 - 4.2)^2 = 0.01 + 1.21 = 1.22$$
 
-Even though Line 1 achieves zero training residual error, its total Ridge loss ($2.25$) is higher than Line 2 ($2.01$). The optimization algorithm is forced to choose Line 2, sacrificing a small amount of training accuracy to achieve a significantly simpler, lower-slope model that generalizes far better to test data.
+Judged purely on training error, $L_N$ wins with a perfect score of $0$ against $L_R$'s $1.22$. This is exactly the problem: OLS alone always prefers the steeper line, because nothing in the loss punishes the slope for being large.
 
 ---
 
-## 3. The Role of Hyperparameter $\alpha$ ($\lambda$)
+## 3. Adding the Penalty Term
 
-The hyperparameter $\lambda$ (or `alpha` in Scikit-Learn) dictates how strictly the model penalizes coefficient magnitudes:
+Ridge Regression fixes this by appending a penalty on the slope directly into the loss:
 
-1. **When $\alpha = 0$:** The penalty term vanishes ($\alpha \sum w_j^2 = 0$). The Ridge loss function reduces strictly to Ordinary Least Squares. The model retains high variance and remains vulnerable to overfitting.
-2. **When $\alpha \to \infty$:** The penalty term dominates the loss function. To prevent total loss from exploding to infinity, the optimization forces $\sum w_j^2 \to 0$, driving every feature weight $w_j$ toward zero. The model flattens into a horizontal line outputting the constant mean $\hat{y} = \bar{y}$, causing severe underfitting (high bias).
-3. **When $\alpha$ is Optimal:** The model finds the optimal point on the bias-variance curve, reducing variance substantially while introducing only minimal bias.
+$$L = \sum_{i=1}^n \left(y_i - \hat{y}_i\right)^2 + \lambda m^2$$
 
-### Visualizing Regularization on Polynomial Regression
+With $\lambda = 1$, recompute the total loss for both lines, this time including $\lambda m^2$:
 
-To observe this behavior in practice, we fit a 16th-degree polynomial model to a synthetic non-linear dataset using three different $\alpha$ values:
+$$L(L_N) = 0 + 1 \times (1.5)^2 = 0 + 2.25 = 2.25$$
 
-<img src="/images/ch13-ridge-polynomial-fit.png" alt="Impact of L2 Regularization Hyperparameter alpha on Model Complexity" className="w-full h-auto" />
+$$L(L_R) = 1.22 + 1 \times (0.9)^2 = 1.22 + 0.81 = 2.03$$
 
-As shown in the chart above:
-- **$\alpha = 0$ (Red Solid Curve):** The unregularized OLS model fits an unconstrained 16th-degree polynomial. The curve oscillates wildly between data points, demonstrating extreme overfitting and high variance.
-- **$\alpha = 20$ (Green Solid Curve):** The Ridge model applies optimal L2 penalty. The wild oscillations disappear, producing a smooth, balanced curve that accurately captures the true underlying quadratic relationship.
-- **$\alpha = 200$ (Blue Dashed Line):** Excessively large regularization penalty shrinks coefficients too aggressively, flattening the curve and resulting in underfitting (high bias).
+The ranking flips. $L_N$ had a flawless training fit but its steep slope now costs it $2.25$ in total loss. $L_R$ gave up a little training accuracy but its gentler slope keeps its total loss lower, at $2.03$. Ridge Regression picks $L_R$, and by extension, the line that generalizes better to the cross-marked test points, precisely because the $\lambda m^2$ term makes a large slope expensive even when it fits the training data perfectly.
 
----
-
-## 4. Geometric Intuition of Ridge Regression
-
-Why does adding $\lambda \sum w_j^2$ shrink coefficients smoothly without setting them exactly to zero? The answer becomes intuitive when we view Ridge Regression through constrained optimization.
-
-Using Lagrangian duality, minimizing the regularized objective $\text{Loss}_{\text{OLS}} + \lambda \|W\|_2^2$ is mathematically equivalent to solving a constrained minimization problem:
-
-$$\min_{W} \sum_{i=1}^n \left(y_i - \hat{y}_i\right)^2 \quad \text{subject to} \quad \sum_{j=1}^p w_j^2 \le t$$
-
-Where $t > 0$ is a budget constraint inversely related to $\lambda$.
-
-### Parameter Space Representation
-
-Consider a model with two feature weights $w_1$ and $w_2$:
-
-1. **OLS Loss Contours:** In $(w_1, w_2)$ parameter space, the unconstrained OLS loss function forms concentric ellipses centered at the global OLS minimum $\hat{W}_{\text{OLS}} = (w_{1,\text{OLS}}, w_{2,\text{OLS}})$. Points along any single elliptical ring share the exact same OLS loss value.
-2. **L2 Constraint Region:** The constraint equation $w_1^2 + w_2^2 \le t$ defines a circle (hypersphere in higher dimensions) centered at the origin $(0, 0)$ with radius $R = \sqrt{t}$.
-
-The regularized Ridge solution $\hat{W}_{\text{Ridge}}$ must satisfy both criteria: it must lie within or on the boundary of the L2 circle while achieving the smallest possible OLS loss.
-
-<img src="/images/ch13-ridge-geometric-intuition.png" alt="Geometric Intuition of Ridge L2 Regularization" className="w-full h-auto" />
-
-### Why L2 Regularization Shrinks Coefficients
-
-As depicted in the geometric diagram above:
-- The global unconstrained OLS solution $\hat{W}_{\text{OLS}}$ sits far outside the allowed L2 constraint region at $(3.0, 2.5)$.
-- As the OLS loss ellipses expand outward from $\hat{W}_{\text{OLS}}$, the **first point where an OLS ellipse touches the boundary of the L2 circle** represents the optimal constrained solution $\hat{W}_{\text{Ridge}}$.
-- Because a circle has a smooth, curved boundary with no sharp corners on the coordinate axes, the point of tangency typically occurs away from the axes. 
-- Consequently, Ridge Regression pulls both coefficients $w_1$ and $w_2$ inward toward $(0, 0)$ along a direct path (**coefficient shrinkage**), reducing their magnitudes significantly while rarely setting any coefficient to absolute zero.
-
----
-
-## 5. Implementation in Scikit-Learn
-
-Let us implement Ridge Regression using Scikit-Learn's `sklearn.linear_model.Ridge` class on the standard Diabetes dataset, matching the walkthrough in the [source notebook](https://github.com/campusx-official/100-days-of-machine-learning/blob/main/day55-regularized-linear-models/Ridge%20Regularization.ipynb).
-
-### Step 1: Loading Data and Fitting OLS vs Ridge
-
-```python
-import numpy as np
-import pandas as pd
-from sklearn.datasets import load_diabetes
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression, Ridge
-from sklearn.metrics import r2_score, mean_squared_error
-
-# Load dataset (10 input features, 1 quantitative target)
-data = load_diabetes()
-X = data.data
-y = data.target
-
-# Split into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=45
-)
-
-# 1. Standard Linear Regression (OLS)
-ols = LinearRegression()
-ols.fit(X_train, y_train)
-y_pred_ols = ols.predict(X_test)
-
-print("--- Ordinary Least Squares ---")
-print("R2 Score:", r2_score(y_test, y_pred_ols))
-print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred_ols)))
-
-# 2. Ridge Regression (alpha = 10)
-ridge = Ridge(alpha=10)
-ridge.fit(X_train, y_train)
-y_pred_ridge = ridge.predict(X_test)
-
-print("\n--- Ridge Regression (alpha=10) ---")
-print("R2 Score:", r2_score(y_test, y_pred_ridge))
-print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred_ridge)))
-```
-
-### Step 2: Analyzing Feature Coefficient Shrinkage
-
-To observe how different levels of $\alpha$ affect feature weights across all 10 clinical features of the Diabetes dataset, we train Ridge models across $\alpha \in \{0, 10, 100, 1000\}$:
-
-<img src="/images/ch13-ridge-coefficient-bar.png" alt="Ridge Regression Feature Coefficient Shrinkage across Alphas" className="w-full h-auto" />
-
-Key observations from the bar charts above:
-- At $\alpha = 0$ (unregularized OLS), feature coefficients exhibit large positive and negative magnitudes (reaching beyond $\pm 600$).
-- As $\alpha$ increases to $10$, $100$, and $1000$, all feature coefficients systematically shrink toward zero.
-- Even at $\alpha = 1000$, the coefficients remain non-zero (e.g. small values around $\pm 5$), confirming that Ridge Regression performs continuous parameter shrinkage rather than hard feature selection.
-
----
-
-## 6. Summary & Key Takeaways
-
-| Feature | Ordinary Least Squares (OLS) | Ridge Regression (L2) |
-| :--- | :--- | :--- |
-| **Loss Function** | $\sum (y_i - \hat{y}_i)^2$ | $\sum (y_i - \hat{y}_i)^2 + \alpha \sum w_j^2$ |
-| **Penalty Term** | None | Squared L2 Norm ($\|W\|_2^2$) |
-| **Hyperparameter** | None | $\alpha \ge 0$ (`alpha` in sklearn) |
-| **Coefficient Behavior** | Unconstrained, can explode | Shrinks smoothly toward 0 |
-| **Exact Zero Weights?** | No | Extremely rare (No feature selection) |
-| **Primary Use Case** | Baseline linear model | High variance, multicollinearity, overfitted models |
-
-### Main Conclusions
-
-1. **Overfitting in Linear Models:** Unconstrained OLS regression minimizes residual error without restricting weight magnitudes, leading to explosive coefficients and high test variance when features are correlated or complex.
-2. **L2 Penalty Mechanism:** Ridge Regression adds $\alpha \sum w_j^2$ to the loss function, penalizing large weight magnitudes and forcing the optimizer to trade off a tiny amount of training fit for massive variance reduction.
-3. **Geometric Boundary:** In parameter space, the L2 constraint forms a smooth hypersphere. The optimal Ridge solution occurs at the tangency point with OLS loss ellipses, shrinking coefficient vectors smoothly toward the origin.
-4. **Hyperparameter Tuning:** Setting $\alpha = 0$ yields OLS regression, while setting $\alpha \to \infty$ forces all slopes to zero (underfitting). The optimal $\alpha$ must be tuned using cross-validation.
+In multiple linear regression this generalizes from a single slope $m$ to the full weight vector, and the penalty becomes $\lambda \sum_{j=1}^p w_j^2$. That $\lambda$ is exposed to us as a tunable hyperparameter, `alpha` in Scikit-Learn, and how it trades off bias against variance is worth its own post.
