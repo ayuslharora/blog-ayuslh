@@ -15,29 +15,7 @@ This post picks up where that one left off. We derive the closed-form formula th
 
 ---
 
-## 1. Seeing the Effect Before Deriving It
-
-Before touching the math, it's worth looking at what the penalty actually does to a model's coefficients as $\lambda$ (called `alpha` in Scikit-Learn) grows.
-
-<img src="/images/ch14-ridge-geometric-intuition.png" alt="Geometric intuition of Ridge regularization: the OLS solution sits at the center of the loss contours, while the ridge solution is pulled to where the constraint circle first touches a contour line" className="w-full h-auto" />
-
-Ridge Regression can be framed as solving the unconstrained loss $\sum(y_i - \hat y_i)^2 + \lambda \sum w_j^2$, but geometrically that penalty is equivalent to boxing the coefficients into a circular region ($w_1^2 + w_2^2 \leq t$ for some budget $t$) and finding the point in that circle closest to the unconstrained OLS optimum. The OLS solution (the red star, sitting at the center of the loss contours) is pulled inward to the point where the constraint circle first touches a loss contour: the green dot. That point necessarily has both smaller $w_1$ and $w_2$ than the OLS solution. Shrink the circle (raise $\lambda$) and that touching point moves closer to the origin.
-
-Fitting `Ridge` at increasing `alpha` on the sklearn diabetes dataset makes this concrete:
-
-<img src="/images/ch14-ridge-coefficient-bar.png" alt="Bar charts of Ridge regression coefficient magnitudes across alpha=0, 10, 100, 1000 on the diabetes dataset, showing coefficients shrinking toward zero and R2 score dropping alongside them" className="w-full h-auto" />
-
-At `alpha=0` (plain OLS), some coefficients swing as high as ±900. By `alpha=10` they're compressed into roughly ±100, and by `alpha=1000` they've collapsed to near zero. The $R^2$ score tracks this too, it peaks at `0.44` with no regularization and falls to `-0.01` once `alpha=1000` has flattened the model into something close to predicting the mean every time. This is the bias-variance trade-off from [Ch.12](/machine-learning-algorithms/ch12-bias-variance-tradeoff) playing out directly on the coefficients: too little $\lambda$ overfits, too much underfits.
-
-The same story shows up on a polynomial fit to noisy 1D data:
-
-<img src="/images/ch14-ridge-polynomial-fit.png" alt="Comparison of polynomial fits at alpha=0, 20, and 200, showing alpha=0 overfitting with wild oscillations, alpha=20 tracking the true trend, and alpha=200 flattening into a nearly straight line" className="w-full h-auto" />
-
-`alpha=0` chases every wiggle in the noisy data (high variance), `alpha=200` is so constrained it barely bends (high bias), and `alpha=20` sits at the balance point that tracks the underlying trend without chasing noise. The question this post actually answers is: how does that shrinkage get computed?
-
----
-
-## 2. Deriving the Closed-Form Solution for One Feature
+## 1. Deriving the Closed-Form Solution for One Feature
 
 Recall simple linear regression's loss with the L2 penalty added:
 
@@ -65,11 +43,11 @@ $$m\sum_{i=1}^n (x_i - \bar x)^2 + \lambda m = \sum_{i=1}^n (y_i - \bar y)(x_i -
 
 $$m = \frac{\sum_{i=1}^n (y_i - \bar y)(x_i - \bar x)}{\sum_{i=1}^n (x_i - \bar x)^2 + \lambda}$$
 
-Compare this to plain OLS, where $m = \dfrac{\sum (y_i - \bar y)(x_i - \bar x)}{\sum (x_i - \bar x)^2}$. The numerator is identical. The only change is $\lambda$ added to the denominator. That single addition explains everything seen in the plots above: raise $\lambda$, and the denominator grows, so $m$ shrinks toward zero. At $\lambda = 0$ the formula collapses back to OLS exactly.
+Compare this to plain OLS, where $m = \dfrac{\sum (y_i - \bar y)(x_i - \bar x)}{\sum (x_i - \bar x)^2}$. The numerator is identical. The only change is $\lambda$ added to the denominator: raise $\lambda$, and the denominator grows, so $m$ shrinks toward zero. At $\lambda = 0$ the formula collapses back to OLS exactly. The intercept formula, by contrast, doesn't reference $\lambda$ at all, so it barely moves.
 
-### Implementing It
+## 2. Watching the Formula Shrink Real Coefficients
 
-Testing this against `sklearn.linear_model.Ridge` on a synthetic single-feature dataset:
+Fitting `sklearn.linear_model.Ridge` at `alpha=0`, `alpha=10`, and `alpha=100` on a synthetic single-feature dataset should make that denominator effect visible directly in the coefficients:
 
 ```python
 from sklearn.datasets import make_regression
@@ -94,9 +72,13 @@ print(rr1.coef_, rr1.intercept_)
 # [12.93] -1.42
 ```
 
+The slope drops from `27.83` (unregularized) to `24.95` (`alpha=10`) to `12.93` (`alpha=100`) exactly as the formula predicts, while the intercept moves by comparison very little, `-2.29` to `-2.13` to `-1.42`. Plotting all three fitted lines on the same axes shows the flattening directly:
+
 <img src="/images/ch14-ridge-alpha-lines.png" alt="Scatter plot of a synthetic dataset with three fitted lines overlaid: alpha=0 with the steepest slope, alpha=10 slightly flatter, and alpha=100 noticeably flattened" className="w-full h-auto" />
 
-The slope drops from `27.83` (unregularized) to `24.95` (`alpha=10`) to `12.93` (`alpha=100`) exactly as the formula predicts, and the intercept barely moves. Now, the derived formula, built from scratch with plain Python:
+The red `alpha=0` line has the steepest slope and passes closest through the bulk of the points. The green `alpha=10` line is visibly shallower, and the orange `alpha=100` line is shallower still, on its way toward flattening into a horizontal line predicting the mean as $\lambda \to \infty$.
+
+## 3. Coding the Formula from Scratch
 
 ```python
 class MeraRidge:
@@ -122,7 +104,7 @@ Running `MeraRidge(alpha=10).fit(X, y)` prints `m=24.95, b=-2.13`, and `MeraRidg
 
 ---
 
-## 3. Extending to n Dimensions: The Matrix Form
+## 4. Extending to n Dimensions: The Matrix Form
 
 The single-feature derivation doesn't scale to datasets with multiple features. For that, the loss needs to be written in matrix form, the same way [Ch.6](/machine-learning-algorithms/ch6-multiple-linear-regression-math) rewrote plain multiple linear regression before deriving its closed-form solution.
 
@@ -163,7 +145,7 @@ This is Ridge's closed-form solution. It's the same normal equation from plain l
 
 ---
 
-## 4. Implementing the Matrix Solution
+## 5. Implementing the Matrix Solution
 
 The formula translates directly into code with `numpy`, but there's one subtlety: the intercept $w_0$ should never be shrunk toward zero, since it's just centering the predictions, not controlling the model's sensitivity to any feature. If $\lambda I$ is applied naively, the identity matrix's `[0][0]` entry regularizes $w_0$ along with every other weight. The fix is to zero out that one entry before adding it in:
 
@@ -217,7 +199,7 @@ Both the $R^2$ score and every coefficient match to the fourth decimal place. `R
 
 ---
 
-## 5. Why This Isn't the Whole Story
+## 6. Why This Isn't the Whole Story
 
 The closed-form solution is exact, and there's something satisfying about deriving $(X^TX + \lambda I)^{-1}X^TY$ by hand and watching it reproduce Scikit-Learn's numbers to four decimal places. But it depends on computing $(X^TX + \lambda I)^{-1}$, a matrix inverse of a $(p+1) \times (p+1)$ matrix, which costs roughly $O(p^3)$.
 
