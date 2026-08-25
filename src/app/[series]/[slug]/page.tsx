@@ -23,6 +23,7 @@ import UdpHeaderTable from '../../../components/UdpHeaderTable';
 import DnsHeaderTable from '../../../components/DnsHeaderTable';
 import Http2FrameHeaderTable from '../../../components/Http2FrameHeaderTable';
 import MtuMssDiagram from '../../../components/MtuMssDiagram';
+import Figure1_2 from '../../../components/Figure1_2';
 import MnistPca3d from '../../../components/MnistPca3d';
 import LinRegCostSurface from '../../../components/LinRegCostSurface';
 import GradientDescentAnimation from '../../../components/GradientDescentAnimation';
@@ -153,6 +154,7 @@ export default async function PostPage({
             DnsHeaderTable,
             Http2FrameHeaderTable,
             MtuMssDiagram,
+            Figure1_2,
             MnistPca3d,
             LinRegCostSurface,
             GradientDescentAnimation,
