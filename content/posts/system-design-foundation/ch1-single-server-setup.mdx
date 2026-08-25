@@ -1,0 +1,44 @@
+---
+title: "Ch.1: Scale From Zero to Millions of Users - Single Server Setup"
+description: "Starting from the simplest possible architecture: everything, web app, database, cache, running on one server, and tracing the request flow from DNS to response."
+date: "2026-08-26T00:49:15+05:30"
+tags: ["system-design", "book-notes", "scalability"]
+subtopic: "Scale From Zero to Millions of Users"
+draft: false
+---
+
+Notes from Chapter 1 of *System Design Interview* by Alex Xu: "Scale From Zero to Millions of Users." This chapter is long enough to split into several posts; this one covers the starting point, a single server setup.
+
+A journey of a thousand miles begins with a single step, and building a complex system is no different. To start with something simple, imagine everything running on a single server: the web app, the database, the cache, all of it.
+
+## The single server setup
+
+In this setup, one server handles everything. A user's request comes in, and that same machine runs the web application logic, talks to its own database, and returns a response, all without involving any other machine.
+
+To understand this, it helps to trace two things: the request flow, and where the traffic actually comes from.
+
+### Request flow
+
+1. **DNS lookup.** Users access websites through domain names, like `api.mysite.com`. DNS (Domain Name System) is usually a paid service provided by a third party, not something hosted on your own servers.
+2. **IP address returned.** The DNS lookup returns an IP address, for example `15.125.23.214`, to the browser or mobile app.
+3. **HTTP request sent.** Once the IP address is known, an HTTP request is sent directly to your web server at that IP.
+4. **Response returned.** The web server returns an HTML page or a JSON response for rendering.
+
+### Where the traffic comes from
+
+Traffic to a web server generally comes from two kinds of clients:
+
+- **Web application.** It uses server-side languages (Java, Python, etc.) to handle business logic and storage, and client-side languages (HTML and JavaScript) for presentation.
+- **Mobile application.** HTTP is the communication protocol between the mobile app and the web server, and JSON is the commonly used response format because of its simplicity. For example:
+
+```
+GET /users/12
+```
+
+retrieves the user object for `id = 12`.
+
+## Where this breaks down
+
+A single server works fine until the user base grows. At that point, one server isn't enough, running the web tier and the data tier on the same machine means they can't be scaled independently: more traffic might need more web servers, but the database might not need to grow at the same rate (or vice versa).
+
+The next step is separating the web/mobile tier from the database tier onto their own servers, so each can be scaled based on what it actually needs, that's where the next post picks up.
