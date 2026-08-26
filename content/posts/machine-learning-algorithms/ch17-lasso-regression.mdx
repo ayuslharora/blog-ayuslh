@@ -51,6 +51,10 @@ for alpha in [0, 1, 5, 10, 30]:
 
 By `alpha=30` the coefficient isn't just small, it's exactly `0.0`, and the fitted line has gone perfectly flat, predicting the mean of `y` regardless of `X`. Recall from [Ch.16](/machine-learning-algorithms/ch16-ridge-regression-key-understandings) that Ridge coefficients shrink toward zero but never reach it, no matter how large `alpha` gets. This is the single defining difference between the two techniques, and everything else in this post follows from it.
 
+<img src="/images/ch17-lasso-alpha-gif.gif" alt="Animated scatter plot of the same dataset with a single fitted line that flattens continuously as alpha sweeps from 0 to 30, ending perfectly flat at the mean of y and holding there" className="w-full h-auto" />
+
+Watching `alpha` sweep continuously makes the flattening obvious as a single smooth process, not just five snapshots: the line pivots down from its steepest slope toward horizontal, and once it goes flat at `alpha=30` it stays pinned there for any `alpha` beyond that.
+
 ## 2. Same Behavior on a Nonlinear Fit
 
 Fitting a degree-16 polynomial with Lasso on nonlinear data shows the same under/overfitting tradeoff Ridge has, just with sparser coefficients doing the work:
