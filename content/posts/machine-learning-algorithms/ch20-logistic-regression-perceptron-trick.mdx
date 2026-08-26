@@ -1,0 +1,142 @@
+---
+title: "Ch.20: Logistic Regression: The Perceptron Trick"
+description: "Building the geometric intuition behind Logistic Regression through the Perceptron Trick: representing a decision boundary as a weight vector, and deriving a single unified update rule that nudges a misclassified line toward the point it got wrong."
+date: "2026-08-26T15:40:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "logistic-regression", "classification", "perceptron", "linear-algebra"]
+subtopic: "Logistic Regression"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=XNXzVfItWGY)
+
+This closes out linear regression's regularization arc ([Ch.13](/machine-learning-algorithms/ch13-ridge-regression) through [Ch.19](/machine-learning-algorithms/ch19-elastic-net-regression)) and starts a new topic: Logistic Regression, a classification algorithm despite the name, and one of the most foundational in machine learning. Understanding it well is also a good stepping stone toward neural networks, since the perceptron, deep learning's basic building block, is barely different from it.
+
+This post covers the geometric intuition first, through an algorithm called the Perceptron Trick, before the probability-based math behind actual Logistic Regression in a later post.
+
+---
+
+## 1. The Requirement: (Almost) Linearly Separable Data
+
+Logistic Regression draws a straight line (or in higher dimensions, a hyperplane) to separate two classes. Picture a dataset of students, `CGPA` on one axis, `IQ` on the other, colored by whether they got placed:
+
+Data like this, where a single straight line can cleanly separate the two colors, is called **linearly separable**. It doesn't have to be perfect, a couple of stray points on the wrong side is fine, that's **almost linearly separable** and still works well in practice. What doesn't work is genuinely nonlinear data, concentric circles of two classes, for instance, where no straight line, no matter how it's drawn, ever separates the two groups:
+
+<img src="/images/ch20-linear-separability.png" alt="Two side-by-side scatter plots. Left: two clusters of points, one blue and one green, cleanly separated diagonally, labeled Linearly Separable. Right: green points forming a ring inside a larger ring of blue points, labeled Not Linearly Separable, with no straight line able to divide the two colors" className="w-full h-auto" />
+
+Logistic Regression, like linear regression, only ever draws a straight line (or flat hyperplane), so nonlinear data like the ring on the right needs a different tool entirely.
+
+## 2. The Line's Equation, Written a Different Way
+
+Linear regression writes a line as $y = mx + b$. Classification never uses that form, it breaks down as soon as the line is vertical. Instead, the line is written in general form:
+
+$$ax + by + c = 0$$
+
+In three dimensions this becomes a plane, $ax_1 + bx_2 + cx_3 + d = 0$, and in higher dimensions still, a hyperplane, just with more terms added the same way.
+
+## 3. Finding Which Side of the Line a Point Is On
+
+Given the line's equation and any point's coordinates, plugging the coordinates into $ax + by + c$ tells you which side it's on:
+
+- Result $> 0$: the point is on the positive side.
+- Result $< 0$: the point is on the negative side.
+- Result $= 0$: the point sits exactly on the line.
+
+For the line $2x + 3y + 5 = 0$, plugging in a point like $(1, 1)$ gives $2(1) + 3(1) + 5 = 10 > 0$, positive side. Flip the line's sign, $-2x - 3y - 5 = 0$, and the same point now evaluates to $-10 < 0$, negative side, since the entire line's positive and negative regions swap along with the sign.
+
+## 4. How the Line Moves: Rotation and Translation
+
+A line's shape is entirely controlled by its three coefficients $a$, $b$, $c$, and each one moves the line differently:
+
+- **Changing $c$** translates the line up or down without changing its angle. Increase $c$ and the line shifts down; decrease it and the line shifts up.
+- **Changing $a$ or $b$** rotates the line around a fixed point, tilting it one way or the other depending on which coefficient changes and by how much.
+
+Combine changes to all three and the line both rotates and translates at once, exactly the kind of move needed to steer a line toward a point it's currently misclassifying.
+
+## 5. The Perceptron Trick
+
+The algorithm's core idea is almost embarrassingly simple:
+
+1. Start with a random line (random $a$, $b$, $c$).
+2. Loop for a fixed number of iterations (or until convergence).
+3. On each iteration, pick a random point from the training data.
+4. Ask that point: are you on the correct side of the line?
+5. If yes, do nothing.
+6. If no, nudge the line toward that point.
+
+Repeat that enough times and the line gradually rotates and slides into a position that separates the two classes. The nudge itself follows a simple rule: if a point that should be negative is stuck in the positive region, subtract that point's coordinates (scaled down) from the line's coefficients; if a point that should be positive is stuck in the negative region, add them. Either direction pulls the line toward the misclassified point until it lands on the correct side.
+
+That "scaled down" part matters: nudges are never applied at full strength in one step, that would send the line flying past a reasonable position. Instead each nudge is scaled by a small constant called the **learning rate**, typically something like `0.01` or `0.1`, the same idea gradient descent uses in [Ch.7](/machine-learning-algorithms/ch7-gradient-descent).
+
+## 6. Writing the Line as a Weight Vector
+
+To make this codeable, the line's coefficients get renamed into a weight vector: $a \to w_1$, $b \to w_2$, $c \to w_0$. A line in two dimensions becomes:
+
+$$w_0 + w_1 x_1 + w_2 x_2 = 0$$
+
+Prepending a constant column of `1`s to the input data (the same $x_0 = 1$ trick [Ch.14](/machine-learning-algorithms/ch14-ridge-regression-code) used for the intercept) turns this into one clean dot product:
+
+$$\sum_{i=0}^{p} w_i x_i = 0 \qquad\text{i.e.}\qquad W \cdot X = 0$$
+
+Predicting a new point's class is now just: compute $W \cdot X$, and if the result is $\ge 0$ predict the positive class, otherwise predict the negative class.
+
+## 7. One Update Rule Instead of Two
+
+The two-case rule from step 5 (add for a positive point stuck negative, subtract for a negative point stuck positive) can be collapsed into a single formula. Let $\hat y$ be the model's current prediction (`1` or `0`) and $y$ be the actual label (`1` or `0`):
+
+$$W_{new} = W_{old} + \eta \, (y - \hat y) \, X$$
+
+Checking all four possible combinations of actual label and prediction confirms this reduces correctly:
+
+| Actual $y$ | Predicted $\hat y$ | $y - \hat y$ | Update |
+|---|---|---|---|
+| 1 (placed) | 1 (placed) | 0 | No change, correctly classified |
+| 0 (not placed) | 0 (not placed) | 0 | No change, correctly classified |
+| 1 (placed) | 0 (not placed) | 1 | $W \mathrel{+}= \eta X$, a positive point stuck negative gets pulled up |
+| 0 (not placed) | 1 (placed) | -1 | $W \mathrel{-}= \eta X$, a negative point stuck positive gets pulled down |
+
+Both correct-classification cases naturally zero out the update, and both misclassification cases naturally reproduce the add/subtract rule from before, without ever needing an explicit `if` branch for which direction to nudge.
+
+## 8. Implementing It From Scratch
+
+```python
+import numpy as np
+from sklearn.datasets import make_classification
+
+X, y = make_classification(n_samples=100, n_features=2, n_informative=1, n_redundant=0,
+                            n_classes=2, n_clusters_per_class=1, random_state=41,
+                            hypercube=False, class_sep=10)
+
+def step(z):
+    return 1 if z > 0 else 0
+
+def perceptron(X, y, epochs=1000, lr=0.1):
+    X = np.insert(X, 0, 1, axis=1)
+    weights = np.ones(X.shape[1])
+
+    for i in range(epochs):
+        j = np.random.randint(0, 100)
+        y_hat = step(np.dot(X[j], weights))
+        weights = weights + lr * (y[j] - y_hat) * X[j]
+
+    return weights[0], weights[1:]
+
+intercept_, coef_ = perceptron(X, y)
+```
+
+Every piece of this maps directly onto the derivation above: `np.insert(X, 0, 1, axis=1)` adds the $x_0=1$ column, `weights` starts at all `1`s (an arbitrary random starting line), `step()` implements the $\ge 0$ prediction rule, and the loop body is exactly $W_{new} = W_{old} + \eta(y-\hat y)X$ applied to one randomly chosen point per iteration.
+
+<img src="/images/ch20-perceptron-before-after.png" alt="Two side-by-side scatter plots of a linearly separable two-class dataset. Left: the initial random line (weights all 1) cuts diagonally across both classes, badly separating them. Right: after 1000 perceptron trick epochs, a nearly vertical line cleanly separates blue points on the left from green points on the right" className="w-full h-auto" />
+
+The starting line, from `weights = [1, 1, 1]`, misclassifies 19 of the 100 points. A thousand random nudges later, every point is on the correct side.
+
+## 9. Watching the Line Move
+
+Recording the line's position every epoch and plotting several snapshots on the same axes shows the rotation happening step by step:
+
+<img src="/images/ch20-perceptron-epochs.png" alt="A single scatter plot with six overlaid decision lines at epochs 1, 5, 10, 20, 50, and 200, colored from dark purple to yellow. The early lines cut diagonally through the data at a shallow angle; by epoch 200 the line has rotated to nearly vertical, sitting right in the gap between the blue and green clusters" className="w-full h-auto" />
+
+The early epochs barely move the line, most randomly picked points are already correctly classified once the line is roughly in the right neighborhood, so the "do nothing" branch fires most of the time. The visible jumps come from the rarer picks that land on a misclassified point. By epoch 200 the line has rotated most of the way to vertical, sitting almost exactly in the empty gap between the two clusters.
+
+## 10. What This Doesn't Guarantee
+
+The Perceptron Trick reliably finds *a* separating line, but not necessarily the *best* one. Run it multiple times, or change the random seed, and it converges to a slightly different line each time, anywhere that happens to separate every point counts as success, with no notion of which separating line generalizes best or sits safest in the middle of the gap. Logistic Regression's actual solution, covered from its proper probabilistic foundation in the next post, answers a more specific question and lands on one particular best line rather than merely *a* working one. The Perceptron Trick's job here was only to build the geometric intuition, weights as a line, misclassification as a nudge, that the real algorithm builds on.
