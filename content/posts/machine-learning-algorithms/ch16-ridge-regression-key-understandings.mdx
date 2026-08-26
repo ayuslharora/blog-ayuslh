@@ -141,14 +141,14 @@ w1 = np.linspace(-20, 100, 140)
 w2 = np.linspace(-20, 100, 140)
 W1, W2 = np.meshgrid(w1, w2)
 
-for alpha in [0, 10, 20, 40, 60, 90, 130, 180, 240, 310, 400]:
-    Z = loss(W1, W2, alpha)
-    # plot_surface(W1, W2, Z) in 3D, mark the minimum, save one frame per alpha
+Z = loss(W1, W2, alpha)  # plot_surface(W1, W2, Z) in 3D, mark the minimum
 ```
 
-<img src="/images/ch16-loss-bowl-3d.gif" alt="Animated 3D surface plot of the Ridge loss over w1 and w2 as a bowl-shaped paraboloid, cycling through alpha values from 0 to 400 and back. As alpha increases the bowl visibly steepens and narrows, and the red dot marking its minimum climbs the w1-w2 plane toward the origin" className="w-full h-auto" />
+Rather than a fixed set of alpha snapshots, drag the slider below to move `alpha` continuously and watch the bowl's minimum, the red dot, respond in real time. It's the same quadratic form: `w1` and `w2` steer along $X^TX$, and the readout above the plot always shows the current alpha and the minimum's coordinates together, so there's no need to scroll between a screenshot's title and its caption to see both at once.
 
-At `alpha=0` the bowl is wide and shallow, and its minimum, the red dot, sits at `(81.0, 26.1)`, matching what `LinearRegression` finds unregularized. As `alpha` steps up through `10, 20, 40, ..., 400`, the walls of the bowl visibly steepen and close in, and the red dot climbs the $w_1$-$w_2$ plane back toward the origin. The two coordinates shrink together and roughly proportionally, since both are pulled by the same $\lambda(w_1^2 + w_2^2)$ term, which is exactly the pattern from points 1 and 2: every coefficient shrinks toward, but never reaches, the origin, with the ones that started furthest out moving the most in absolute terms.
+<RidgeLambdaExplorer />
+
+At `alpha=0` the bowl is wide and shallow, and its minimum sits at `(81.0, 26.1)`, matching what `LinearRegression` finds unregularized. Drag the slider up and the walls of the bowl visibly steepen and close in, while the minimum climbs the $w_1$-$w_2$ plane back toward the black diamond at the origin. The two coordinates shrink together and roughly proportionally, since both are pulled by the same $\lambda(w_1^2 + w_2^2)$ term, which is exactly the pattern from points 1 and 2: every coefficient shrinks toward, but never reaches, the origin, with the ones that started furthest out moving the most in absolute terms.
 
 ## 5. Why It's Called "Ridge"
 

@@ -34,6 +34,7 @@ import FeatureScalingBowls3d from '../../../components/FeatureScalingBowls3d';
 import MultiRegScatter3d from '../../../components/MultiRegScatter3d';
 import MultiRegPlane3d from '../../../components/MultiRegPlane3d';
 import PolyRegSurface3d from '../../../components/PolyRegSurface3d';
+import RidgeLambdaExplorer from '../../../components/RidgeLambdaExplorer';
 import TableOfContents from '../../../components/TableOfContents';
 import RelatedPosts from '../../../components/RelatedPosts';
 import MdxImage from '../../../components/MdxImage';
@@ -165,6 +166,7 @@ export default async function PostPage({
             MultiRegScatter3d,
             MultiRegPlane3d,
             PolyRegSurface3d,
+            RidgeLambdaExplorer,
             Mermaid,
             img: MdxImage,
             MdxImage,
