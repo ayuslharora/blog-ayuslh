@@ -15,45 +15,41 @@ draft: false
 
 ## 1. Setting Up the Same Way as Ridge
 
-[Ch.14](/machine-learning-algorithms/ch14-ridge-regression-code) derived Ridge's single-feature solution by substituting $b = \bar y - m\bar x$ into the loss and reducing everything to a function of $m$ alone. Lasso starts identically. Using centered sums
+[Ch.14](/machine-learning-algorithms/ch14-ridge-regression-code) derived Ridge's single-feature solution by substituting $b = \bar y - m\bar x$ into the loss and reducing everything to a function of $m$ alone. Lasso starts identically, and the loss as a function of $m$ becomes
 
-$$S = \sum_{i=1}^n (x_i - \bar x)(y_i - \bar y) \qquad D = \sum_{i=1}^n (x_i - \bar x)^2$$
+$$L(m) = m^2\sum_{i=1}^n (x_i - \bar x)^2 - 2m\sum_{i=1}^n (x_i - \bar x)(y_i - \bar y) + \text{const} + \lambda |m|$$
 
-(so that plain OLS's slope is $S/D$), the loss as a function of $m$ becomes
-
-$$L(m) = D m^2 - 2Sm + \text{const} + \lambda |m|$$
-
-Ridge's version of this ([Ch.14](/machine-learning-algorithms/ch14-ridge-regression-code)) replaced the last term with $\lambda m^2$, which is smooth everywhere and differentiates cleanly to $D m^2 - 2Sm + \lambda m^2$, giving $m = S/(D + \lambda)$ directly. Lasso's $\lambda |m|$ is not differentiable at $m = 0$, an absolute value has a sharp corner there, so the single clean derivative doesn't exist. That corner is the entire reason this post needs three cases instead of one.
+Ridge's version of this ([Ch.14](/machine-learning-algorithms/ch14-ridge-regression-code)) replaced the last term with $\lambda m^2$, which is smooth everywhere and differentiates cleanly, giving $m = \dfrac{\sum (y_i - \bar y)(x_i - \bar x)}{\sum (x_i - \bar x)^2 + \lambda}$ directly. Lasso's $\lambda |m|$ is not differentiable at $m = 0$, an absolute value has a sharp corner there, so the single clean derivative doesn't exist. That corner is the entire reason this post needs three cases instead of one.
 
 ## 2. Three Cases Instead of One Derivative
 
-**Case $m > 0$:** here $|m| = m$, so $L(m) = Dm^2 - 2Sm + \lambda m$, an ordinary smooth parabola. Differentiating and setting to zero:
+**Case $m > 0$:** here $|m| = m$, so $L(m) = m^2\sum(x_i-\bar x)^2 - 2m\sum(x_i-\bar x)(y_i-\bar y) + \lambda m$, an ordinary smooth parabola. Differentiating and setting to zero:
 
-$$\frac{dL}{dm} = 2Dm - 2S + \lambda = 0 \implies m = \frac{S - \lambda/2}{D}$$
+$$\frac{dL}{dm} = 2m\sum(x_i-\bar x)^2 - 2\sum(x_i-\bar x)(y_i-\bar y) + \lambda = 0 \implies m = \frac{\sum(x_i-\bar x)(y_i-\bar y) - \lambda/2}{\sum(x_i-\bar x)^2}$$
 
-This is only a valid solution if it actually lands in $m > 0$, i.e. if $S > \lambda/2$.
+This is only a valid solution if it actually lands in $m > 0$, i.e. if $\sum(x_i-\bar x)(y_i-\bar y) > \lambda/2$.
 
-**Case $m < 0$:** here $|m| = -m$, so $L(m) = Dm^2 - 2Sm - \lambda m$, and setting the derivative to zero:
+**Case $m < 0$:** here $|m| = -m$, and setting the derivative to zero the same way:
 
-$$\frac{dL}{dm} = 2Dm - 2S - \lambda = 0 \implies m = \frac{S + \lambda/2}{D}$$
+$$m = \frac{\sum(x_i-\bar x)(y_i-\bar y) + \lambda/2}{\sum(x_i-\bar x)^2}$$
 
-Valid only if this lands in $m < 0$, i.e. if $S < -\lambda/2$.
+Valid only if this lands in $m < 0$, i.e. if $\sum(x_i-\bar x)(y_i-\bar y) < -\lambda/2$.
 
-**Case $m = 0$:** at the corner itself, $|m|$ doesn't have a single derivative, it has a *subgradient*, every slope value between $-\lambda$ and $\lambda$ counts as valid at that one point. The minimum sits at $m=0$ whenever zero is among those valid slopes, which works out to exactly when neither of the two cases above was satisfiable: $-\lambda/2 \le S \le \lambda/2$.
+**Case $m = 0$:** at the corner itself, $|m|$ doesn't have a single derivative, it has a *subgradient*, every slope value between $-\lambda$ and $\lambda$ counts as valid at that one point. The minimum sits at $m=0$ whenever zero is among those valid slopes, which works out to exactly when neither of the two cases above was satisfiable, i.e. $\left|\sum(x_i-\bar x)(y_i-\bar y)\right| \le \lambda/2$.
 
-Put together, this is the soft-thresholding formula:
+To keep the three cases readable side by side, write $\text{num} = \sum(x_i-\bar x)(y_i-\bar y)$ and $\text{den} = \sum(x_i-\bar x)^2$, plain OLS's own numerator and denominator. Put together, this is the soft-thresholding formula:
 
-$$m^* = \begin{cases} \dfrac{S - \lambda/2}{D} & S > \lambda/2 \\[6pt] 0 & |S| \le \lambda/2 \\[6pt] \dfrac{S + \lambda/2}{D} & S < -\lambda/2 \end{cases}$$
+$$m^* = \begin{cases} \dfrac{\text{num} - \lambda/2}{\text{den}} & \text{num} > \lambda/2 \\[6pt] 0 & |\text{num}| \le \lambda/2 \\[6pt] \dfrac{\text{num} + \lambda/2}{\text{den}} & \text{num} < -\lambda/2 \end{cases}$$
 
 ## 3. Why This Actually Reaches Zero and Ridge's Formula Never Does
 
 Line up the two formulas directly:
 
-$$m_{\text{Ridge}} = \frac{S}{D + \lambda} \qquad\qquad m_{\text{Lasso}} = \frac{S \mp \lambda/2}{D}$$
+$$m_{\text{Ridge}} = \frac{\text{num}}{\text{den} + \lambda} \qquad\qquad m_{\text{Lasso}} = \frac{\text{num} \mp \lambda/2}{\text{den}}$$
 
-Ridge's $\lambda$ lives in the **denominator**. Growing $\lambda$ makes the denominator bigger, which makes the fraction smaller, but a nonzero numerator divided by any finite number is still nonzero. The only way Ridge's $m$ hits exactly zero is if $S$ itself was zero to begin with. That's the whole reason [Ch.16](/machine-learning-algorithms/ch16-ridge-regression-key-understandings)'s point 1 holds: shrinkage without ever quite arriving.
+Ridge's $\lambda$ lives in the **denominator**. Growing $\lambda$ makes the denominator bigger, which makes the fraction smaller, but a nonzero numerator divided by any finite number is still nonzero. The only way Ridge's $m$ hits exactly zero is if the numerator itself was zero to begin with. That's the whole reason [Ch.16](/machine-learning-algorithms/ch16-ridge-regression-key-understandings)'s point 1 holds: shrinkage without ever quite arriving.
 
-Lasso's $\lambda$ lives in the **numerator**, subtracted directly from $S$. Once $\lambda/2$ grows past $|S|$, the numerator would have to cross zero and flip sign, but the case split forbids that: the $S - \lambda/2 > 0$ branch is only valid while it's positive, and the $S + \lambda/2 < 0$ branch is only valid while it's negative. The moment neither branch's own condition holds anymore, the formula falls through to the third case and locks $m$ at exactly $0$, and it stays there for every larger $\lambda$ afterward, there's no branch left that would ever pull it back off zero. That's the algebraic reason feature selection is possible: the penalty competes directly against $S$ inside the same numerator, and once it wins, it wins outright.
+Lasso's $\lambda$ lives in the **numerator**, subtracted directly from it. Once $\lambda/2$ grows past $|\text{num}|$, the numerator would have to cross zero and flip sign, but the case split forbids that: the $\text{num} - \lambda/2 > 0$ branch is only valid while it's positive, and the $\text{num} + \lambda/2 < 0$ branch is only valid while it's negative. The moment neither branch's own condition holds anymore, the formula falls through to the third case and locks $m$ at exactly $0$, and it stays there for every larger $\lambda$ afterward, there's no branch left that would ever pull it back off zero. That's the algebraic reason feature selection is possible: the penalty competes directly against the numerator, and once it wins, it wins outright.
 
 ## 4. Verifying Against Scikit-Learn
 
@@ -69,14 +65,14 @@ x = X.ravel()
 n = len(x)
 
 xbar, ybar = x.mean(), y.mean()
-S = np.sum((x - xbar) * (y - ybar))
-D = np.sum((x - xbar) ** 2)
+num = np.sum((x - xbar) * (y - ybar))
+den = np.sum((x - xbar) ** 2)
 
 def soft_threshold_m(lam):
-    if S > lam / 2:
-        return (S - lam / 2) / D
-    elif S < -lam / 2:
-        return (S + lam / 2) / D
+    if num > lam / 2:
+        return (num - lam / 2) / den
+    elif num < -lam / 2:
+        return (num + lam / 2) / den
     return 0.0
 
 for alpha in [0, 0.5, 1, 2, 5, 10, 50]:
@@ -91,7 +87,7 @@ for alpha in [0, 0.5, 1, 2, 5, 10, 50]:
 # 50    0.0000   0.0000
 ```
 
-Every value matches to four decimal places. The derivation also predicts exactly where the coefficient should hit zero: solving $S = \lambda/2 = n\alpha$ for $\alpha$ gives $\alpha^* = S/n$, which computes to `24.17` for this dataset. Scanning `Lasso`'s actual output near that boundary confirms it:
+Every value matches to four decimal places. The derivation also predicts exactly where the coefficient should hit zero: solving $\text{num} = \lambda/2 = n\alpha$ for $\alpha$ gives $\alpha^* = \text{num}/n$, which computes to `24.17` for this dataset. Scanning `Lasso`'s actual output near that boundary confirms it:
 
 ```python
 for alpha in [24.0, 24.16, 24.17, 24.2, 25]:
