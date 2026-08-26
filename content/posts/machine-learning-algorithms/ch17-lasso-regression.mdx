@@ -120,7 +120,7 @@ for alpha in alphas:
 
 <img src="/images/ch17-shrinkage-paths.png" alt="Line chart of all ten diabetes coefficients against alpha on a log scale, from 0.0001 to 10. Every line converges to exactly zero by around alpha=5, with the largest-magnitude coefficients like s1 and s5 dropping steepest and s5, bmi and bp surviving longest before finally reaching zero themselves" className="w-full h-auto" />
 
-`s1` starts around `-895` and is already near zero by `alpha=0.05`. `s5` starts around `857`, the single largest coefficient, and survives the longest of any feature before also being zeroed out around `alpha≈5`. Every path, without exception, has reached exactly `0` by `alpha=10`. The pattern from Ridge (bigger coefficients shrink faster in absolute terms) still holds, it's just that here "shrink" has a finish line.
+`s1` starts around `-895` and drops fast in relative terms, down to `-132` by `alpha=0.05`, but doesn't actually hit exactly `0` until somewhere between `alpha=0.1` and `alpha=0.5`. `s5` starts around `857`, the single largest coefficient, and survives far longer: still `43.5` at `alpha=2` before finally being zeroed out by `alpha=5`. Every path, without exception, has reached exactly `0` by `alpha=10`. The pattern from Ridge (bigger coefficients shrink faster in absolute terms) still holds, it's just that here "shrink" has a finish line.
 
 ## 5. Bias and Variance: Bias Rises, Variance Barely Moves
 
