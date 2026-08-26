@@ -121,7 +121,34 @@ for alpha in [0, 10, 20, 30, 40, 50, 100]:
 
 <img src="/images/ch16-loss-shift.png" alt="Line chart with slope m on the x-axis and loss on the y-axis, showing seven parabolas for alpha values 0 through 100, each one narrower and with its minimum shifted further left toward zero as alpha increases" className="w-full h-auto" />
 
-At `alpha=0` the parabola's minimum sits at `m≈27.86`, matching `LinearRegression`'s unregularized coefficient. As `alpha` climbs to `10`, `20`, up through `100`, each new parabola is narrower and its minimum has shifted further left, toward `m≈13.29` at `alpha=100`. The $\lambda m^2$ term added to the loss grows quadratically as $m$ moves away from zero, so it increasingly penalizes staying at the old minimum, which drags the whole curve's low point back toward the origin. This is the same shrinkage from point 1, just viewed as a moving minimum instead of a moving coefficient value. The same effect happens in higher dimensions: with two coefficients the loss becomes a 3D bowl, and increasing $\lambda$ both steepens the bowl's walls and slides its lowest point toward the origin.
+At `alpha=0` the parabola's minimum sits at `m≈27.86`, matching `LinearRegression`'s unregularized coefficient. As `alpha` climbs to `10`, `20`, up through `100`, each new parabola is narrower and its minimum has shifted further left, toward `m≈13.29` at `alpha=100`. The $\lambda m^2$ term added to the loss grows quadratically as $m$ moves away from zero, so it increasingly penalizes staying at the old minimum, which drags the whole curve's low point back toward the origin. This is the same shrinkage from point 1, just viewed as a moving minimum instead of a moving coefficient value.
+
+With two coefficients, the loss becomes a 3D bowl instead of a 2D parabola, and $(w_1, w_2)$ contour plots make the same shift visible directly:
+
+```python
+from sklearn.datasets import make_regression
+
+X, y = make_regression(n_samples=100, n_features=2, n_informative=2, n_targets=1, noise=15, random_state=13)
+
+def loss(w1, w2, alpha):
+    W = np.stack([w1.ravel(), w2.ravel()], axis=0)
+    resid = y[:, None] - X @ W
+    data_loss = np.sum(resid ** 2, axis=0)
+    reg_loss = alpha * (w1.ravel() ** 2 + w2.ravel() ** 2)
+    return (data_loss + reg_loss).reshape(w1.shape)
+
+w1 = np.linspace(-10, 90, 300)
+w2 = np.linspace(-10, 90, 300)
+W1, W2 = np.meshgrid(w1, w2)
+
+for alpha in [0, 20, 60, 150, 400]:
+    Z = loss(W1, W2, alpha)
+    # contour-plot Z over (W1, W2), mark its minimum
+```
+
+<img src="/images/ch16-loss-surface-2d.png" alt="Five side-by-side contour plots of the Ridge loss over w1 and w2, for alpha values 0, 20, 60, 150, and 400. In each panel the red dot marks the loss minimum and the black plus marks the origin; as alpha increases the red dot moves steadily from far in the upper right toward the origin, while the contour rings shrink and tighten around it" className="w-full h-auto" />
+
+At `alpha=0` the red dot, the loss minimum, sits at `(81.0, 26.1)`, matching what `LinearRegression` finds unregularized. As `alpha` rises through `20`, `60`, `150`, `400`, the red dot slides steadily down toward the black `+` marking the origin, reaching `(12.7, 4.0)` by `alpha=400`, and the contour rings visibly tighten around it as the bowl steepens. The two coordinates shrink together and roughly proportionally, since both are being pulled by the same $\lambda(w_1^2 + w_2^2)$ term, which is exactly the pattern from points 1 and 2: every coefficient shrinks toward, but never reaches, the origin, with the ones that started furthest out moving the most in absolute terms.
 
 ## 5. Why It's Called "Ridge"
 
