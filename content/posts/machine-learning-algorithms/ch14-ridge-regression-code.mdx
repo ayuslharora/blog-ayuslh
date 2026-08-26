@@ -149,6 +149,8 @@ This is Ridge's closed-form solution. It's the same normal equation from plain l
 
 The formula translates directly into code with `numpy`, but there's one subtlety: the intercept $w_0$ should never be shrunk toward zero, since it's just centering the predictions, not controlling the model's sensitivity to any feature. If $\lambda I$ is applied naively, the identity matrix's `[0][0]` entry regularizes $w_0$ along with every other weight. The fix is to zero out that one entry before adding it in:
 
+> In the weight vector $W$, index `0` is the intercept $w_0$, not a slope, since $X$ was built with a leading column of ones. `I[0][0] = 0` turns off regularization for exactly that position, so when $\lambda I$ is added to $X^TX$, $\lambda$ ends up multiplied only against the slope terms $w_1, \dots, w_p$, leaving the intercept free to shift wherever the data needs it to.
+
 ```python
 import numpy as np
 
