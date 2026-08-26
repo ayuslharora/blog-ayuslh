@@ -137,6 +137,21 @@ Recording the line's position every epoch and plotting several snapshots on the 
 
 The early epochs barely move the line, most randomly picked points are already correctly classified once the line is roughly in the right neighborhood, so the "do nothing" branch fires most of the time. The visible jumps come from the rarer picks that land on a misclassified point. By epoch 200 the line has rotated most of the way to vertical, sitting almost exactly in the empty gap between the two clusters.
 
-## 10. What This Doesn't Guarantee
+## 10. What Happens to a Point Exactly on the Line
+
+Section 3 covered three outcomes for $ax+by+c$: positive, negative, or exactly `0` when a point sits precisely on the boundary. That third case needs a concrete answer once it reaches code, since a prediction has to come out as one class or the other, there's no "undecided" bucket.
+
+The `step()` function used above settles it by convention:
+
+```python
+def step(z):
+    return 1 if z > 0 else 0
+```
+
+`z > 0` is a strict inequality, so `z == 0` falls through to the `else` and gets predicted as class `0`, the negative class. A point sitting exactly on the decision boundary is, by this code's definition, always classified negative, never positive and never left unresolved. That's an arbitrary tie-breaking choice, `z >= 0` returning `1` instead would just as validly classify boundary points as positive, but it has to be one or the other, and this is the one the perceptron trick's usual implementation picks.
+
+That choice still feeds back into training the normal way. If a point that's genuinely labeled positive ($y=1$) ever lands exactly on the line ($z=0$, so $\hat y=0$ by the convention above), the point is a misclassification as far as the update rule is concerned, $y - \hat y = 1 - 0 = 1$, not $0$. The line still gets nudged by $\eta X$ in the next epoch, even though the point technically wasn't on the *wrong* side, only balanced precisely on the edge. In practice this case is rare, with real-valued features the odds of $\sum w_i x_i$ landing on exactly `0` are close to zero, and it resolves itself the same way any other misclassified point does: the perceptron trick keeps nudging until nothing (line or point) is left sitting exactly on that boundary in a way the update rule disagrees with.
+
+## 11. What This Doesn't Guarantee
 
 The Perceptron Trick reliably finds *a* separating line, but not necessarily the *best* one. Run it multiple times, or change the random seed, and it converges to a slightly different line each time, anywhere that happens to separate every point counts as success, with no notion of which separating line generalizes best or sits safest in the middle of the gap. Logistic Regression's actual solution, covered from its proper probabilistic foundation in the next post, answers a more specific question and lands on one particular best line rather than merely *a* working one. The Perceptron Trick's job here was only to build the geometric intuition, weights as a line, misclassification as a nudge, that the real algorithm builds on.
