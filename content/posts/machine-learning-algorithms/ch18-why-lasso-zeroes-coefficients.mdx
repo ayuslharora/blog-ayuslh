@@ -117,7 +117,13 @@ Plotting both coefficient paths on the same synthetic dataset makes the numerato
 
 <img src="/images/ch18-ridge-vs-lasso-path.png" alt="Line chart with alpha on the x-axis and coefficient m on the y-axis. The Ridge curve in blue decays smoothly and asymptotically, still clearly above zero at alpha=60. The Lasso curve in red is a straight line that reaches exactly zero at alpha=24.17 and stays flat at zero for every larger alpha, marked with a dotted vertical line" className="w-full h-auto" />
 
-Ridge's blue curve is a smooth, ever-flattening decay, at `alpha=60` it's still sitting above `16`, nowhere near zero. Lasso's red curve is a straight line, a direct consequence of $m^* = (\text{num} - \lambda)/\text{den}$ being linear in $\lambda$, that hits the x-axis precisely at `alpha=24.17` and stays pinned to zero for every alpha past that. Two closed-form formulas, differing only in whether $\lambda$ lands in the numerator or the denominator, and that's the entire mechanism behind one of the most commonly asked questions about these two techniques.
+Both curves start at the exact same point, `m≈27.83`, because at `alpha=0` both formulas collapse back to plain OLS. From there they diverge, and the shape of each curve is a direct fingerprint of where $\lambda$ sits in its formula.
+
+Ridge's $m = \text{num}/(\text{den}+\lambda)$ has $\lambda$ in the denominator, so the curve is a hyperbola: growing $\lambda$ makes the denominator bigger, which shrinks the fraction, but a nonzero numerator divided by an ever-larger number only ever approaches zero, it never lands on it. That's why the blue curve keeps bending flatter without ever touching the x-axis, still sitting above `16` even at `alpha=60`.
+
+Lasso's $m^* = (\text{num}-\lambda)/\text{den}$ has $\lambda$ in the numerator instead, with $\text{den}$ just a fixed constant out front. That makes it a straight line in $\lambda$ with slope $-1/\text{den}$, right up until the case split kicks in: once $\lambda$ passes `num` (here `alpha=24.17`), the formula switches to the third case and pins $m$ at exactly `0` for good. So the red line isn't a curve that happens to hit zero, it's a straight line that gets clipped the moment it would try to cross zero, which is exactly what the case-by-case derivation in section 2 predicts.
+
+Same starting point, same-looking algebra, and the only structural difference, numerator versus denominator, is enough to turn one into a curve that never arrives and the other into a line that arrives and stops.
 
 ---
 
