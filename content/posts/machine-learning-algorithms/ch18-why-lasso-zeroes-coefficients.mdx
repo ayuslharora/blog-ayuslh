@@ -15,19 +15,25 @@ draft: false
 
 ## 1. Setting Up the Same Way as Ridge
 
-[Ch.14](/machine-learning-algorithms/ch14-ridge-regression-code) derived Ridge's single-feature solution by substituting $b = \bar y - m\bar x$ into the loss and reducing everything to a function of $m$ alone. Lasso starts identically, and the loss as a function of $m$ becomes
+Start the same way the video does. The loss is
 
-$$L(m) = m^2\sum_{i=1}^n (x_i - \bar x)^2 - 2m\sum_{i=1}^n (x_i - \bar x)(y_i - \bar y) + \sum_{i=1}^n (y_i - \bar y)^2 + \lambda |m|$$
+$$L = \sum_{i=1}^n (y_i - \hat y_i)^2 + \lambda |m|$$
 
-The $\sum (y_i - \bar y)^2$ term doesn't involve $m$ at all, so its derivative with respect to $m$ is zero. It drops out of every case below without changing where the minimum sits, which is why the case-by-case work that follows only ever touches the first two terms.
+Substituting $\hat y_i = mx_i + b$ and then $b = \bar y - m\bar x$ turns that into
+
+$$L = \sum_{i=1}^n (y_i - mx_i - \bar y + m\bar x)^2 + \lambda |m| = \sum_{i=1}^n \big[(y_i - \bar y) - m(x_i - \bar x)\big]^2 + \lambda |m|$$
 
 Ridge's version of this ([Ch.14](/machine-learning-algorithms/ch14-ridge-regression-code)) replaced the last term with $\lambda m^2$, which is smooth everywhere and differentiates cleanly, giving $m = \dfrac{\sum (y_i - \bar y)(x_i - \bar x)}{\sum (x_i - \bar x)^2 + \lambda}$ directly. Lasso's $\lambda |m|$ is not differentiable at $m = 0$, an absolute value has a sharp corner there, so the single clean derivative doesn't exist. That corner is the entire reason this post needs three cases instead of one.
 
 ## 2. Three Cases Instead of One Derivative
 
-**Case $m > 0$:** here $|m| = m$, so $L(m) = m^2\sum(x_i-\bar x)^2 - 2m\sum(x_i-\bar x)(y_i-\bar y) + \lambda m$, an ordinary smooth parabola. Differentiating and setting to zero:
+**Case $m > 0$:** here $|m| = m$, so $L = \sum\big[(y_i-\bar y) - m(x_i-\bar x)\big]^2 + \lambda m$, an ordinary smooth parabola. Differentiating with respect to $m$ and setting it to zero:
 
-$$\frac{dL}{dm} = 2m\sum(x_i-\bar x)^2 - 2\sum(x_i-\bar x)(y_i-\bar y) + \lambda = 0 \implies m = \frac{\sum(x_i-\bar x)(y_i-\bar y) - \lambda/2}{\sum(x_i-\bar x)^2}$$
+$$\frac{dL}{dm} = -2\sum(x_i-\bar x)\big[(y_i-\bar y) - m(x_i-\bar x)\big] + \lambda = 0$$
+
+Expanding and solving for $m$:
+
+$$m = \frac{\sum(x_i-\bar x)(y_i-\bar y) - \lambda/2}{\sum(x_i-\bar x)^2}$$
 
 This is only a valid solution if it actually lands in $m > 0$, i.e. if $\sum(x_i-\bar x)(y_i-\bar y) > \lambda/2$.
 
