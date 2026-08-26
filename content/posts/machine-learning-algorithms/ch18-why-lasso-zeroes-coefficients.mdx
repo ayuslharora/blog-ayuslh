@@ -27,41 +27,43 @@ Ridge's version of this ([Ch.14](/machine-learning-algorithms/ch14-ridge-regress
 
 ## 2. Three Cases Instead of One Derivative
 
-**Case $m > 0$:** here $|m| = m$, so $L = \sum\big[(y_i-\bar y) - m(x_i-\bar x)\big]^2 + \lambda m$, an ordinary smooth parabola. Differentiating with respect to $m$ and setting it to zero:
+Right before splitting into cases, the video makes one small algebra move for convenience: it writes the penalty as $2\lambda|m|$ instead of $\lambda|m|$. Nothing about the model changes, this is just relabeling the penalty's strength so that the factor of $2$ produced by differentiating the squared term cancels cleanly, instead of leaving a $\lambda/2$ sitting in every formula.
 
-$$\frac{dL}{dm} = -2\sum(x_i-\bar x)\big[(y_i-\bar y) - m(x_i-\bar x)\big] + \lambda = 0$$
+**Case $m > 0$:** here $|m| = m$, so $L = \sum\big[(y_i-\bar y) - m(x_i-\bar x)\big]^2 + 2\lambda m$, an ordinary smooth parabola. Differentiating with respect to $m$ and setting it to zero:
 
-Expanding and solving for $m$:
+$$\frac{dL}{dm} = -2\sum(x_i-\bar x)\big[(y_i-\bar y) - m(x_i-\bar x)\big] + 2\lambda = 0$$
 
-$$m = \frac{\sum(x_i-\bar x)(y_i-\bar y) - \lambda/2}{\sum(x_i-\bar x)^2}$$
+Dividing through by $2$ and solving for $m$:
 
-This is only a valid solution if it actually lands in $m > 0$, i.e. if $\sum(x_i-\bar x)(y_i-\bar y) > \lambda/2$.
+$$m = \frac{\sum(x_i-\bar x)(y_i-\bar y) - \lambda}{\sum(x_i-\bar x)^2}$$
+
+This is only a valid solution if it actually lands in $m > 0$, i.e. if $\sum(x_i-\bar x)(y_i-\bar y) > \lambda$.
 
 **Case $m < 0$:** here $|m| = -m$, and setting the derivative to zero the same way:
 
-$$m = \frac{\sum(x_i-\bar x)(y_i-\bar y) + \lambda/2}{\sum(x_i-\bar x)^2}$$
+$$m = \frac{\sum(x_i-\bar x)(y_i-\bar y) + \lambda}{\sum(x_i-\bar x)^2}$$
 
-Valid only if this lands in $m < 0$, i.e. if $\sum(x_i-\bar x)(y_i-\bar y) < -\lambda/2$.
+Valid only if this lands in $m < 0$, i.e. if $\sum(x_i-\bar x)(y_i-\bar y) < -\lambda$.
 
-**Case $m = 0$:** at the corner itself, $|m|$ doesn't have a single derivative, it has a *subgradient*, every slope value between $-\lambda$ and $\lambda$ counts as valid at that one point. The minimum sits at $m=0$ whenever zero is among those valid slopes, which works out to exactly when neither of the two cases above was satisfiable, i.e. $\left|\sum(x_i-\bar x)(y_i-\bar y)\right| \le \lambda/2$.
+**Case $m = 0$:** at the corner itself, $|m|$ doesn't have a single derivative, it has a *subgradient*, every slope value between $-2\lambda$ and $2\lambda$ counts as valid at that one point. The minimum sits at $m=0$ whenever zero is among those valid slopes, which works out to exactly when neither of the two cases above was satisfiable, i.e. $\left|\sum(x_i-\bar x)(y_i-\bar y)\right| \le \lambda$.
 
 To keep the three cases readable side by side, write $\text{num} = \sum(x_i-\bar x)(y_i-\bar y)$ and $\text{den} = \sum(x_i-\bar x)^2$, plain OLS's own numerator and denominator. Put together, this is the soft-thresholding formula:
 
-$$m^* = \begin{cases} \dfrac{\text{num} - \lambda/2}{\text{den}} & \text{num} > \lambda/2 \\[6pt] 0 & |\text{num}| \le \lambda/2 \\[6pt] \dfrac{\text{num} + \lambda/2}{\text{den}} & \text{num} < -\lambda/2 \end{cases}$$
+$$m^* = \begin{cases} \dfrac{\text{num} - \lambda}{\text{den}} & \text{num} > \lambda \\[6pt] 0 & |\text{num}| \le \lambda \\[6pt] \dfrac{\text{num} + \lambda}{\text{den}} & \text{num} < -\lambda \end{cases}$$
 
 ## 3. Why This Actually Reaches Zero and Ridge's Formula Never Does
 
 Line up the two formulas directly:
 
-$$m_{\text{Ridge}} = \frac{\text{num}}{\text{den} + \lambda} \qquad\qquad m_{\text{Lasso}} = \frac{\text{num} \mp \lambda/2}{\text{den}}$$
+$$m_{\text{Ridge}} = \frac{\text{num}}{\text{den} + \lambda} \qquad\qquad m_{\text{Lasso}} = \frac{\text{num} \mp \lambda}{\text{den}}$$
 
 Ridge's $\lambda$ lives in the **denominator**. Growing $\lambda$ makes the denominator bigger, which makes the fraction smaller, but a nonzero numerator divided by any finite number is still nonzero. The only way Ridge's $m$ hits exactly zero is if the numerator itself was zero to begin with. That's the whole reason [Ch.16](/machine-learning-algorithms/ch16-ridge-regression-key-understandings)'s point 1 holds: shrinkage without ever quite arriving.
 
-Lasso's $\lambda$ lives in the **numerator**, subtracted directly from it. Once $\lambda/2$ grows past $|\text{num}|$, the numerator would have to cross zero and flip sign, but the case split forbids that: the $\text{num} - \lambda/2 > 0$ branch is only valid while it's positive, and the $\text{num} + \lambda/2 < 0$ branch is only valid while it's negative. The moment neither branch's own condition holds anymore, the formula falls through to the third case and locks $m$ at exactly $0$, and it stays there for every larger $\lambda$ afterward, there's no branch left that would ever pull it back off zero. That's the algebraic reason feature selection is possible: the penalty competes directly against the numerator, and once it wins, it wins outright.
+Lasso's $\lambda$ lives in the **numerator**, subtracted directly from it. Once $\lambda$ grows past $|\text{num}|$, the numerator would have to cross zero and flip sign, but the case split forbids that: the $\text{num} - \lambda > 0$ branch is only valid while it's positive, and the $\text{num} + \lambda < 0$ branch is only valid while it's negative. The moment neither branch's own condition holds anymore, the formula falls through to the third case and locks $m$ at exactly $0$, and it stays there for every larger $\lambda$ afterward, there's no branch left that would ever pull it back off zero. That's the algebraic reason feature selection is possible: the penalty competes directly against the numerator, and once it wins, it wins outright.
 
 ## 4. Verifying Against Scikit-Learn
 
-`sklearn.linear_model.Lasso` doesn't use this post's exact loss, it minimizes $\frac{1}{2n}\text{RSS} + \alpha|w|$ rather than $\text{RSS} + \lambda|w|$, so its `alpha` and this derivation's $\lambda$ differ by a factor of $2n$: $\lambda = 2n\alpha$. Accounting for that, the closed-form soft-threshold and `Lasso.coef_` should match exactly:
+`sklearn.linear_model.Lasso` doesn't use this post's exact loss, it minimizes $\frac{1}{2n}\text{RSS} + \alpha|w|$ rather than $\text{RSS} + 2\lambda|w|$, so its `alpha` and this derivation's $\lambda$ differ by a factor of $n$: $\lambda = n\alpha$. Accounting for that, the closed-form soft-threshold and `Lasso.coef_` should match exactly:
 
 ```python
 import numpy as np
@@ -77,14 +79,14 @@ num = np.sum((x - xbar) * (y - ybar))
 den = np.sum((x - xbar) ** 2)
 
 def soft_threshold_m(lam):
-    if num > lam / 2:
-        return (num - lam / 2) / den
-    elif num < -lam / 2:
-        return (num + lam / 2) / den
+    if num > lam:
+        return (num - lam) / den
+    elif num < -lam:
+        return (num + lam) / den
     return 0.0
 
 for alpha in [0, 0.5, 1, 2, 5, 10, 50]:
-    lam = 2 * n * alpha
+    lam = n * alpha
     print(alpha, soft_threshold_m(lam), Lasso(alpha=alpha).fit(X, y).coef_[0])
 # 0    27.8281  27.8281
 # 0.5  27.2524  27.2524
@@ -95,7 +97,7 @@ for alpha in [0, 0.5, 1, 2, 5, 10, 50]:
 # 50    0.0000   0.0000
 ```
 
-Every value matches to four decimal places. The derivation also predicts exactly where the coefficient should hit zero: solving $\text{num} = \lambda/2 = n\alpha$ for $\alpha$ gives $\alpha^* = \text{num}/n$, which computes to `24.17` for this dataset. Scanning `Lasso`'s actual output near that boundary confirms it:
+Every value matches to four decimal places. The derivation also predicts exactly where the coefficient should hit zero: solving $\text{num} = \lambda = n\alpha$ for $\alpha$ gives $\alpha^* = \text{num}/n$, which computes to `24.17` for this dataset. Scanning `Lasso`'s actual output near that boundary confirms it:
 
 ```python
 for alpha in [24.0, 24.16, 24.17, 24.2, 25]:
@@ -115,7 +117,7 @@ Plotting both coefficient paths on the same synthetic dataset makes the numerato
 
 <img src="/images/ch18-ridge-vs-lasso-path.png" alt="Line chart with alpha on the x-axis and coefficient m on the y-axis. The Ridge curve in blue decays smoothly and asymptotically, still clearly above zero at alpha=60. The Lasso curve in red is a straight line that reaches exactly zero at alpha=24.17 and stays flat at zero for every larger alpha, marked with a dotted vertical line" className="w-full h-auto" />
 
-Ridge's blue curve is a smooth, ever-flattening decay, at `alpha=60` it's still sitting above `16`, nowhere near zero. Lasso's red curve is a straight line, a direct consequence of $m^* = (S - \lambda/2)/D$ being linear in $\lambda$, that hits the x-axis precisely at `alpha=24.17` and stays pinned to zero for every alpha past that. Two closed-form formulas, differing only in whether $\lambda$ lands in the numerator or the denominator, and that's the entire mechanism behind one of the most commonly asked questions about these two techniques.
+Ridge's blue curve is a smooth, ever-flattening decay, at `alpha=60` it's still sitting above `16`, nowhere near zero. Lasso's red curve is a straight line, a direct consequence of $m^* = (\text{num} - \lambda)/\text{den}$ being linear in $\lambda$, that hits the x-axis precisely at `alpha=24.17` and stays pinned to zero for every alpha past that. Two closed-form formulas, differing only in whether $\lambda$ lands in the numerator or the denominator, and that's the entire mechanism behind one of the most commonly asked questions about these two techniques.
 
 ---
 
