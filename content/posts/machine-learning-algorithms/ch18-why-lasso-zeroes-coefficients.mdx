@@ -49,7 +49,7 @@ Valid only if this lands in $m < 0$, i.e. if $\sum(x_i-\bar x)(y_i-\bar y) < -\l
 
 To keep the three cases readable side by side, write $\text{num} = \sum(x_i-\bar x)(y_i-\bar y)$ and $\text{den} = \sum(x_i-\bar x)^2$, plain OLS's own numerator and denominator. Put together, this is the soft-thresholding formula:
 
-$$m^* = \begin{cases} \dfrac{\text{num} - \lambda}{\text{den}} & \text{num} > \lambda \\[6pt] 0 & |\text{num}| \le \lambda \\[6pt] \dfrac{\text{num} + \lambda}{\text{den}} & \text{num} < -\lambda \end{cases}$$
+$$m^* = \begin{cases} \dfrac{\text{num} - \lambda}{\text{den}} & \text{num} > \lambda \quad (m > 0) \\[6pt] 0 & |\text{num}| \le \lambda \quad (m = 0) \\[6pt] \dfrac{\text{num} + \lambda}{\text{den}} & \text{num} < -\lambda \quad (m < 0) \end{cases}$$
 
 ## 3. Why This Actually Reaches Zero and Ridge's Formula Never Does
 
