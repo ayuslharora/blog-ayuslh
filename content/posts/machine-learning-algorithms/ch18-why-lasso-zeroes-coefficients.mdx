@@ -17,7 +17,9 @@ draft: false
 
 [Ch.14](/machine-learning-algorithms/ch14-ridge-regression-code) derived Ridge's single-feature solution by substituting $b = \bar y - m\bar x$ into the loss and reducing everything to a function of $m$ alone. Lasso starts identically, and the loss as a function of $m$ becomes
 
-$$L(m) = m^2\sum_{i=1}^n (x_i - \bar x)^2 - 2m\sum_{i=1}^n (x_i - \bar x)(y_i - \bar y) + \text{const} + \lambda |m|$$
+$$L(m) = m^2\sum_{i=1}^n (x_i - \bar x)^2 - 2m\sum_{i=1}^n (x_i - \bar x)(y_i - \bar y) + \sum_{i=1}^n (y_i - \bar y)^2 + \lambda |m|$$
+
+The $\sum (y_i - \bar y)^2$ term doesn't involve $m$ at all, so its derivative with respect to $m$ is zero. It drops out of every case below without changing where the minimum sits, which is why the case-by-case work that follows only ever touches the first two terms.
 
 Ridge's version of this ([Ch.14](/machine-learning-algorithms/ch14-ridge-regression-code)) replaced the last term with $\lambda m^2$, which is smooth everywhere and differentiates cleanly, giving $m = \dfrac{\sum (y_i - \bar y)(x_i - \bar x)}{\sum (x_i - \bar x)^2 + \lambda}$ directly. Lasso's $\lambda |m|$ is not differentiable at $m = 0$, an absolute value has a sharp corner there, so the single clean derivative doesn't exist. That corner is the entire reason this post needs three cases instead of one.
 
