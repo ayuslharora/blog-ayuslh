@@ -34,5 +34,5 @@ For most developers, relational databases are the best option because they have 
 
 - Your application requires super-low latency.
 - Your data are unstructured, or you do not have any relational data.
-- You only need to serialize and deserialize data (JSON, XML, YAML, etc.). That is, you save an object whole and later load the same object back by its id, and you never ask the database to filter, join, or aggregate its contents. When that is all you need, a relational schema is overhead, so a document or key-value store is a better fit.
+- You only need to serialize and deserialize data (JSON, XML, YAML, etc.). "Serialize" means turning an object in your code into text you can store; "deserialize" is turning that text back into an object. If all your app does is save a whole object under some id and later fetch that exact object back, and it never asks questions like "find all users in Delhi" or "sum every order from March," then you are not really using what a relational database is for. A document or key-value store that just keeps the object as-is is simpler and faster.
 - You need to store a massive amount of data.
