@@ -1,0 +1,39 @@
+---
+title: "Vertical vs Horizontal Scaling"
+description: "Two ways to give a system more capacity: a bigger server (scale up) or more servers (scale out), why scale up runs out of room, and why that leads to a load balancer."
+date: "2026-08-28T02:37:36+05:30"
+tags: ["system-design", "book-notes", "scalability"]
+subtopic: "ch1: Scale From Zero to Millions of Users"
+draft: false
+---
+
+## Vertical scaling vs horizontal scaling
+
+When a system needs to handle more load, there are two directions you can go.
+
+- **Vertical scaling**, or "scale up", means adding more power to the server you already have: more CPU, more RAM, faster disks. Same machine, bigger machine.
+- **Horizontal scaling**, or "scale out", means adding more servers and spreading the work across all of them.
+
+### When scaling up is fine
+
+If traffic is low, vertical scaling is a great first move. Its main advantage is simplicity: there is no new architecture to build, no code to change, no traffic to distribute. You resize the box and carry on.
+
+But it has two serious limits.
+
+- **There is a hard ceiling.** You cannot keep adding CPU and memory to a single machine forever. Eventually you hit the largest instance the hardware or your cloud provider offers, and there is nowhere left to go.
+- **There is no failover or redundancy.** One server means one point of failure. If that machine goes down, the whole site goes down with it. Nothing is standing by to take over.
+
+### Why large systems scale out
+
+Because of those limits, horizontal scaling is the better fit for large scale applications. More servers means you can keep growing past what any single machine can do, and if one server fails, the others keep serving traffic.
+
+The tradeoff is complexity. Once there is more than one server, something has to decide which server each incoming request goes to.
+
+## This is where a load balancer comes in
+
+In the design so far, users talk to the web server directly. That creates two problems:
+
+- If the web server is offline, the site is simply unreachable. There is no backup.
+- If many users hit the server at once and it reaches its load limit, everyone sees slow responses or failed connections.
+
+A load balancer solves both. It sits in front of the web servers, and clients connect to it instead of to any server directly. It then spreads incoming requests across the pool of servers so no single one is overwhelmed, and it stops sending traffic to a server that has failed. That is the topic of the next post.
