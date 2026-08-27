@@ -33,3 +33,9 @@ Adding a load balancer and a second web server fixes the single point of failure
 ### What is still fragile
 
 The web tier now looks solid, but the data tier does not. The design still has a single database, so it has no failover and no redundancy: if that one database fails, the whole application loses its data layer. The common fix is database replication, which is the next post.
+
+### But what if the load balancer itself fails?
+
+A sharp reader will notice we just moved the single point of failure rather than removing it. All traffic now flows through the load balancer, so if it dies, the whole site is unreachable even though every web server is healthy.
+
+In practice a load balancer is not run as one box. You deploy at least two, a primary and a secondary, that watch each other with a heartbeat. If the primary stops responding, the secondary takes over its IP address and keeps serving, usually within a few seconds. Managed load balancers from cloud providers (AWS ELB, GCP Cloud Load Balancing, and similar) do this for you: what looks like a single endpoint is a redundant, self-healing fleet behind the scenes. So the load balancer is a single point in the diagram, but not a single point of failure in a real deployment.
