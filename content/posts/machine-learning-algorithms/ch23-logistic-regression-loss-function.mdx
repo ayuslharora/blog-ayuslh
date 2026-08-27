@@ -1,0 +1,87 @@
+---
+title: "Ch.23: Deriving Logistic Regression's Loss Function"
+description: "Using maximum likelihood to turn 'which of two lines is better' into an actual number: multiplying per-point probabilities, fixing the vanishing-product problem with logs, and arriving at binary cross-entropy."
+date: "2026-08-27T16:23:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "logistic-regression", "loss-function", "maximum-likelihood", "cross-entropy", "classification"]
+subtopic: "Logistic Regression"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=6bXOo0sxY5c)
+
+[Ch.22](/machine-learning-algorithms/ch22-step-function-to-sigmoid) ended on an open question: swapping sigmoid into the perceptron trick closed most of the gap to real Logistic Regression, but not all of it, because the update rule was patched in by intuition rather than derived from an actual objective. This post finds that objective: a loss function that turns "is this line good?" into a number, so instead of eyeballing which of two lines classifies better, there's a formula that says so.
+
+---
+
+## 1. Two Models, One Question
+
+Take a tiny dataset: four points, two labeled green, two labeled red. Two candidate lines have been fit to it, Model 1 and Model 2. Looking at them, it's obvious Model 2 is better, it separates green from red perfectly, while Model 1 leaves some points on the wrong side.
+
+That's easy when the difference is this stark. But the moment two lines are both decent, both roughly separating the classes but drawing the boundary slightly differently, "just look at it" stops working. What's needed is a number: a formula that scores any given line, so two lines can be compared exactly instead of by eye. That's what a loss function is: a formula that quantifies how wrong a model is, so its minimum picks out the best line the same way the normal equation's minimum picked out the best line for Linear Regression.
+
+## 2. Maximum Likelihood: Scoring a Line by Its Own Confidence
+
+The tool for building that formula here is **maximum likelihood estimation**. The idea: for every point, ask the model "how confident are you that this point is its actual color?", multiply those confidences together across every point, and whichever model produces the bigger product is the better model.
+
+Concretely, for every point $i$, the sigmoid gives $\hat y_i$, the predicted probability that the point is green. So:
+
+- $P(\text{green at } i) = \hat y_i$
+- $P(\text{red at } i) = 1 - \hat y_i$
+
+For each point, take whichever of those two matches its actual label, that's how confident the model was about the label it should have gotten right. Multiply all four of those together and the result is the model's **likelihood**: how likely the model made the observed labels look, given its own predictions.
+
+As a small worked example, suppose Model 1's four predicted probabilities of green come out to $0.7, 0.6, 0.4, 0.8$ for points labeled green, red, green, red respectively. The confidence in each point's *actual* label is then $0.7$, $1-0.6=0.4$, $0.4$, $1-0.8=0.2$. Multiplying: $0.7 \times 0.4 \times 0.4 \times 0.2 \approx 0.022$. Running the same process for Model 2, whose predictions sit closer to the true labels, gives a noticeably larger product. Whichever model's product is larger is the better model, that's the whole idea of maximum likelihood: find the line whose likelihood is maximized.
+
+## 3. The Small-Numbers Problem
+
+There's an immediate practical problem. This toy example only multiplied four numbers, each less than $1$, and the product was already down near $0.02$. A real dataset has thousands of rows, and every one of them contributes another factor between $0$ and $1$ to the product. Multiplying ten thousand fractions together underflows to a number so close to zero that comparing two models' likelihoods stops being numerically meaningful.
+
+Products need to become sums. The tool for that is the log identity:
+
+$$
+\log(ab) = \log(a) + \log(b)
+$$
+
+So instead of maximizing the raw product, maximize the log of the product, which is the sum of the logs:
+
+$$
+\log\left(\prod_{i=1}^n P_i\right) = \sum_{i=1}^n \log(P_i)
+$$
+
+That solves the underflow problem, sums of many terms don't vanish the way products of many fractions do. But it introduces a sign problem: $\log$ of any number between $0$ and $1$ is negative. $\log(0.5) \approx -0.301$, and it only gets more negative as the probability shrinks toward $0$. So the sum of logs across all points is going to be a (potentially large) negative number, not something intuitive to call a "score."
+
+The fix is to negate it. Flip every term's sign, and instead of maximizing a negative sum, minimize a positive one:
+
+$$
+-\sum_{i=1}^n \log(P_i)
+$$
+
+This quantity, the negative log of the likelihood, is called **cross-entropy**. Note the flip in direction: maximum likelihood was something to *maximize*; cross-entropy, its negation, is something to *minimize*. A confident, correct prediction (probability near $1$) has a log near $0$, contributing almost nothing to the sum. A confident, wrong prediction (probability near $0$) has a log that's a huge negative number, which after negation becomes a huge positive penalty. That asymmetry, barely punishing confident-and-right, heavily punishing confident-and-wrong, is exactly the behavior a loss function should have.
+
+## 4. One Formula for Both Labels
+
+There's still a wrinkle. Depending on whether a point's true label is green or red, the term that goes into the sum is different, $\log(\hat y_i)$ for a green point, $\log(1-\hat y_i)$ for a red one. Writing two separate formulas and manually picking the right one per point isn't something that folds into a clean, differentiable loss.
+
+The trick is to write a single expression that automatically selects the right term using the label $y_i$ itself, which is $1$ for green and $0$ for red:
+
+$$
+-\Big[y_i \log(\hat y_i) + (1-y_i)\log(1-\hat y_i)\Big]
+$$
+
+Check both cases. When $y_i = 1$ (green), the second term's coefficient $(1-y_i)$ becomes $0$, wiping it out, leaving just $-\log(\hat y_i)$, exactly the green case. When $y_i = 0$ (red), the first term's coefficient $y_i$ becomes $0$ instead, leaving just $-\log(1-\hat y_i)$, exactly the red case. One formula, and the label itself acts as an on/off switch that picks out the correct term per point without any branching.
+
+## 5. Assembling the Full Loss Function
+
+Sum this per-point expression over every point in the dataset, and divide by $n$ to get the average rather than a raw total that grows with dataset size:
+
+$$
+L = -\frac{1}{n}\sum_{i=1}^n \Big[y_i \log(\hat y_i) + (1-y_i)\log(1-\hat y_i)\Big]
+$$
+
+This is Logistic Regression's actual loss function, known as **log loss** or **binary cross-entropy**. It's the objective the sigmoid-perceptron in [Ch.22](/machine-learning-algorithms/ch22-step-function-to-sigmoid) was missing: a single number, derived from maximum likelihood rather than assembled by analogy, that scores any candidate line and is minimized by the best one.
+
+## 6. No Closed Form This Time
+
+For Linear Regression, minimizing the squared-error loss had a closed-form answer, the normal equation, because that loss is a smooth, differentiable parabola in the weights that can be solved directly by setting its derivative to zero. Log loss doesn't offer the same shortcut: because $\hat y_i$ is sigmoid applied to a linear combination of the weights, there's no algebraic rearrangement that isolates the weights directly from $\dfrac{\partial L}{\partial w} = 0$.
+
+That means the only way to find the weights that minimize this loss is iteratively, the same tool used throughout this series for exactly this situation: gradient descent. The next post picks up from here, differentiating this loss function and deriving the actual weight-update rule for Logistic Regression, then coding it into a working `LogisticRegression` class from scratch.
