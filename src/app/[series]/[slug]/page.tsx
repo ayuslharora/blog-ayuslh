@@ -27,6 +27,7 @@ import RequestFlowDiagram from '../../../components/RequestFlowDiagram';
 import DatabaseArchitectureDiagram from '../../../components/DatabaseArchitectureDiagram';
 import LoadBalancerDiagram from '../../../components/LoadBalancerDiagram';
 import DatabaseReplicationDiagram from '../../../components/DatabaseReplicationDiagram';
+import WebDataTierDesignDiagram from '../../../components/WebDataTierDesignDiagram';
 import MnistPca3d from '../../../components/MnistPca3d';
 import LinRegCostSurface from '../../../components/LinRegCostSurface';
 import GradientDescentAnimation from '../../../components/GradientDescentAnimation';
@@ -162,6 +163,7 @@ export default async function PostPage({
             DatabaseArchitectureDiagram,
             LoadBalancerDiagram,
             DatabaseReplicationDiagram,
+            WebDataTierDesignDiagram,
             MnistPca3d,
             LinRegCostSurface,
             GradientDescentAnimation,

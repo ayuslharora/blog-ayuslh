@@ -46,7 +46,11 @@ In real systems, promoting a master is messier than it sounds. A slave may not h
 
 ## The design so far
 
-Putting the load balancer and database replication together, a request now flows like this:
+Putting the load balancer and database replication together:
+
+<WebDataTierDesignDiagram />
+
+A request now flows like this:
 
 1. The user gets the load balancer's IP address from DNS.
 2. The user connects to the load balancer at that IP.
