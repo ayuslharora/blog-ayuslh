@@ -30,6 +30,22 @@ Next, let us examine the traffic source. The traffic to your web server comes fr
 GET /users/12 – Retrieve user object for id = 12
 ```
 
+The server responds with a JSON object representing that user:
+
+```json
+{
+  "id": 12,
+  "firstName": "John",
+  "lastName": "Smith",
+  "address": {
+    "street": "123 Main St",
+    "city": "Seattle",
+    "state": "WA",
+    "zip": "98101"
+  }
+}
+```
+
 With the growth of the user base, one server is not enough, and we need multiple servers: one for web/mobile traffic, the other for the database. Separating web/mobile traffic (web tier) and database (data tier) servers allows them to be scaled independently.
 
 That's where the next post picks up.
