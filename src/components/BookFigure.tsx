@@ -106,6 +106,61 @@ export function DnsIcon({ cx, cy, label = "DNS" }: { cx: number; cy: number; lab
   );
 }
 
+export function DbIcon({ x, y, label }: { x: number; y: number; label?: string }) {
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <path d="M0,8 A28,8 0 0 1 56,8 V38 A28,8 0 0 1 0,38 Z" fill="#3b82f6" />
+      <ellipse cx={28} cy={8} rx={28} ry={8} fill="#60a5fa" />
+      <text x={28} y={28} fontSize={15} fontWeight={700} fill="white" textAnchor="middle">
+        DB
+      </text>
+      {label && (
+        <text x={28} y={64} fontSize={14} fontWeight={600} fill="var(--text-primary)" textAnchor="middle">
+          {label}
+        </text>
+      )}
+    </g>
+  );
+}
+
+export function PlainArrow({
+  x1,
+  y1,
+  x2,
+  y2,
+  text,
+  textPos,
+  dashed,
+}: {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  text?: string;
+  textPos?: { x: number; y: number };
+  dashed?: boolean;
+}) {
+  return (
+    <g>
+      <line
+        x1={x1}
+        y1={y1}
+        x2={x2}
+        y2={y2}
+        stroke="var(--text-primary)"
+        strokeWidth={1.5}
+        strokeDasharray={dashed ? "5 4" : undefined}
+        markerEnd="url(#book-figure-arrow)"
+      />
+      {text && textPos && (
+        <text x={textPos.x} y={textPos.y} fontSize={13} fill="var(--text-primary)" textAnchor="middle">
+          {text}
+        </text>
+      )}
+    </g>
+  );
+}
+
 export function Arrow({
   x1,
   y1,
