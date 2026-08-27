@@ -21,9 +21,16 @@ Relational databases are also called a relational database management system (RD
 
 Relational databases represent and store data in tables and rows. You can perform join operations using SQL across different database tables.
 
-Non-Relational databases are also called NoSQL databases. Popular ones are CouchDB, Neo4j, Cassandra, HBase, Amazon DynamoDB, etc. These databases are grouped into four categories: key-value stores, graph stores, column stores, and document stores. Join operations are generally not supported in non-relational databases.
+Non-Relational databases are also called NoSQL databases. Popular ones are CouchDB, Neo4j, Cassandra, HBase, Amazon DynamoDB, etc. Join operations are generally not supported in non-relational databases.
 
-A quick sense of where each of those fits:
+These databases are grouped into four categories:
+
+- **Key-value stores:** data is a dictionary of keys mapped to opaque values, fetched by key. Examples: Redis, Amazon DynamoDB, Memcached.
+- **Document stores:** values are semi-structured documents (JSON, BSON, XML) that you can also query by their fields. Examples: MongoDB, CouchDB, Amazon DynamoDB.
+- **Column stores (wide-column):** rows are keyed but each can hold a different, sparse set of columns grouped into families; built for huge write volume. Examples: Cassandra, HBase, Google Bigtable.
+- **Graph stores:** data is nodes and edges, and queries traverse the relationships directly. Examples: Neo4j, Amazon Neptune, JanusGraph.
+
+A quick sense of where each of the databases named above fits:
 
 - **CouchDB** (document store): stores self-contained JSON documents and syncs well across unreliable networks. Good for offline-first mobile or edge apps where each device holds a replica and reconciles changes later.
 - **Neo4j** (graph store): treats relationships as first-class. Reach for it when the connections between records are the query, social graphs, fraud rings, recommendation paths, network topology, where SQL joins would explode.
