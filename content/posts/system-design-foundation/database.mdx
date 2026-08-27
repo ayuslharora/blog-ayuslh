@@ -27,7 +27,7 @@ These databases are grouped into four categories:
 
 - **Key-value stores:** data is a dictionary of keys mapped to opaque values, fetched by key. Examples: Redis, Amazon DynamoDB, Memcached.
 - **Document stores:** values are semi-structured documents (JSON, BSON, XML) that you can also query by their fields. Examples: MongoDB, CouchDB, Amazon DynamoDB.
-- **Column stores (wide-column):** rows are keyed but each can hold a different, sparse set of columns grouped into families; built for huge write volume. Examples: Cassandra, HBase, Google Bigtable.
+- **Column stores (wide-column):** think of one giant table where every row is found by a row key, but unlike SQL each row decides its own columns. Row 1 might have `name` and `email`, row 2 might have 900 columns none of which row 1 has, and you never declared them upfront. Related columns are grouped into "column families" and stored together on disk, so reading just a few columns across billions of rows stays fast and empty cells cost nothing. This layout is built for very high write volume and queries you can plan in advance. Examples: Cassandra, HBase, Google Bigtable.
 - **Graph stores:** data is nodes and edges, and queries traverse the relationships directly. Examples: Neo4j, Amazon Neptune, JanusGraph.
 
 A quick sense of where each of the databases named above fits:
