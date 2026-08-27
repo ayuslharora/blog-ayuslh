@@ -1,9 +1,17 @@
 import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import type { Post, PostMeta } from './posts';
 
 export const SITE_URL = 'https://blog.ayuslh.in';
 export const AUTHOR_URL = 'https://ayuslh.in';
 export const AUTHOR_ID = `${AUTHOR_URL}/#person`;
+export const AUTHOR_PHOTO_FILE = 'ayush.jpg';
+
+/** True when a real author headshot exists at public/ayush.jpg. */
+export function hasAuthorPhoto(): boolean {
+  return fs.existsSync(path.join(process.cwd(), 'public', AUTHOR_PHOTO_FILE));
+}
 
 // Same approach as sitemap.ts: real content-change signal instead of
 // lying with datePublished. Falls back to the publish date if git isn't
@@ -31,6 +39,7 @@ export function buildPersonJsonLd() {
     '@id': AUTHOR_ID,
     name: 'Ayush Arora',
     url: AUTHOR_URL,
+    ...(hasAuthorPhoto() ? { image: `${SITE_URL}/${AUTHOR_PHOTO_FILE}` } : {}),
     jobTitle: 'Software Developer',
     alumniOf: {
       '@type': 'CollegeOrUniversity',

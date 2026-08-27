@@ -1,6 +1,12 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import Script from 'next/script';
-import { buildProfilePageJsonLd, serializeJsonLd } from '../../lib/jsonLd';
+import {
+  AUTHOR_PHOTO_FILE,
+  buildProfilePageJsonLd,
+  hasAuthorPhoto,
+  serializeJsonLd,
+} from '../../lib/jsonLd';
 import { getAllSeries, getPostsBySeries } from '../../lib/posts';
 import { getSeriesTitle } from '../../lib/covers';
 
@@ -31,8 +37,23 @@ export default function AboutPage() {
 
       {/* Hero Section */}
       <div className="flex flex-col md:flex-row items-center md:items-center gap-8 md:gap-10 mb-12">
-        <div className="relative w-32 h-32 md:w-40 md:h-40 shrink-0 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center font-black text-6xl md:text-7xl text-white shadow-2xl ring-8 ring-black/5 dark:ring-white/10 animate-fade-in-up">
-          A
+        <div className="relative shrink-0 rounded-full p-1 bg-gradient-to-br from-amber-400 to-orange-600 shadow-2xl animate-fade-in-up">
+          <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden bg-gradient-to-br from-amber-400 to-orange-600">
+            {hasAuthorPhoto() ? (
+              <Image
+                src={`/${AUTHOR_PHOTO_FILE}`}
+                alt="Ayush Arora"
+                fill
+                sizes="160px"
+                priority
+                className="object-cover"
+              />
+            ) : (
+              <span className="absolute inset-0 flex items-center justify-center font-black text-6xl md:text-7xl text-white">
+                A
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="text-center md:text-left animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
