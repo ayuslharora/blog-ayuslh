@@ -88,6 +88,65 @@ export function ServerIcon({ x, y, label }: { x: number; y: number; label?: stri
   );
 }
 
+export function LoadBalancerIcon({ x, y, label }: { x: number; y: number; label?: string }) {
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <path d="M8,0 L42,0 L50,44 L0,44 Z" fill="#2563eb" />
+      <g stroke="white" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <line x1={25} y1={9} x2={25} y2={31} />
+        <polyline points="19,15 25,7 31,15" />
+        <line x1={25} y1={23} x2={12} y2={35} />
+        <polyline points="12,28 11,36 19,35" />
+        <line x1={25} y1={23} x2={38} y2={35} />
+        <polyline points="31,35 39,36 38,28" />
+      </g>
+      {label && (
+        <text x={64} y={30} fontSize={14} fontWeight={600} fill="var(--text-primary)">
+          {label}
+        </text>
+      )}
+    </g>
+  );
+}
+
+export function LookupTable({
+  x,
+  y,
+  w,
+  rowH,
+  colSplit,
+  header,
+  row,
+}: {
+  x: number;
+  y: number;
+  w: number;
+  rowH: number;
+  colSplit: number;
+  header: [string, string];
+  row: [string, string];
+}) {
+  return (
+    <g stroke="var(--text-primary)" strokeWidth={1.2}>
+      <rect x={x} y={y} width={w} height={rowH * 2} fill="none" />
+      <line x1={x} y1={y + rowH} x2={x + w} y2={y + rowH} />
+      <line x1={x + colSplit} y1={y} x2={x + colSplit} y2={y + rowH * 2} />
+      <text x={x + 12} y={y + rowH / 2 + 5} fontSize={13} fontWeight={700} fill="var(--text-primary)" stroke="none">
+        {header[0]}
+      </text>
+      <text x={x + colSplit + 12} y={y + rowH / 2 + 5} fontSize={13} fontWeight={700} fill="var(--text-primary)" stroke="none">
+        {header[1]}
+      </text>
+      <text x={x + 12} y={y + rowH + rowH / 2 + 5} fontSize={13} fill="var(--text-primary)" stroke="none">
+        {row[0]}
+      </text>
+      <text x={x + colSplit + 12} y={y + rowH + rowH / 2 + 5} fontSize={13} fill="var(--text-primary)" stroke="none">
+        {row[1]}
+      </text>
+    </g>
+  );
+}
+
 export function DnsIcon({ cx, cy, label = "DNS" }: { cx: number; cy: number; label?: string }) {
   return (
     <g>

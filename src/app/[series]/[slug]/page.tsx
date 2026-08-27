@@ -25,6 +25,7 @@ import Http2FrameHeaderTable from '../../../components/Http2FrameHeaderTable';
 import MtuMssDiagram from '../../../components/MtuMssDiagram';
 import RequestFlowDiagram from '../../../components/RequestFlowDiagram';
 import DatabaseArchitectureDiagram from '../../../components/DatabaseArchitectureDiagram';
+import LoadBalancerDiagram from '../../../components/LoadBalancerDiagram';
 import MnistPca3d from '../../../components/MnistPca3d';
 import LinRegCostSurface from '../../../components/LinRegCostSurface';
 import GradientDescentAnimation from '../../../components/GradientDescentAnimation';
@@ -158,6 +159,7 @@ export default async function PostPage({
             MtuMssDiagram,
             RequestFlowDiagram,
             DatabaseArchitectureDiagram,
+            LoadBalancerDiagram,
             MnistPca3d,
             LinRegCostSurface,
             GradientDescentAnimation,
