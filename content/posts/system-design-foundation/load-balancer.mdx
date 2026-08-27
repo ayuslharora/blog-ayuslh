@@ -1,0 +1,33 @@
+---
+title: "Load Balancer"
+description: "Putting a load balancer in front of the web tier: how traffic flows through it, why web servers move to private IPs, and how it gives the web tier failover and easy scaling."
+date: "2026-08-28T02:44:44+05:30"
+tags: ["system-design", "book-notes", "scalability"]
+subtopic: "ch1: Scale From Zero to Millions of Users"
+draft: false
+---
+
+## Load balancer
+
+A load balancer sits in front of a group of web servers and evenly distributes incoming traffic among them. The group it distributes to is called the load-balanced set.
+
+### How the traffic flows
+
+Clients no longer connect to a web server directly. Instead:
+
+1. Clients connect to the **public IP of the load balancer**.
+2. The load balancer picks a web server from the pool and forwards the request to it over a **private IP**.
+3. The web server responds back through the load balancer to the client.
+
+Because the web servers are now only reached through the load balancer, they no longer need public IPs at all. A private IP is an address that is only routable between servers inside the same network and cannot be reached from the internet. Moving the web servers onto private IPs is better for security: an attacker on the internet cannot address them directly, only the load balancer is exposed.
+
+### What this buys the web tier
+
+Adding a load balancer and a second web server fixes the single point of failure in the web tier and improves its availability.
+
+- **Failover.** If server 1 goes offline, the load balancer notices and routes all traffic to server 2, so the site stays up. A fresh healthy server can then be added back into the pool to carry its share of the load.
+- **Easy scaling.** If traffic grows and two servers are no longer enough, you just add more servers to the pool. The load balancer automatically starts sending requests to the new servers, with no change on the client side.
+
+### What is still fragile
+
+The web tier now looks solid, but the data tier does not. The design still has a single database, so it has no failover and no redundancy: if that one database fails, the whole application loses its data layer. The common fix is database replication, which is the next post.
