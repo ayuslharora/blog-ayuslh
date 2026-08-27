@@ -1,0 +1,55 @@
+---
+title: "Database Replication"
+description: "Splitting the database into a write master and multiple read replicas: why it improves performance, reliability, and availability, and what happens when a master or a slave goes offline."
+date: "2026-08-28T03:09:17+05:30"
+tags: ["system-design", "book-notes", "scalability"]
+subtopic: "ch1: Scale From Zero to Millions of Users"
+draft: false
+---
+
+## Database replication
+
+From Wikipedia: "Database replication can be used in many database management systems, usually with a master/slave relationship between the original (master) and the copies (slaves)."
+
+(The industry has largely moved to the terms primary/replica for the same idea, but the roles are identical, so this post keeps the master/slave wording from the source.)
+
+The split of responsibilities:
+
+- The **master** database handles writes only: every `insert`, `update`, and `delete` goes to the master.
+- Each **slave** database holds a copy of the master's data and handles reads only.
+
+Most applications read far more than they write, so a system typically has one master and several slaves. Reads, being the bulk of the traffic, get spread across many machines; writes stay on the one.
+
+### Why replicate
+
+- **Better performance.** Writes and updates all land on the master, while reads fan out across the slaves. More queries run in parallel, so total throughput goes up.
+- **Reliability.** If a database server is lost, to a disk failure or a physical disaster at one site, the data still exists on the other replicas. There is no single copy to lose.
+- **High availability.** With data mirrored across locations, the site keeps serving even when one database is down, because another one can answer.
+
+## What if a database goes offline?
+
+We asked this about the load balancer; we ask it again here. Replication handles it.
+
+**A slave goes offline.**
+
+- If it was the only slave, reads are temporarily sent to the master until a replacement slave is brought up.
+- If other slaves are healthy, reads are just redirected to them. A new slave replaces the failed one.
+
+**The master goes offline.**
+
+- One slave is promoted to be the new master. All writes go to it from then on.
+- A fresh slave is added to take over replication for the promoted node.
+
+In real systems, promoting a master is messier than it sounds. A slave may not have every write the old master had at the moment it died, so the missing data has to be reconciled with recovery scripts. Other schemes like multi-master and circular replication exist, but they add their own complexity and are outside the scope here.
+
+## The design so far
+
+Putting the load balancer and database replication together, a request now flows like this:
+
+1. The user gets the load balancer's IP address from DNS.
+2. The user connects to the load balancer at that IP.
+3. The load balancer routes the HTTP request to Server 1 or Server 2.
+4. That web server reads user data from a **slave** database.
+5. That web server sends any write, update, or delete to the **master** database.
+
+The web tier and the data tier are both solid now. The next step is improving load and response time, by adding a cache layer and pushing static content (JavaScript, CSS, images, video) onto a content delivery network (CDN).
