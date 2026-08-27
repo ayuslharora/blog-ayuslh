@@ -115,7 +115,7 @@ export default async function SeriesPage({
                 className="block p-5 rounded-2xl border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:border-black/10 dark:hover:border-white/10 transition-all hover:-translate-y-0.5 group"
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">Chapter {i + 1}</span>
+                  <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">Post {i + 1}</span>
                   <span className="text-xs text-[var(--text-secondary)]">•</span>
                   <time dateTime={post.date.split('T')[0]} className="text-xs text-[var(--text-secondary)]">{post.date.split('T')[0]}</time>
                 </div>
