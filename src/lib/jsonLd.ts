@@ -6,7 +6,7 @@ import type { Post, PostMeta } from './posts';
 export const SITE_URL = 'https://blog.ayuslh.in';
 export const AUTHOR_URL = 'https://ayuslh.in';
 export const AUTHOR_ID = `${AUTHOR_URL}/#person`;
-export const AUTHOR_PHOTO_FILE = 'ayush.jpg';
+export const AUTHOR_PHOTO_FILE = 'ayush-headshot.jpg';
 
 /** True when a real author headshot exists at public/ayush.jpg. */
 export function hasAuthorPhoto(): boolean {
