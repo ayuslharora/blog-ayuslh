@@ -67,15 +67,15 @@ export default function Home() {
         )}
 
         {/* Right Column (Sidebar) - Stacked middle on mobile */}
-        <div className="lg:col-span-1 lg:row-span-2 space-y-8">
-          {/* Latest Posts */}
-          <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-zinc-900 p-6 shadow-sm">
-            <h3 className="font-bold text-lg mb-6 border-b border-black/5 dark:border-white/10 pb-3 flex items-center gap-2">
+        <div className="lg:col-span-1">
+          {/* Latest Posts - height-capped to the banner on desktop, scrolls internally */}
+          <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-zinc-900 p-6 shadow-sm flex flex-col lg:h-full">
+            <h3 className="font-bold text-lg mb-6 border-b border-black/5 dark:border-white/10 pb-3 flex items-center gap-2 shrink-0">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-amber-500" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
               Latest Posts
             </h3>
-            <div className="flex flex-col gap-6">
-              {recentPosts.slice(0, 5).map((post) => (
+            <div className="flex flex-col gap-6 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-2 lg:[mask-image:linear-gradient(to_bottom,black_82%,transparent_100%)]">
+              {recentPosts.map((post) => (
                 <Link
                   key={`${post.series}/${post.slug}`}
                   href={`/${post.series}/${post.slug}`}
@@ -97,64 +97,61 @@ export default function Home() {
         </div>
 
         {/* Series Catalog */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-3">
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-amber-500" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
             Series Catalog
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {series.map((s) => {
               const seriesPosts = getPostsBySeries(s);
               const seriesTags = Array.from(new Set(seriesPosts.flatMap((p) => p.tags)));
 
               return (
-                <Link key={s} href={`/${s}`} className="relative flex flex-col rounded-3xl border border-black/10 dark:border-white/10 bg-[#0a0a0a] overflow-hidden group min-h-[300px] shadow-2xl transition-transform hover:-translate-y-1.5 duration-500">
-                   {/* Background Image Container */}
-                   <div className="absolute inset-0 overflow-hidden">
+                <Link key={s} href={`/${s}`} className="group flex flex-col rounded-3xl border border-black/10 dark:border-white/10 bg-[#0a0a0a] overflow-hidden shadow-2xl transition-transform hover:-translate-y-1.5 duration-500">
+                   {/* Image header - fixed ratio, fully visible */}
+                   <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#0a0a0a]">
                      {hasCover(s) && (
                        <Image
                          src={`/covers/${s}.jpg`}
                          alt={getSeriesTitle(s)}
                          fill
-                         className="object-cover object-top opacity-80 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105"
+                         className="object-cover object-center opacity-90 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105"
                        />
                      )}
-                     {/* Deep gradients blending into the dark #0a0a0a base */}
-                     <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/90 via-35% to-[#0a0a0a]/0 to-75%" />
-                   </div>
-
-                   {/* Content Container */}
-                   <div className="relative z-10 flex flex-col h-full p-6 md:p-8">
-                     {/* Top Badge */}
-                     <div className="self-start px-4 py-1.5 rounded-full bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest shadow-lg">
+                     {/* Short blend into the card body */}
+                     <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
+                     {/* Chapter badge */}
+                     <div className="absolute top-4 left-4 px-4 py-1.5 rounded-full bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest shadow-lg">
                        {seriesPosts.length} {seriesPosts.length === 1 ? 'Chapter' : 'Chapters'}
                      </div>
+                   </div>
 
-                     <div className="mt-auto pt-12">
-                       {/* Floating Frosted Tags */}
-                       {seriesTags.length > 0 && (
-                         <div className="flex flex-wrap gap-2 mb-4">
-                           {seriesTags.slice(0, 7).map((tag) => (
-                             <span
-                               key={tag}
-                               className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-white text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-lg"
-                             >
-                               {formatTagLabel(tag)}
-                             </span>
-                           ))}
-                         </div>
-                       )}
+                   {/* Content panel */}
+                   <div className="flex flex-col flex-1 p-6">
+                     {/* Frosted Tags */}
+                     {seriesTags.length > 0 && (
+                       <div className="flex flex-wrap gap-2 mb-4">
+                         {seriesTags.slice(0, 5).map((tag) => (
+                           <span
+                             key={tag}
+                             className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white text-[9px] sm:text-[10px] font-bold uppercase tracking-wider"
+                           >
+                             {formatTagLabel(tag)}
+                           </span>
+                         ))}
+                       </div>
+                     )}
 
-                       {/* Massive Title */}
-                       <h3 className="text-2xl md:text-3xl font-black text-white mb-3 tracking-tight leading-none group-hover:text-amber-500 transition-colors">
-                         {getSeriesTitle(s)}
-                       </h3>
+                     {/* Title */}
+                     <h3 className="text-xl md:text-2xl font-black text-white mb-2 tracking-tight leading-tight group-hover:text-amber-500 transition-colors">
+                       {getSeriesTitle(s)}
+                     </h3>
 
-                       {/* Description */}
-                       <p className="text-sm md:text-base text-white/70 leading-relaxed max-w-2xl line-clamp-2">
-                         {getSeriesDescription(s)}
-                       </p>
-                     </div>
+                     {/* Description */}
+                     <p className="text-sm text-white/70 leading-relaxed line-clamp-2">
+                       {getSeriesDescription(s)}
+                     </p>
                    </div>
                 </Link>
               );
