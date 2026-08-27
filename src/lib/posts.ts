@@ -86,7 +86,10 @@ export function getPostsBySeries(series: string, baseDir: string = DEFAULT_CONTE
     .filter((file) => file.series === series)
     .map(({ series: s, slug, raw }) => parsePost(s, slug, raw))
     .filter((post) => !post.draft)
-    .sort((a, b) => a.slug.localeCompare(b.slug, undefined, { numeric: true, sensitivity: 'base' }))
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return a.slug.localeCompare(b.slug, undefined, { numeric: true, sensitivity: 'base' });
+    })
     .map(({ content: _content, ...meta }) => meta);
 }
 
