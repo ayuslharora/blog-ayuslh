@@ -20,6 +20,8 @@ The split of responsibilities:
 
 Most applications read far more than they write, so a system typically has one master and several slaves. Reads, being the bulk of the traffic, get spread across many machines; writes stay on the one.
 
+<DatabaseReplicationDiagram />
+
 ### Why replicate
 
 - **Better performance.** Writes and updates all land on the master, while reads fan out across the slaves. More queries run in parallel, so total throughput goes up.

@@ -182,6 +182,12 @@ export function DbIcon({ x, y, label }: { x: number; y: number; label?: string }
   );
 }
 
+const ARROW_COLORS = {
+  default: { stroke: "var(--text-primary)", marker: "url(#book-figure-arrow)" },
+  blue: { stroke: "#2563eb", marker: "url(#book-figure-arrow-blue)" },
+  green: { stroke: "#15803d", marker: "url(#book-figure-arrow-green)" },
+} as const;
+
 export function PlainArrow({
   x1,
   y1,
@@ -190,6 +196,7 @@ export function PlainArrow({
   text,
   textPos,
   dashed,
+  color = "default",
 }: {
   x1: number;
   y1: number;
@@ -198,7 +205,9 @@ export function PlainArrow({
   text?: string;
   textPos?: { x: number; y: number };
   dashed?: boolean;
+  color?: keyof typeof ARROW_COLORS;
 }) {
+  const { stroke, marker } = ARROW_COLORS[color];
   return (
     <g>
       <line
@@ -206,14 +215,42 @@ export function PlainArrow({
         y1={y1}
         x2={x2}
         y2={y2}
-        stroke="var(--text-primary)"
+        stroke={stroke}
         strokeWidth={1.5}
         strokeDasharray={dashed ? "5 4" : undefined}
-        markerEnd="url(#book-figure-arrow)"
+        markerEnd={marker}
       />
       {text && textPos && (
         <text x={textPos.x} y={textPos.y} fontSize={13} fill="var(--text-primary)" textAnchor="middle">
           {text}
+        </text>
+      )}
+    </g>
+  );
+}
+
+// A bare colored polyline segment (no arrowhead), for orthogonal routing that
+// ends in a PlainArrow of the same color.
+export function Wire({ points, color = "default" }: { points: string; color?: keyof typeof ARROW_COLORS }) {
+  return <polyline points={points} fill="none" stroke={ARROW_COLORS[color].stroke} strokeWidth={1.5} />;
+}
+
+export function ServerClusterIcon({ x, y, label }: { x: number; y: number; label?: string }) {
+  const bars = [0, 24, 48].map((bx) => (
+    <g key={bx} transform={`translate(${bx},0)`}>
+      <rect x={0} y={0} width={20} height={70} rx={2} fill="#22c55e" />
+      <rect x={4} y={9} width={12} height={3} fill="white" />
+      <rect x={4} y={17} width={12} height={3} fill="white" />
+      <circle cx={7} cy={60} r={1.6} fill="white" />
+      <circle cx={12} cy={60} r={1.6} fill="white" />
+    </g>
+  ));
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {bars}
+      {label && (
+        <text x={34} y={92} fontSize={13} fontWeight={600} fill="var(--text-primary)" textAnchor="middle">
+          {label}
         </text>
       )}
     </g>
@@ -258,6 +295,12 @@ export function ArrowMarkerDefs() {
     <defs>
       <marker id="book-figure-arrow" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={7} markerHeight={7} orient="auto-start-reverse">
         <path d="M0,0 L10,5 L0,10 z" fill="var(--text-primary)" />
+      </marker>
+      <marker id="book-figure-arrow-blue" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={7} markerHeight={7} orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#2563eb" />
+      </marker>
+      <marker id="book-figure-arrow-green" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={7} markerHeight={7} orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#15803d" />
       </marker>
     </defs>
   );
