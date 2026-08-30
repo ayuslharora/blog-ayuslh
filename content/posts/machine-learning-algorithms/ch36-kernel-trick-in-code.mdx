@@ -1,0 +1,102 @@
+---
+title: "Ch.36: The Kernel Trick, In Code"
+description: "sklearn's SVC turns the geometric lift from Ch.35 into one keyword argument. A linear SVM fails on concentric circles, manually engineering z = x1² + x2² fixes it, and kernel=\"rbf\" gets the same result without ever building that feature by hand, which is the actual trick in kernel trick."
+date: "2026-08-30T15:40:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "svm", "support-vector-machines", "classification", "kernel-trick"]
+subtopic: "Support Vector Machines"
+draft: false
+---
+
+[Ch.35](/machine-learning-algorithms/ch35-kernel-trick-geometric-intuition) built the geometric case for the kernel trick with two hand-picked examples: a 1D line lifted to 2D by squaring, and concentric circles lifted to 3D by $z = e^{-(x^2+y^2)}$. Both were true, and both dodged the actual question, in real code, how do you get that lift without manually inventing a formula for every dataset? This post runs the demo for real: an actual dataset, an actual failing SVM, an actual fix, and the sklearn keyword that makes the fix redundant.
+
+---
+
+## 1. A Linear SVM Fails on Circles
+
+`sklearn.datasets.make_circles` generates exactly the shape Ch.35 described by hand: one class in a ring, the other clustered inside it. Fit a plain linear SVM on the raw two features and score it:
+
+```python
+from sklearn.datasets import make_circles
+from sklearn.svm import SVC
+
+X, y = make_circles(n_samples=200, noise=0.06, factor=0.4, random_state=7)
+
+linear_clf = SVC(kernel="linear").fit(X, y)
+linear_clf.score(X, y)
+```
+
+```
+0.59
+```
+
+59%, barely better than guessing. A straight line has no way to wall off a disc from the ring around it, exactly the limitation Ch.35 argued from geometry alone. Here it shows up as a number.
+
+## 2. Fixing It by Hand
+
+Ch.35's transform was $e^{-(x^2+y^2)}$; a simpler one works just as well here: $z = x_1^2 + x_2^2$, literally squared distance from the origin. Bolt it on as a third column and fit a linear SVM in 3D:
+
+```python
+import numpy as np
+
+z = X[:, 0] ** 2 + X[:, 1] ** 2
+X3 = np.column_stack([X, z])
+
+manual_clf = SVC(kernel="linear").fit(X3, y)
+manual_clf.score(X3, y)
+```
+
+```
+1.0
+```
+
+<img src="/images/ch36-circles-linear-vs-manual3d.png" alt="A 3D scatter plot with axes x1, x2, and z equals x1 squared plus x2 squared. Red x markers, the inner class, sit high up near the top since points close to the origin still have small x1 and x2 but the ring's points are farther out. Green plus markers, the outer ring, sit low near z=0. A translucent blue horizontal plane slices between them, all red above it, all green below, with the title reporting 100% accuracy." className="w-full h-auto" />
+
+Perfect separation, same idea as Ch.35's picture, now backed by a classifier that actually scores 100%. The inner cluster sits close to the origin, so its $z$ stays small; the outer ring sits farther out, so its $z$ is large. One new coordinate, and a plane does the rest.
+
+## 3. The Catch With Doing It by Hand
+
+This worked because the shape of the data was known in advance, a ring around a core all but announces "use distance from the center." Real datasets don't come with that label. With more than two input features, there's no single obvious formula to reach for, and the space of *candidate* transforms, every pairwise product, every square, every cross-term, grows fast. Trying them one at a time and refitting each time doesn't scale past toy examples.
+
+## 4. Skipping the Feature Entirely
+
+This is where `SVC`'s `kernel` argument earns its keep. Fit the *same* circles data again, still just the original two columns, no manually built $z$, but with `kernel="rbf"` instead of `"linear"`:
+
+```python
+rbf_clf = SVC(kernel="rbf", gamma="scale").fit(X, y)
+rbf_clf.score(X, y)
+```
+
+```
+1.0
+```
+
+<img src="/images/ch36-circles-linear-vs-rbf.png" alt="Two side-by-side 2D decision boundary plots on the same concentric-circles data. Left, kernel equals linear: a single diagonal line cuts the plane in half, slicing straight through both the outer ring and the inner cluster, accuracy 59%. Right, kernel equals rbf: a clean circular boundary wraps around the inner cluster exactly, all inner points shaded green and the ring shaded red, accuracy 100%." className="w-full h-auto" />
+
+100% accuracy, and the decision boundary on the right is a circle, curved the way a straight line never could be, despite `SVC` never seeing a third feature. That's the trick: the RBF kernel produces the *effect* of lifting into a higher-dimensional space (in fact an infinite-dimensional one) without ever constructing a point in it. The actual mechanism, how a kernel function computes what's needed without visiting that space, is the math saved for the next post. What today's code confirms is that the effect is real and it's one argument away, not a manual feature-engineering project.
+
+## 5. More Kernel Isn't Automatically Better
+
+`SVC` ships a few kernel choices beyond `rbf`, including `poly`, whose flexibility is set directly by a `degree` argument. It's tempting to assume higher degree means a better fit, so it's worth checking that assumption on a harder dataset (`make_moons`, two interleaving crescents) with a held-out test split:
+
+```python
+from sklearn.datasets import make_moons
+from sklearn.model_selection import train_test_split
+
+Xm, ym = make_moons(n_samples=120, noise=0.35, random_state=42)
+Xm_train, Xm_test, ym_train, ym_test = train_test_split(Xm, ym, test_size=0.5, random_state=0)
+
+for degree in [1, 3, 6, 10]:
+    clf = SVC(kernel="poly", degree=degree, coef0=1, C=1).fit(Xm_train, ym_train)
+    print(degree, clf.score(Xm_train, ym_train), clf.score(Xm_test, ym_test))
+```
+
+```
+1   0.867  0.833
+3   0.933  0.867
+6   0.983  0.850
+10  0.983  0.833
+```
+
+<img src="/images/ch36-poly-degree-sweep.png" alt="Four side-by-side decision boundary plots on the same moons-shaped dataset, one per polynomial kernel degree: 1, 3, 6, and 10. Filled markers are training points, hollow gray circles are held-out test points. As degree increases the boundary grows more curved and eventually develops sharp wiggles and narrow spikes that bend around individual training points. Training accuracy climbs from 87% at degree 1 to 98% at degree 10, but test accuracy peaks at degree 3 (87%) and falls back to 83% by degree 10." className="w-full h-auto" />
+
+Training accuracy climbs the whole way, degree 10 fits the training points better than degree 1 ever could. Test accuracy doesn't: it peaks at degree 3 and drops back down by degree 10, and the boundary plots show why, at high degree the curve stops tracking the crescent shape and starts bending around individual points instead. A higher-degree kernel is a more flexible model, and like any flexible model it can memorize training data instead of learning the pattern in it. Picking a kernel and a degree is a bias-variance tradeoff ([Ch.12](/machine-learning-algorithms/ch12-bias-variance-tradeoff)) like any other, not a dial that only helps when turned up.
