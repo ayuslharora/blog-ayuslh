@@ -20,6 +20,8 @@ The split of responsibilities:
 
 Most applications read far more than they write, so a system typically has one master and several slaves. Reads, being the bulk of the traffic, get spread across many machines; writes stay on the one.
 
+Replication is usually asynchronous: the master commits a write and returns to the client immediately, then ships the change to the slaves after the fact. So a slave can trail the master by a small window, from milliseconds under light load to seconds when it is catching up, and a read issued right after a write may not see that write yet.
+
 <DatabaseReplicationDiagram />
 
 ### Why replicate
