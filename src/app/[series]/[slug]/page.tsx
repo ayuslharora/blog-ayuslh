@@ -39,6 +39,8 @@ import MultiRegScatter3d from '../../../components/MultiRegScatter3d';
 import MultiRegPlane3d from '../../../components/MultiRegPlane3d';
 import PolyRegSurface3d from '../../../components/PolyRegSurface3d';
 import RidgeLambdaExplorer from '../../../components/RidgeLambdaExplorer';
+import DecisionTreeHyperparameterExplorer from '../../../components/DecisionTreeHyperparameterExplorer';
+import RegressionTreeExplorer from '../../../components/RegressionTreeExplorer';
 import TableOfContents from '../../../components/TableOfContents';
 import RelatedPosts from '../../../components/RelatedPosts';
 import MdxImage from '../../../components/MdxImage';
@@ -175,6 +177,8 @@ export default async function PostPage({
             MultiRegPlane3d,
             PolyRegSurface3d,
             RidgeLambdaExplorer,
+            DecisionTreeHyperparameterExplorer,
+            RegressionTreeExplorer,
             Mermaid,
             img: MdxImage,
             MdxImage,

@@ -91,6 +91,10 @@ print(r2_score(y_test, reg.predict(X_test)))
 
 A single train/test split like this is noisy, so treat the number as a rough read and use `cross_val_score` (or the `best_score_` from a search) before trusting it. Tuning is the usual `GridSearchCV` or `RandomizedSearchCV` over `max_depth`, `criterion`, `min_samples_split`, `min_samples_leaf`, `max_leaf_nodes`, and `max_features`, scoring on cross-validated R².
 
+The explorer below fits a regression tree live on a noisy 1-D wave. Start from the defaults (an unconstrained tree that steps through nearly every point), then set `max_depth` to 3 or push `min_samples_leaf` up: the staircase coarsens, train R² drops from a perfect 1.0, and test R² peaks somewhere in between.
+
+<RegressionTreeExplorer />
+
 ## 6. `feature_importances_` and Feature Selection
 
 While building the tree, sklearn tracks how much each split reduces impurity, and adds that up per feature (weighted by how many rows pass through the node), then normalises so the values sum to 1. `reg.feature_importances_` exposes the result: a high value means that column carried most of the splitting work.
@@ -102,3 +106,5 @@ Here two features, `s5` and `bmi`, account for roughly three-quarters of the mod
 ## 7. In Practice
 
 A decision tree regressor is a classification tree with the leaf output swapped from majority-vote to mean, and the split score swapped from Gini/entropy to squared error. It captures non-linear, non-monotone relationships that a straight line cannot, at the cost of a blocky piecewise-constant prediction and the same appetite for overfitting that every unconstrained tree has. The staircase never extrapolates: outside the range of the training data it just repeats the nearest leaf's mean forever, which is one reason a single tree is usually a building block for [Random Forests](/machine-learning-algorithms/ch37-decision-tree-intuition) rather than a final model on its own.
+
+One last practical note: to actually *see* the tree a fit produced, `sklearn.tree.plot_tree` and `export_text` are the built-ins, but [`dtreeviz`](https://github.com/parrt/dtreeviz) is worth installing. It draws each split as a histogram or scatter of the data reaching that node, shows where the threshold falls, and traces the path a single prediction takes down to its leaf, for both classifier and regressor trees. It makes the "what is this tree doing" question much easier to answer than a plain box-and-arrow diagram.

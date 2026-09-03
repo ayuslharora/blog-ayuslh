@@ -29,6 +29,10 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 ```
 
+Every hyperparameter in the rest of this post is a live control in the explorer below, running a `DecisionTreeClassifier` on exactly that dataset and re-fitting on each change. Push `max_depth` up until the boundary starts carving islands, then bring `min_samples_leaf` up to smooth them back out, and watch the train/test accuracy gap.
+
+<DecisionTreeHyperparameterExplorer />
+
 ## 2. `max_depth`
 
 The most direct lever: how many questions deep the tree is allowed to go from root to leaf. Left at its default (`None`), the tree grows until every leaf is pure, no matter how deep that requires.
