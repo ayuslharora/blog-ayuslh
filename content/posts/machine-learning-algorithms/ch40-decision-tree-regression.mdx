@@ -1,0 +1,104 @@
+---
+title: "Ch.40: Decision Tree Regression"
+description: "How a decision tree predicts a continuous number instead of a class: it partitions the feature space and predicts the mean of each region, chooses every split by minimising left-plus-right squared error, and produces a staircase instead of a line. Plus the hyperparameters that differ from the classifier, and feature_importances_ for feature selection."
+date: "2026-09-03T04:00:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "decision-tree", "regression", "cart", "feature-importance"]
+subtopic: "Decision Trees"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=RANHxyAvtM4)
+
+Everything about decision trees so far, [the core intuition](/machine-learning-algorithms/ch37-decision-tree-intuition), [entropy and Gini](/machine-learning-algorithms/ch38-entropy-information-gain-gini), [the hyperparameters](/machine-learning-algorithms/ch39-decision-tree-hyperparameters), has been about classification: keep splitting until each leaf is (mostly) one class. The same machine predicts continuous numbers too, and only two things change: what a leaf outputs, and how a split is scored.
+
+---
+
+## 1. Why Not Just Fit a Line?
+
+Take a dataset where the target has a clear but non-linear relationship with the feature: `y` rises, plateaus, then falls as `x` increases. [Linear regression](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) is only allowed to draw one straight line through it, so it splits the difference and fits nothing well. A decision tree instead cuts the `x` axis into pieces and predicts a flat value inside each piece, so it can bend with the data as sharply as it needs to.
+
+<img src="/images/ch40-line-vs-staircase.png" alt="Two scatter plots of the same 1-D dataset where y rises then falls as x increases. Left: linear regression draws a single downward-sloping straight line that misses the curve entirely. Right: a decision tree regressor with max_depth 3 draws a piecewise-constant staircase that tracks the rise, plateau, and fall of the points" className="w-full h-auto" />
+
+The tree's prediction is a **step function**: constant within each leaf's region, jumping at the boundaries. With one feature it's a staircase; with two it's a surface of flat rectangular tiles; the idea is the same in any dimension.
+
+## 2. What a Leaf Predicts
+
+In a classifier, a leaf outputs the majority class of the training rows that landed in it. In a regressor, a leaf outputs their **mean target value**. If five training points fall into a leaf with targets `3, 4, 4, 5, 9`, any new point routed to that leaf gets predicted as `5.0`.
+
+That is the whole prediction rule. All the intelligence is in deciding *where* to cut so that the points sharing a leaf actually have similar targets.
+
+## 3. How a Split Is Chosen
+
+For classification, [ch38](/machine-learning-algorithms/ch38-entropy-information-gain-gini) scored a split by how much it reduced Gini impurity or entropy. For regression, the measure is **squared error** (variance around the mean), and there is no Gini or entropy option at all.
+
+Take the one-feature case. Sort the rows by `x`, then consider every midpoint between consecutive values as a candidate threshold. For each candidate:
+
+1. Split the rows into a left group (`x < threshold`) and a right group (`x >= threshold`).
+2. Predict each group's mean.
+3. Add up the squared residuals in each group: `sum((y_left - mean_left)**2) + sum((y_right - mean_right)**2)`.
+
+The candidate with the lowest total is the split. (Because the row count is fixed, minimising this sum is the same as minimising the size-weighted mean squared error, which is sklearn's `squared_error` criterion.)
+
+```python
+import numpy as np
+
+xs = X.ravel()
+midpoints = (np.sort(xs)[:-1] + np.sort(xs)[1:]) / 2
+
+best_t, best_sse = None, np.inf
+for t in midpoints:
+    left, right = y[xs < t], y[xs >= t]
+    sse = ((left - left.mean())**2).sum() + ((right - right.mean())**2).sum()
+    if sse < best_sse:
+        best_t, best_sse = t, sse
+```
+
+<img src="/images/ch40-first-split-search.png" alt="Left: the 1-D dataset with a vertical dashed line marking the best first split near x = 3.48, and two horizontal red segments showing the predicted mean of about 0.59 left of the split and about -0.81 right of it. Right: a curve of left-SSE-plus-right-SSE against candidate threshold, dropping to a clear minimum at x = 3.48, which matches the threshold sklearn's DecisionTreeRegressor picks for its root" className="w-full h-auto" />
+
+The error curve on the right has a single clear trough: cutting too early (small threshold) or too late (large threshold) leaves one group with a wide spread of targets and a large residual sum. The minimum is where the two groups are internally most alike. A hand-rolled search over midpoints lands on exactly the same threshold sklearn's `DecisionTreeRegressor` uses for its root split.
+
+Then recurse: run the identical search inside the left region, and again inside the right region, each split shrinking the error a little more. With more than one feature, the search also loops over every feature at each node and keeps the single best feature-threshold pair.
+
+## 4. Overfitting Is the Same Story
+
+Left unconstrained, the tree keeps splitting until every leaf holds one training point. Each point then predicts itself, training R² hits a perfect `1.0`, and the staircase turns into a spike for every row: a textbook **high-variance** fit that generalises badly.
+
+<img src="/images/ch40-max-depth-steps.png" alt="Three panels of the rise-then-fall 1-D dataset fitted with a decision tree regressor at increasing max_depth. max_depth 1 is a single step with train R squared 0.80. max_depth 3 is a handful of steps that follow the curve with train R squared 0.94. max_depth None is a jagged staircase with a separate step for almost every point and train R squared 1.00" className="w-full h-auto" />
+
+The fix is the same set of stopping controls as the classifier, tuned the same way (compare train against a held-out score, tighten if the gap is wide, loosen if both are low).
+
+## 5. Hyperparameters That Differ From the Classifier
+
+`DecisionTreeRegressor` shares almost all of [ch39](/machine-learning-algorithms/ch39-decision-tree-hyperparameters)'s knobs, with the same meanings: `max_depth`, `min_samples_split`, `min_samples_leaf`, `max_leaf_nodes`, `min_impurity_decrease`, `max_features`, and `splitter` (`best` checks every feature and threshold, `random` picks random thresholds, cheaper and slightly more regularising). Only one thing genuinely changes:
+
+- **`criterion`** is `squared_error` by default (the left-plus-right variance from section 3), with `friedman_mse`, `absolute_error`, and `poisson` as alternatives. `gini` and `entropy` do not exist here, they only make sense for classes.
+
+Everything else transfers directly. On a one-feature toy problem `max_features` has nothing to do, and it stays mostly a Random Forest concern anyway, but on wide tabular data it behaves exactly as it does for the classifier.
+
+```python
+from sklearn.datasets import load_diabetes
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.metrics import r2_score
+
+X, y = load_diabetes(return_X_y=True)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+reg = DecisionTreeRegressor(criterion="squared_error", max_depth=5, random_state=42)
+reg.fit(X_train, y_train)
+print(r2_score(y_test, reg.predict(X_test)))
+```
+
+A single train/test split like this is noisy, so treat the number as a rough read and use `cross_val_score` (or the `best_score_` from a search) before trusting it. Tuning is the usual `GridSearchCV` or `RandomizedSearchCV` over `max_depth`, `criterion`, `min_samples_split`, `min_samples_leaf`, `max_leaf_nodes`, and `max_features`, scoring on cross-validated R².
+
+## 6. `feature_importances_` and Feature Selection
+
+While building the tree, sklearn tracks how much each split reduces impurity, and adds that up per feature (weighted by how many rows pass through the node), then normalises so the values sum to 1. `reg.feature_importances_` exposes the result: a high value means that column carried most of the splitting work.
+
+<img src="/images/ch40-feature-importances.png" alt="Horizontal bar chart of feature_importances_ for a DecisionTreeRegressor with max_depth 5 on load_diabetes, sorted descending. s5 is highest at about 0.47, bmi next at about 0.31, and the remaining eight features (s6, bp, s2, s3, s1, age, sex, s4) each contribute roughly 0.05 or less, with s4 essentially zero" className="w-full h-auto" />
+
+Here two features, `s5` and `bmi`, account for roughly three-quarters of the model, and most of the rest barely move it. That makes this attribute a cheap feature-selection tool: drop the near-zero columns and refit. The same `feature_importances_` exists on `RandomForestRegressor`, where it is averaged over all the trees and is usually more stable than a single tree's version.
+
+## 7. In Practice
+
+A decision tree regressor is a classification tree with the leaf output swapped from majority-vote to mean, and the split score swapped from Gini/entropy to squared error. It captures non-linear, non-monotone relationships that a straight line cannot, at the cost of a blocky piecewise-constant prediction and the same appetite for overfitting that every unconstrained tree has. The staircase never extrapolates: outside the range of the training data it just repeats the nearest leaf's mean forever, which is one reason a single tree is usually a building block for [Random Forests](/machine-learning-algorithms/ch37-decision-tree-intuition) rather than a final model on its own.
