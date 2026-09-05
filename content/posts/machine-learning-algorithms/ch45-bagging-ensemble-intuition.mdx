@@ -1,0 +1,107 @@
+---
+title: "Ch.45: Bagging Ensemble, the Intuition"
+description: "Why training the same algorithm on many random subsets of the data and voting the results cuts variance without touching bias: the bootstrap-then-aggregate mechanism, the row-budget argument for why the variance actually drops, an interactive explorer, and the four bagging variants (bagging, pasting, random subspaces, random patches)."
+date: "2026-09-05T23:00:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "bagging", "random-forest"]
+subtopic: "Ensemble Learning"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=LUiBOAy7x6Y)
+
+[Ch.41](/machine-learning-algorithms/ch41-ensemble-learning-introduction) laid out the four ensemble families and [Ch.42](/machine-learning-algorithms/ch42-voting-ensemble-intuition) through [Ch.44](/machine-learning-algorithms/ch44-voting-regressor) worked through voting. This starts the next family: **bagging**, short for **b**ootstrap **agg**regating. It gets three posts: this one is the intuition, the next is the classifier in code, and the one after is the regressor.
+
+There is no companion notebook for this video in the course's usual repo, so every number and chart below comes from running scikit-learn fresh.
+
+---
+
+## 1. The Setup: Same Algorithm, Different Data
+
+Voting builds diversity by using **different algorithms** on the **same data**. Bagging does the opposite: **one algorithm**, trained many times on **different slices of the data**.
+
+Concretely, you pick a base algorithm (a decision tree, almost always) and decide how many copies to train, say `m1, m2, ... m500`. They will all be decision trees. In principle you could mix algorithms here too, but nobody does; the whole point of bagging is that the diversity comes from the data, not the model.
+
+## 2. Two Steps: Bootstrap, Then Aggregate
+
+**Bootstrapping.** Take your training set of, say, 10,000 rows. For each base model, draw a random subset of the rows, maybe 2,500 of them, and train that model only on its subset. Put the rows back and draw a fresh subset for the next model. Every base model ends up having seen a different slice of the data, so every base model learns something slightly different.
+
+The draw is usually done **with replacement**, so a single subset can contain the same row more than once and miss others entirely. (Doing it without replacement has its own name, covered in Section 7.)
+
+**Aggregating.** A new point arrives. Hand it to all 500 trees. For classification, take the **majority vote**; for regression, take the **mean**. Same prediction rule as voting, the difference is entirely in how the base models were trained.
+
+That's the whole algorithm. `BaggingClassifier` and `BaggingRegressor` in scikit-learn do all of it; you supply the base estimator and the subset sizes.
+
+## 3. Why It Works: Bias and Variance
+
+The reason to reach for bagging is the [bias-variance tradeoff](/machine-learning-algorithms/ch12-bias-variance-tradeoff). What you want from a model is **low bias** (it can capture the real pattern) and **low variance** (its predictions don't swing wildly when the training data changes slightly). You rarely get both from one model.
+
+A fully grown decision tree is the classic **low bias, high variance** case: it fits the training data perfectly (100% training accuracy) but memorises noise, so a small change in the training set produces a very different tree and very different predictions.
+
+Bagging is built for exactly this shape of model. Averaging many high-variance, low-bias trees leaves the bias where it was (each tree was already flexible enough) and drives the variance down. You end up near the low-bias, low-variance corner that no single tree could reach.
+
+## 4. Why the Variance Actually Drops
+
+The subtle part is *why* the averaging helps, and the video makes the argument well with a counter-example.
+
+Suppose you barely change the data between models: model 1 gets rows 1 to 5,000, model 2 gets rows 1 to 4,995 plus five new ones. The two training sets are 99.9% identical, so the two trees come out nearly identical, and so do their predictions. Averaging two near-copies of the same model gains you nothing. The variance is still there.
+
+Now give each model a **genuinely different** subset. Say each of ten models gets 1,000 of the 10,000 rows, drawn at random. A single weird or mislabelled row now lands in only about one model's training set, not all ten. Whatever damage it does to that one tree's boundary gets outvoted nine to one by the trees that never saw it. The influence of any one training point, and any one tree's overfitting to it, is **diluted across the ensemble**.
+
+Said another way: the individual trees make errors, but because they were trained on different data, their errors are largely **uncorrelated**, and uncorrelated errors cancel when you average them. The more genuinely independent the base models, the more variance cancels.
+
+You can watch both halves of this happen as the ensemble grows:
+
+<img src="/images/ch45-variance-reduction.png" alt="Two line charts against number of trees in the ensemble on a log x-axis. Left: held-out accuracy climbs from about 0.78 at one tree to a plateau around 0.81 by 20 to 60 trees, with a dashed red line at 0.79 marking the single fully-grown tree. Right: prediction instability falls sharply from about 0.089 at one tree to about 0.004 by 250 trees, a roughly twentyfold drop that flattens out after a few dozen trees" className="w-full h-auto" />
+
+Accuracy climbs a little and then **plateaus**: past a few dozen trees, adding more barely moves it. The instability plot on the right is the variance itself, measured as how often a point's predicted label flips between independently resampled ensembles. It collapses by about 20x and then flattens. This is why "how many estimators" is a weak knob in practice: once you have enough trees for the errors to cancel, more just cost compute.
+
+## 5. Try It
+
+Pick a noisy dataset and watch the three small panels (individual base trees, each on its own random subset) stay jagged and disagree with each other while the big panel (their majority vote) stays smoother than any of them. Then push `n_estimators` up and watch the big boundary settle.
+
+<BaggingIntuitionExplorer />
+
+Things worth testing:
+
+- **`n_estimators`**: the aggregated boundary changes a lot from 1 to ~15 trees, then hardly at all. Same plateau as the chart above.
+- **`max_samples`**: very small subsets make each tree weak and different (high diversity, weak individuals); subsets near the full size make the trees strong but similar to each other (low diversity). Somewhere in the middle usually wins.
+- **Row sampling with vs without replacement**: the difference is small on these toy sets, which is the honest result; on real data, sampling with replacement tends to edge it out.
+- **Features per tree = 1 random**: each tree can now only split on one axis, so the individual panels look very different from each other, but the vote can still recover a sensible boundary. That's the "random subspaces" idea from Section 7.
+
+## 6. Robustness: The Same Point, Made Concrete
+
+Lower variance shows up in practice as a model that doesn't fall apart when the data shifts a little. Train a single fully grown tree and a 500-tree bagging ensemble on 25 different random train/test splits of the same dataset, and look at the spread of held-out accuracy:
+
+<img src="/images/ch45-single-vs-bagging-spread.png" alt="A box plot with individual points overlaid, comparing held-out accuracy across 25 random train/test splits. The single fully-grown tree has a median around 0.82 and points spread from about 0.74 to 0.88. The 500-tree bagging ensemble has a higher median around 0.86 and a visibly tighter spread from about 0.81 to 0.89" className="w-full h-auto" />
+
+The bagging ensemble has a **higher median** (about 0.86 vs 0.82) and a **tighter spread**. The single tree's worst split lands at 0.74; the ensemble's worst is 0.81. That gap, the difference between "usually fine, occasionally bad" and "consistently fine", is the robustness bagging buys.
+
+## 7. The Four Variants
+
+Bagging is one member of a family that differs only in **how the subset for each base model is drawn**. There are two levers, rows and columns, and each can be sampled or not:
+
+| Variant | Rows | Columns |
+|---|---|---|
+| **Bagging** | random subset, with replacement | all |
+| **Pasting** | random subset, without replacement | all |
+| **Random Subspaces** | all | random subset |
+| **Random Patches** | random subset | random subset |
+
+- **Bagging vs Pasting** is just replacement vs no replacement on the rows. Bagging is the more common default; both are worth trying.
+- **Random Subspaces** keeps every row but gives each base model only a random handful of the **features**. This is the one to reach for when you have a lot of columns, image pixels or text features, where column diversity does more than row diversity.
+- **Random Patches** samples both at once.
+
+In scikit-learn all four come from the same `BaggingClassifier`, toggled by `bootstrap`, `max_samples`, `bootstrap_features`, and `max_features`.
+
+## 8. Random Forest
+
+**Random Forest** is bagging with decision trees as the base model, plus one extra twist: it also samples features *at each split inside each tree*, not just once per tree. It's the most-used bagging method by a wide margin and gets its own posts after this sub-block.
+
+## 9. When to Use Bagging
+
+- Whenever your base model is **low bias, high variance**: fully grown decision trees, and to a lesser extent KNN with small `k`. Bagging a model that's already low-variance (linear or logistic regression, a well-regularised SVM) does very little, since there's no variance to cancel.
+- As a near-default on tabular problems. It's cheap to try, rarely hurts, and often gives a few points for free.
+
+## 10. What's Next
+
+The next post builds a `BaggingClassifier` in code: the demo app the video walks through, all four variants side by side, and the **out-of-bag score**, the free validation estimate you get from the roughly one-third of rows each tree never sees.
