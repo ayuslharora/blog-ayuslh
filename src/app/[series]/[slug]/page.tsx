@@ -42,6 +42,7 @@ import RidgeLambdaExplorer from '../../../components/RidgeLambdaExplorer';
 import DecisionTreeHyperparameterExplorer from '../../../components/DecisionTreeHyperparameterExplorer';
 import RegressionTreeExplorer from '../../../components/RegressionTreeExplorer';
 import VotingClassifierExplorer from '../../../components/VotingClassifierExplorer';
+import VotingRegressorExplorer from '../../../components/VotingRegressorExplorer';
 import TableOfContents from '../../../components/TableOfContents';
 import RelatedPosts from '../../../components/RelatedPosts';
 import MdxImage from '../../../components/MdxImage';
@@ -181,6 +182,7 @@ export default async function PostPage({
             DecisionTreeHyperparameterExplorer,
             RegressionTreeExplorer,
             VotingClassifierExplorer,
+            VotingRegressorExplorer,
             Mermaid,
             img: MdxImage,
             MdxImage,
