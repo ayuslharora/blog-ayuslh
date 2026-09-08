@@ -30,6 +30,28 @@ Replication is usually asynchronous: the master commits a write and returns to t
 - **Reliability.** If a database server is lost, to a disk failure or a physical disaster at one site, the data still exists on the other replicas. There is no single copy to lose.
 - **High availability.** With data mirrored across locations, the site keeps serving even when one database is down, because another one can answer.
 
+### Reading right after a write
+
+The lag from asynchronous replication creates a visible bug: a user updates their profile, the page reloads, and the old value is still there because the read landed on a slave that has not received the change yet. This is the read-after-write consistency problem. Two ways to deal with it.
+
+**Route that user's reads to the master for a short window.**
+
+After a user issues a write, send that same user's reads to the master instead of a slave, for a few seconds, long enough for the slaves to catch up. Everyone else keeps reading from slaves the whole time.
+
+- The window is keyed on the user, usually by user ID or session ID held in a cookie or in the app's session store. Only the user who just wrote is affected; the rest of the traffic is untouched.
+- Ending the window can be crude or precise. The crude version is a fixed timer, for example "route to master for 5 seconds after any write." The precise version records the master's replication position at the moment of the write, then on each read checks whether the slave has applied up to that position and only falls back to the master if it has not.
+- The master load stays low because at any moment only a small slice of users are inside their post-write window, so this does not undo the read scaling that replication bought you.
+
+**Pin the user to the master for the whole session.**
+
+Coarser and simpler: once a user performs any write, mark the session as "sticky to master" and serve all of that session's reads from the master until the session ends.
+
+- Easier to reason about, since there is no timer and no replication-position tracking. A session either reads from the master or it does not.
+- It costs more. A user who writes once early on then browses for twenty minutes spends that entire time hitting the master, so the master carries read traffic it did not need to. On a site where many sessions contain at least one write, this can erase much of the benefit of having slaves.
+- A middle option is to pin the session to one specific slave rather than the master. The user gets a consistent view of their own writes as that slave applies them in order, and the master is spared, at the cost of routing complexity and a still slightly stale view.
+
+In practice sites lean on the first approach for follow-up reads, and often avoid the problem entirely for the immediate response by rendering it from the data the app already has in hand rather than issuing a fresh read at all.
+
 ## What if a database goes offline?
 
 We asked this about the load balancer; we ask it again here. Replication handles it.
