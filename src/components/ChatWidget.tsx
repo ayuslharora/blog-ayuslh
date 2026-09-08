@@ -131,7 +131,7 @@ export default function ChatWidget({ postContext }: { postContext: string }) {
           <div className="px-4 py-3 border-b border-black/5 dark:border-white/10 font-semibold text-sm pl-10">
             Ask about this post
           </div>
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 space-y-3 text-sm">
             {messages.length === 0 && (
               <p className="text-[var(--text-secondary)]">Ask anything about this post.</p>
             )}
@@ -140,11 +140,11 @@ export default function ChatWidget({ postContext }: { postContext: string }) {
                 <span
                   className={
                     m.role === 'user'
-                      ? 'inline-block bg-amber-400/20 dark:bg-amber-400/10 rounded-lg px-3 py-1.5'
-                      : 'inline-block bg-black/5 dark:bg-white/10 rounded-lg px-3 py-1.5'
+                      ? 'inline-block max-w-[85%] bg-amber-400/20 dark:bg-amber-400/10 rounded-lg px-3 py-1.5'
+                      : 'inline-block max-w-[85%] bg-black/5 dark:bg-white/10 rounded-lg px-3 py-1.5'
                   }
                 >
-                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-ul:my-1 prose-ol:my-1 prose-headings:my-2 prose-a:text-amber-600 dark:prose-a:text-amber-400">
+                  <div className="prose prose-sm dark:prose-invert max-w-none break-words prose-p:my-1 prose-pre:my-2 prose-pre:overflow-x-auto prose-ul:my-1 prose-ol:my-1 prose-headings:my-2 prose-a:break-words prose-a:text-amber-600 dark:prose-a:text-amber-400">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                   </div>
                 </span>
