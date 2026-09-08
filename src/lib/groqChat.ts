@@ -1,5 +1,7 @@
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
+export const CHAT_MODEL = 'openai/gpt-oss-120b';
+
 const SYSTEM_PROMPT_PREFIX =
   'You are a helpful assistant answering questions about a specific blog post. ' +
   'Always answer the specific question asked first, directly and in as few sentences as it takes, before adding any supporting detail. ' +
@@ -13,7 +15,7 @@ const SYSTEM_PROMPT_PREFIX =
 
 export function buildChatRequestBody(postContext: string, messages: ChatMessage[]) {
   return {
-    model: 'llama-3.3-70b-versatile',
+    model: CHAT_MODEL,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT_PREFIX + postContext },
       ...messages,

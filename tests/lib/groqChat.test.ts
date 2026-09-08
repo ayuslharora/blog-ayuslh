@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildChatRequestBody, extractReply } from '../../src/lib/groqChat';
+import { buildChatRequestBody, CHAT_MODEL, extractReply } from '../../src/lib/groqChat';
 
 describe('buildChatRequestBody', () => {
-  it('uses the llama-3.3-70b-versatile model', () => {
+  it('uses the configured chat model', () => {
     const body = buildChatRequestBody('post context here', []);
-    expect(body.model).toBe('llama-3.3-70b-versatile');
+    expect(body.model).toBe(CHAT_MODEL);
   });
 
   it('embeds the post context in a leading system message', () => {
