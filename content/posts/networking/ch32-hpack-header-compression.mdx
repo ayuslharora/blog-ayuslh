@@ -1,0 +1,216 @@
+---
+title: "Ch.32: HPACK, HTTP/2 Header Compression"
+description: "How HPACK shrinks HTTP/2 header blocks: the 61-entry static table from RFC 7541, name-only matches, the optional static Huffman code, the FIFO dynamic table that both endpoints keep in sync, and the four header field representations whose prefix bits tell the decoder how to read each field."
+date: "2026-09-09T01:31:49+05:30"
+tags: ["networking", "http", "tcp", "application-layer", "protocols", "http2", "hpack", "compression", "huffman", "frames"]
+subtopic: "HTTP"
+draft: false
+source:
+  title: "HPACK explained in depth"
+  channel: "Chai aur Code"
+  url: "https://www.youtube.com/watch?v=M5ecS9oPRtk&list=PLd1s-PEC5Pio&index=37"
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=M5ecS9oPRtk&list=PLd1s-PEC5Pio&index=37)
+
+[Ch.30](/networking/ch30-http-2-frames) covered the HTTP/2 frame, and [Ch.31](/networking/ch31-http-2-binary-protocol) covered why reading fixed-offset binary beats scanning text. Both mentioned that a HEADERS frame carries its headers **HPACK-compressed**. This post is that missing piece: what HPACK actually does to a set of headers before they go on the wire, and how the receiver turns the bytes back into headers.
+
+HPACK is defined in [RFC 7541](https://www.rfc-editor.org/rfc/rfc7541). It does two jobs at once, compression and encoding, and it does them only for headers.
+
+---
+
+## Compression and encoding, separately
+
+### Compression: smaller, without losing anything
+
+Compression takes some content and represents it in fewer bytes while preserving the information. The string `aaaaaaaaaa` (ten `a`s) can be written as `10a`: three characters that carry a rule, "repeat the next character this many times". Expanding `10a` gives back the exact original. Nothing was lost, so this is **lossless** compression. (Image formats often use **lossy** compression, which discards detail to save more space. HPACK is always lossless.)
+
+### Encoding: translating to another form
+
+`A`, `B`, `C` are characters, meaningful to humans. A computer only handles numbers. Encoding is the translation between the two: ASCII says the byte `65` means `A`, `66` means `B`, and so on. UTF-8 is another such scheme. Encoding does not make anything smaller; it just changes the representation from one form to another.
+
+### HPACK does both
+
+HPACK compresses (a whole header line can shrink to a single integer) and it encodes (it assigns numbers to common headers and, optionally, re-encodes literal text with a Huffman code). That is why the RFC title calls it a "compression format" while the mechanism is full of lookup tables.
+
+---
+
+## HPACK only touches the HEADERS frame
+
+HTTP/2 has several frame types: HEADERS, DATA, SETTINGS, PING, and more. HPACK applies to exactly one of them, the **HEADERS frame**, which carries the request or response header fields. A DATA frame's payload (the request or response body) is never touched by HPACK.
+
+This works in both directions. A browser's request headers are HPACK-compressed on the way out; a server's response headers are HPACK-compressed on the way back. Both sides run an encoder and a decoder.
+
+The running example is a GET request with these headers:
+
+```
+:method: GET
+:path: /index.html
+:authority: ssw.in
+x-server: express
+```
+
+`:method`, `:path`, and `:authority` are HTTP/2 pseudo-headers. `x-server` is a custom header the application code added. There is no body, so there is no DATA frame.
+
+---
+
+## The static table
+
+When HTTP/2 was designed, the engineers analysed a large sample of real HTTP traffic and looked for patterns. Some header fields showed up constantly: `:method: GET`, `:method: POST`, `:path: /`, `:status: 200`, `content-length`, `authorization`, and so on. They collected the most frequent ones into a fixed list of **61 entries**, the static table (RFC 7541, Appendix A).
+
+Every HTTP/2 implementation, browser, server, or proxy, hardcodes this exact table. Its first few rows:
+
+| Index | Name | Value |
+|-------|------|-------|
+| 1 | `:authority` | |
+| 2 | `:method` | `GET` |
+| 3 | `:method` | `POST` |
+| 4 | `:path` | `/` |
+| 5 | `:path` | `/index.html` |
+| 6 | `:scheme` | `http` |
+| 7 | `:scheme` | `https` |
+| 8 | `:status` | `200` |
+
+Now the first two headers of the example are easy. `:method: GET` matches entry 2 exactly (name and value). HPACK replaces the entire header with the integer `2`. `:path: /index.html` matches entry 5, so it becomes `5`.
+
+### Why both sides need the table
+
+If the client sends `2` in place of `:method: GET`, the server has to know what `2` means. It does, because it holds the identical static table. It looks up index 2, finds `:method: GET`, and reconstructs the header. The table is a shared dictionary: one side of every entry is an HTTP header, the other side is an integer index, and both endpoints have the same copy.
+
+Some entries store only a name with an empty value, because the value varies too much to pin down. `authorization` tokens change on every login; `content-length` is different for every response. For those, the table gives you the name for free and you supply the value yourself. `:method` has an entry per value (`GET`, `POST`) because the set of methods is small; `:path` has an entry for `/` because that value is extremely common.
+
+---
+
+## When only the name is in the table
+
+The third header is `:authority: ssw.in`. The name `:authority` is static table entry 1, but the value `ssw.in` is specific to this site and is not in the table. HPACK indexes the name and encodes the value as a literal string:
+
+```
+41  85  42 3c 2e 6a bf
+```
+
+`41` is "name is at index 1, a literal value follows". The rest is the value, and how it is encoded depends on the next section.
+
+---
+
+## ASCII first, then Huffman
+
+Any HTTP request is already a string of characters, and before it goes anywhere it is encoded to bytes with ASCII or UTF-8. That step happens regardless of HTTP version and regardless of HPACK. So the header text of the example is a byte stream first: `G` is `0x47`, `E` is `0x45`, and so on.
+
+HPACK then runs on top of that. When it stores a literal string (like `ssw.in`), it can optionally **re-encode** those bytes with a static **Huffman code** to make them shorter. Huffman is optional: an encoder may use it or send the raw ASCII bytes. When people say "Huffman or ASCII", they mean "the literal is either Huffman-re-encoded or left as the ASCII bytes".
+
+The Huffman code (RFC 7541, Appendix B) was built the same way as the static table, from traffic analysis. Frequently occurring characters get short bit codes; rare characters get long ones:
+
+| Character | ASCII | Huffman |
+|-----------|-------|---------|
+| `0` | 8 bits | 5 bits |
+| `s` | 8 bits | 5 bits |
+| `w` | 8 bits | 7 bits |
+| `2` (as in status `200`) | 8 bits | 5 bits |
+| `` ` `` (backtick) | 8 bits | 15 bits |
+
+The backtick shows the trade-off: it is rare in HTTP, so Huffman spends 15 bits on it, almost double the ASCII cost. That is fine, because the codes are tuned so that the *common* characters dominate real headers and the total comes out smaller. Since it is a general-purpose scheme optimised for exactly this job, it is usually worth using, but it stays optional.
+
+For `ssw.in` the characters `s s w . i n` take `5 + 5 + 7 + 6 + 5 + 6 = 34` bits. That does not land on a byte boundary, so Huffman pads the last byte with 1-bits taken from the start of the special EOS ("end of string") symbol, bringing it to 40 bits, or 5 bytes. Raw ASCII would have been 6 bytes.
+
+---
+
+## The dynamic table
+
+The static table is fixed. HPACK also has a **dynamic table** that starts empty and grows as new headers are seen.
+
+When the encoder handled `:authority: ssw.in`, along with putting it on the wire it inserted the pair into its dynamic table. Dynamic entries continue the same index space as the static table: the static table ends at 61, so the first dynamic entry is index **62**. After `x-server: express` is handled the same way, it goes in at 62 and `:authority: ssw.in` slides down to 63. The dynamic table behaves as a FIFO queue: the newest entry is always at 62, older entries move toward higher indices, and when the table fills up (the default size limit is **4096 bytes**, where each entry counts as name length + value length + 32) the oldest entries are evicted from the far end.
+
+The decoder on the other side does the same insertions in the same order as it decodes, so the client's dynamic table and the server's dynamic table stay identical. That is what makes the shared-index trick keep working as the tables grow.
+
+---
+
+## The second request
+
+Send the same request again, moments later. `:method: GET` and `:path: /index.html` still resolve from the static table. But `:authority: ssw.in` is now in the dynamic table, and so is `x-server: express`. The encoder does not Huffman-encode anything this time; it just emits the dynamic indices. The whole four-header block collapses to four integers.
+
+This is the payoff of the dynamic table: the first request pays to describe a novel header once, and every request after that on the same connection refers to it by number.
+
+---
+
+## Try it
+
+The tool below is a real HPACK encoder. Edit the headers, toggle Huffman, and switch between Request 1 (which populates the dynamic table) and Request 2 (which reuses it). Each field shows which of the four representations HPACK picked, the table index it resolved to, the Huffman-versus-raw byte counts for any literal, and the exact encoded bytes.
+
+<HpackEncoderExplorer />
+
+---
+
+## The four header field representations
+
+Every encoded header field starts on a byte boundary, and the **high bits of its first byte** tell the decoder which of four representations it is looking at. This is how the server knows whether to read an index, decode a literal, or update its dynamic table.
+
+**1. Indexed Header Field** (RFC 7541, section 6.1). First byte pattern `1_______`. The remaining 7 bits are an index into the static or dynamic table; that entry supplies both name and value. This is `:method: GET`:
+
+```
+1 0000010   ->  0x82
+```
+
+First bit `1` marks it indexed; the low 7 bits are `2`. The decoder sees the leading `1`, reads `2`, looks up the table, and has `:method: GET`. `:path: /index.html` is `0x85` the same way.
+
+**2. Literal Header Field with Incremental Indexing** (section 6.2.1). First byte pattern `01______`. The `01` tells the decoder two things: this is a literal, and *add it to the dynamic table after decoding*. The remaining 6 bits are the name index. If they are non-zero, only the name was indexed and a literal value follows (this is `:authority: ssw.in`, name index 1, first byte `0x41`). If they are zero, the name was not in any table either, and a literal name follows before the literal value (this is `x-server: express`, first byte `0x40`).
+
+**3. Literal Header Field without Indexing** (section 6.2.2). First byte pattern `0000____`, a 4-bit name index. Same as above, but the `0000` prefix means *do not* add this to the dynamic table. Used for headers whose value changes every time, like a per-request `x-request-id`: caching it would just churn the table and evict useful entries.
+
+**4. Literal Header Field Never Indexed** (section 6.2.3). First byte pattern `0001____`. Like representation 3, but a stronger promise: this field must never be inserted into any dynamic table, by this endpoint or any intermediary. It exists for security-sensitive headers where indexing could leak information.
+
+So the prefix bits are a routing tag. `1` means "read an index, you are done". `01` means "read a literal, then index it". `0000` means "read a literal, do not index". `0001` means "read a literal, never index".
+
+---
+
+## Inside a Huffman-encoded literal
+
+Go back to `:authority: ssw.in`, encoded as `41 85 42 3c 2e 6a bf` with Huffman on.
+
+`0x41` is the name: `01` prefix (incremental indexing), name index `1` (`:authority`).
+
+`0x85` starts the value string. Its layout is one **H bit** then a 7-bit length:
+
+```
+1 0000101
+```
+
+The H bit is `1`, so the value bytes are Huffman-encoded. The length is `5`, so exactly 5 bytes of value data follow: `42 3c 2e 6a bf`.
+
+The decoder reads those 5 bytes as a continuous bit stream and walks it against the Huffman table. Huffman codes are **prefix-free**: no code is the start of another code, so the decoder can read bit by bit and stop the moment the bits so far form a complete code.
+
+```
+01000        -> s
+01000        -> s
+1111000      -> w
+010111       -> .
+00110        -> i
+101010       -> n
+```
+
+That consumes 34 bits. Six bits are left in the fifth byte, all `1`s. No character's code is all `1`s at that length, and a run of `1`s is the leading edge of the EOS symbol, so the decoder recognises it as padding and discards it. The value is `ssw.in`. The decoder then inserts `:authority: ssw.in` into its dynamic table, because the first byte said `01`.
+
+If the H bit had been `0`, the length would have counted raw ASCII bytes instead, and the decoder would have read them directly with no Huffman step.
+
+---
+
+## Seeing it in Wireshark
+
+Open an HTTP/2 capture and expand a HEADERS frame. Wireshark decodes the HPACK for you, and the fields line up with everything above.
+
+* `:method: GET` shows as **Indexed Header Field**, index **2**, and the raw byte in the hex pane is **`0x82`**, exactly the `1` + `0000010` derived earlier.
+* `:authority` on the first request shows as **Literal Header Field with Incremental Indexing**, name index **1**, first byte **`0x41`**.
+* On a later request with a different Stream ID, the same `:authority` header shows as **Indexed Header Field** with an index **above 61** (for example 76), meaning it is now being served from the dynamic table.
+* Walk further down the capture and that dynamic index keeps climbing as newer headers are inserted at 62 and push it down, which is the FIFO behaviour in action.
+
+---
+
+## Summary
+
+* **HPACK compresses and encodes HTTP/2 headers, and only headers.** It applies to the HEADERS frame in both requests and responses; DATA frames are untouched. It is always lossless.
+* **The static table is 61 fixed entries** (RFC 7541, Appendix A) of the most common header name/value pairs, hardcoded identically in every HTTP/2 implementation. A header that matches an entry exactly is sent as just that integer index.
+* **Both endpoints hold the same tables**, which is why sending an index instead of a header works: the receiver looks the index up in its own copy.
+* **When only the name matches**, HPACK indexes the name and sends the value as a literal string, which may be sent as raw ASCII bytes or re-encoded with the static Huffman code.
+* **The Huffman code** (RFC 7541, Appendix B) gives frequent characters short bit codes and rare ones long codes; it usually shrinks header text, and the final byte is padded with EOS 1-bits. It is optional.
+* **The dynamic table starts empty and grows** as novel headers appear, continuing the index space from 62 upward. It is a FIFO with a default 4096-byte limit, kept in sync between client and server. Later requests on the connection refer to earlier headers by dynamic index instead of re-sending them.
+* **Four representations, identified by the first byte's high bits:** Indexed (`1_______`, read an index), Literal with Incremental Indexing (`01______`, read a literal then add it to the dynamic table), Literal without Indexing (`0000____`, read a literal, do not add), and Literal Never Indexed (`0001____`, read a literal, never add, for sensitive headers).
