@@ -42,6 +42,7 @@ import MultiRegScatter3d from '../../../components/MultiRegScatter3d';
 import MultiRegPlane3d from '../../../components/MultiRegPlane3d';
 import PolyRegSurface3d from '../../../components/PolyRegSurface3d';
 import ElasticNetR2Surface3d from '../../../components/ElasticNetR2Surface3d';
+import PerceptronScorePlane3d from '../../../components/PerceptronScorePlane3d';
 import RidgeLambdaExplorer from '../../../components/RidgeLambdaExplorer';
 import DecisionTreeHyperparameterExplorer from '../../../components/DecisionTreeHyperparameterExplorer';
 import RegressionTreeExplorer from '../../../components/RegressionTreeExplorer';
@@ -187,6 +188,7 @@ export default async function PostPage({
             MultiRegPlane3d,
             PolyRegSurface3d,
             ElasticNetR2Surface3d,
+            PerceptronScorePlane3d,
             RidgeLambdaExplorer,
             DecisionTreeHyperparameterExplorer,
             RegressionTreeExplorer,
