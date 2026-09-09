@@ -9,7 +9,7 @@ draft: true
 
 *Inspired by:* [YouTube](https://www.youtube.com/watch?v=tLezwPKvPK4)
 
-[Ch.20](/machine-learning-algorithms/ch20-logistic-regression-perceptron-trick) worked out the Perceptron Trick's logic: represent a line as a weight vector, loop over random points, nudge the line toward whichever one it's currently getting wrong. This post codes that algorithm and then uses the finished implementation to expose exactly why real Logistic Regression needs to be a different, more careful algorithm.
+[Ch.20](/machine-learning-algorithms/ch20-logistic-regression-perceptron-trick) worked out the Perceptron Trick's logic: represent a line as a weight vector, loop over random points, nudge the line toward whichever one it's currently getting wrong. This post codes that algorithm ([source notebook](https://github.com/campusx-official/100-days-of-machine-learning/blob/master/day58-logistic-regression/perceptron-trick.ipynb)) and then uses the finished implementation to expose exactly why real Logistic Regression needs to be a different, more careful algorithm.
 
 ---
 
@@ -77,6 +77,8 @@ m_l, b_l = line_mb(lor.intercept_[0], lor.coef_[0])
 <img src="/images/ch21-perceptron-vs-logreg.png" alt="Scatter plot of two linearly separable clusters, blue on the left and green on the right. A red line (Perceptron Trick) cuts through very close to the rightmost blue point, almost touching it. A black line (LogisticRegression) sits further right, with visibly more breathing room between it and both clusters" className="w-full h-auto" />
 
 Both lines get every point right, zero training errors each. But they're clearly not the same line. The red perceptron line passes close enough to one of the blue points that it barely counts as separating it, no breathing room at all on that side. The black Logistic Regression line sits further over, leaving a visibly wider gap between itself and both clusters, a much more comfortable, symmetric-looking boundary.
+
+The gap between the two lines grows the more separable the data is. `make_classification`'s `class_sep` argument controls how far apart the two clusters sit; pushing it from `10` up to `20` or `30` pulls the clusters apart, and the perceptron line stays glued to whichever cluster it last corrected while the Logistic Regression line keeps re-centering itself in the widening gap.
 
 ## 4. Why the Two Lines Differ
 
