@@ -45,6 +45,7 @@ import ElasticNetR2Surface3d from '../../../components/ElasticNetR2Surface3d';
 import PerceptronScorePlane3d from '../../../components/PerceptronScorePlane3d';
 import SigmoidProbabilitySurface3d from '../../../components/SigmoidProbabilitySurface3d';
 import LogLossSurface3d from '../../../components/LogLossSurface3d';
+import GdLogLossDescent3d from '../../../components/GdLogLossDescent3d';
 import RidgeLambdaExplorer from '../../../components/RidgeLambdaExplorer';
 import DecisionTreeHyperparameterExplorer from '../../../components/DecisionTreeHyperparameterExplorer';
 import RegressionTreeExplorer from '../../../components/RegressionTreeExplorer';
@@ -193,6 +194,7 @@ export default async function PostPage({
             PerceptronScorePlane3d,
             SigmoidProbabilitySurface3d,
             LogLossSurface3d,
+            GdLogLossDescent3d,
             RidgeLambdaExplorer,
             DecisionTreeHyperparameterExplorer,
             RegressionTreeExplorer,

@@ -109,6 +109,10 @@ def gd(X, y):
 
 `np.insert(X, 0, 1, axis=1)` prepends the all-`1`s intercept column derived in Section 1. `weights` starts at all `1`s and has shape $(n+1,)$. Inside the loop, `y_hat` is $\sigma(XW)$ from Section 1, and the update line is Section 4's rule verbatim: `np.dot((y - y_hat), X)` computes $X^T(y-\hat y)$ (NumPy's 1-D `dot` between a length-$m$ vector and an $m\times(n+1)$ matrix already produces the $X^T(y-\hat y)$ result, no explicit transpose needed), dividing by `X.shape[0]` averages over $m$ rows, and `lr` is $\eta$. `weights[0]` is the intercept $w_0$, `weights[1:]` is everything else.
 
+<GdLogLossDescent3d />
+
+This is the [Ch.23](/machine-learning-algorithms/ch23-logistic-regression-loss-function) bowl with the loop's actual trajectory drawn on it. The steps are big while the surface is steep near the start and taper off as the path eases into the flat basin around the minimum, which is why raising the epoch count keeps nudging the from-scratch line closer to `sklearn`'s.
+
 ## 6. Checking It Against scikit-learn
 
 Running this against the same dataset used throughout the Logistic Regression posts and comparing the resulting boundary to `sklearn.linear_model.LogisticRegression`:
@@ -129,7 +133,7 @@ coef_, intercept_ = gd(X, y)
 
 <img src="/images/ch24-gd-vs-sklearn.png" alt="Scatter plot of two linearly separable clusters, blue on the left and bright green on the right. A red solid line (scikit-learn's LogisticRegression) and a black dashed line (the from-scratch gradient descent) both cut through the same narrow gap between the clusters, overlapping almost perfectly" className="w-full h-auto" />
 
-At 5000 epochs and a learning rate of `0.5`, the two lines are effectively on top of each other, `sklearn` finds $w \approx [4.80, 0.20]$, $b \approx 5.78$, and the from-scratch version lands at $w \approx [4.84, 0.21]$, $b \approx 5.83$. That's the direct payoff of deriving the update rule from an actual loss function instead of the ad-hoc push-and-pull rule from [Ch.22](/machine-learning-algorithms/ch22-step-function-to-sigmoid): the two implementations now agree almost exactly, closing the gap that the sigmoid-perceptron couldn't.
+At 5000 epochs and a learning rate of `0.5`, the two lines are effectively on top of each other, `sklearn` finds $w \approx [4.90, 0.24]$, $b \approx 5.85$, and the from-scratch version lands at $w \approx [4.84, 0.21]$, $b \approx 5.83$. That's the direct payoff of deriving the update rule from an actual loss function instead of the ad-hoc push-and-pull rule from [Ch.22](/machine-learning-algorithms/ch22-step-function-to-sigmoid): the two implementations now agree almost exactly, closing the gap that the sigmoid-perceptron couldn't.
 
 With a much lower epoch count, or a small dataset like this one where a single sharp gap makes convergence sensitive to the exact optimizer, the two lines can still visibly diverge, which is expected: `sklearn`'s `sag` solver isn't running plain full-batch gradient descent internally, it's a different (and more optimized) iterative method. Full-batch gradient descent over enough epochs converges toward the same optimum, but there's no guarantee the two paths there look identical at every step.
 
