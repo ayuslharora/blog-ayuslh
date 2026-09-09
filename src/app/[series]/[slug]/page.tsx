@@ -22,6 +22,7 @@ import TcpHeaderTable from '../../../components/TcpHeaderTable';
 import UdpHeaderTable from '../../../components/UdpHeaderTable';
 import DnsHeaderTable from '../../../components/DnsHeaderTable';
 import Http2FrameHeaderTable from '../../../components/Http2FrameHeaderTable';
+import HpackEncoderExplorer from '../../../components/HpackEncoderExplorer';
 import MtuMssDiagram from '../../../components/MtuMssDiagram';
 import RequestFlowDiagram from '../../../components/RequestFlowDiagram';
 import DatabaseArchitectureDiagram from '../../../components/DatabaseArchitectureDiagram';
@@ -163,6 +164,7 @@ export default async function PostPage({
             UdpHeaderTable,
             DnsHeaderTable,
             Http2FrameHeaderTable,
+            HpackEncoderExplorer,
             MtuMssDiagram,
             RequestFlowDiagram,
             DatabaseArchitectureDiagram,
