@@ -30,11 +30,19 @@ Concretely, for every point $i$, the sigmoid gives $\hat y_i$, the predicted pro
 
 For each point, take whichever of those two matches its actual label, that's how confident the model was about the label it should have gotten right. Multiply all four of those together and the result is the model's **likelihood**: how likely the model made the observed labels look, given its own predictions.
 
-As a small worked example, suppose Model 1's four predicted probabilities of green come out to $0.7, 0.6, 0.4, 0.8$ for points labeled green, red, green, red respectively. The confidence in each point's *actual* label is then $0.7$, $1-0.6=0.4$, $0.4$, $1-0.8=0.2$. Multiplying: $0.7 \times 0.4 \times 0.4 \times 0.2 \approx 0.022$. Running the same process for Model 2, whose predictions sit closer to the true labels, gives a noticeably larger product. Whichever model's product is larger is the better model, that's the whole idea of maximum likelihood: find the line whose likelihood is maximized.
+Work it through on the four points, labeled green, red, green, red. Model 1's predicted probabilities of green are $0.7, 0.6, 0.4, 0.2$, so its confidence in each point's *actual* label is $0.7$, $1-0.6=0.4$, $0.4$, $1-0.2=0.8$:
+
+$$\text{likelihood}(\text{Model 1}) = 0.7 \times 0.4 \times 0.4 \times 0.8 \approx 0.089$$
+
+Model 2 draws the boundary better, its predicted probabilities of green are $0.7, 0.4, 0.6, 0.3$, giving confidences $0.7$, $0.6$, $0.6$, $0.7$:
+
+$$\text{likelihood}(\text{Model 2}) = 0.7 \times 0.6 \times 0.6 \times 0.7 \approx 0.176$$
+
+Model 2's likelihood is the larger of the two, which is the number-based version of "Model 2 is the better line." That's the whole idea of maximum likelihood: find the line whose likelihood is maximized. (The per-point probabilities here are read off a hand-drawn sketch in the video; they are illustrative, not measured.)
 
 ## 3. The Small-Numbers Problem
 
-There's an immediate practical problem. This toy example only multiplied four numbers, each less than $1$, and the product was already down near $0.02$. A real dataset has thousands of rows, and every one of them contributes another factor between $0$ and $1$ to the product. Multiplying ten thousand fractions together underflows to a number so close to zero that comparing two models' likelihoods stops being numerically meaningful.
+There's an immediate practical problem. This toy example only multiplied four numbers, each less than $1$, and the product was already down below $0.1$. A real dataset has thousands of rows, and every one of them contributes another factor between $0$ and $1$ to the product. Multiplying ten thousand fractions together underflows to a number so close to zero that comparing two models' likelihoods stops being numerically meaningful.
 
 Products need to become sums. The tool for that is the log identity:
 
@@ -84,4 +92,8 @@ This is Logistic Regression's actual loss function, known as **log loss** or **b
 
 For Linear Regression, minimizing the squared-error loss had a closed-form answer, the normal equation, because that loss is a smooth, differentiable parabola in the weights that can be solved directly by setting its derivative to zero. Log loss doesn't offer the same shortcut: because $\hat y_i$ is sigmoid applied to a linear combination of the weights, there's no algebraic rearrangement that isolates the weights directly from $\dfrac{\partial L}{\partial w} = 0$.
 
-That means the only way to find the weights that minimize this loss is iteratively, the same tool used throughout this series for exactly this situation: gradient descent. The next post picks up from here, differentiating this loss function and deriving the actual weight-update rule for Logistic Regression, then coding it into a working `LogisticRegression` class from scratch.
+That means the only way to find the weights that minimize this loss is iteratively, the same tool used throughout this series for exactly this situation: gradient descent. It has an easier job here than it might: log loss is convex in the weights, so there are no false valleys to get stuck in, just one bowl with one bottom.
+
+<LogLossSurface3d />
+
+The next post picks up from here, differentiating this loss function and deriving the actual weight-update rule for Logistic Regression, then coding it into a working `LogisticRegression` class from scratch.
