@@ -1,0 +1,124 @@
+---
+title: "Ch.34: QUIC, an Overview"
+description: "QUIC is a transport-layer protocol that runs over UDP and does everything TCP does (flow control, congestion control, loss recovery, in-order delivery) plus TLS built in. This chapter covers why it exists: protocol ossification forced it to hide inside UDP, user-space implementation frees it from OS updates, a folded handshake cuts connection setup from 2 RTT to 1 (or 0 with a session ticket), and connection IDs let a connection survive a network switch."
+date: "2026-09-09T20:45:00+05:30"
+tags: ["networking", "transport-layer", "protocols", "quic", "http3", "udp", "tcp", "tls", "http", "protocol-ossification"]
+subtopic: "HTTP"
+draft: false
+source:
+  title: "39 QUIC protocol overview"
+  channel: "Chai aur Code"
+  url: "https://www.youtube.com/watch?v=ZAJVKmZ-dh4"
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=ZAJVKmZ-dh4)
+
+[Ch.33](/networking/ch33-http-2-head-of-line-blocking) ended on the reason HTTP/3 had to drop TCP: transport-level head-of-line blocking that no application-layer change can fix. The replacement transport is **QUIC**. This chapter is a tour of what QUIC is and, more importantly, why almost every design decision in it is a workaround for something that could not be changed.
+
+QUIC was built by Google, later standardized by the IETF as [RFC 9000](https://www.rfc-editor.org/rfc/rfc9000.html), published May 2021. That makes it a very young protocol next to TCP and UDP, which date to around 1980. It is the foundation HTTP/3 runs on.
+
+---
+
+## What QUIC is
+
+QUIC is a **transport-layer protocol**, the same layer as TCP. It has its own flow control, its own congestion control, its own packet loss recovery, and it guarantees reliable, in-order delivery of each stream. If you have followed the TCP chapters, that list is familiar: it is basically [TCP's job description](/networking/ch15-transmission-control-protocol-tcp). You can think of QUIC as a modern re-take on TCP that keeps the reliability guarantees but fixes the parts that aged badly.
+
+The one structural oddity: QUIC runs **over UDP**. A QUIC packet is the payload of a [UDP datagram](/networking/ch13-user-datagram-protocol-udp). It still counts as a layer-4 protocol; it just uses UDP as a delivery vehicle rather than sitting directly on IP. The rest of this chapter is mostly about why.
+
+---
+
+## TLS is built in, not bolted on
+
+TCP knows nothing about encryption. To communicate securely over TCP you run TLS as a separate layer on top: TCP carries bytes, TLS encrypts them, and HTTP over that combination is HTTPS. Without the TLS layer, HTTP/1.1 and HTTP/2 are sending plaintext.
+
+The reason is age. TCP was designed when reliable delivery was the problem worth solving and encryption was not a mainstream concern, so nothing about security went into the protocol. As the web grew up, security became mandatory, and the fix was a bolt-on layer.
+
+QUIC was designed for a world where encryption is table stakes, so it puts TLS **inside** the protocol. Every QUIC connection is encrypted; there is no unencrypted mode to fall back to. QUIC still uses a TLS library under the hood (OpenSSL, BoringSSL), it just integrates the handshake into its own rather than requiring a distinct layer.
+
+An analogy from the video: TCP is a plain wooden cupboard with no lock. If you want to store anything valuable you buy a separate safe with its own lock and put it inside. QUIC is a cupboard that ships with the lock built into the frame. Either way there is a locking mechanism; the difference is whether it is a separate object you have to source and fit yourself.
+
+---
+
+## It lives in user space, not the kernel
+
+TCP, UDP, and IP are implemented in the operating system's networking stack. When [a long byte stream gets cut into TCP segments](/networking/ch20-mtu-mss-and-path-mtu-discovery), the code doing that is part of your OS kernel. macOS has its own stack, Windows and Linux each have their own.
+
+That placement is the thing that makes TCP hard to improve. Suppose a genuinely better TCP behavior is invented tomorrow. Every OS vendor has to implement it in their kernel, ship a new release, and then every user has to update their OS before the improvement reaches their machine. There is a dependency chain that ends at "billions of people update their operating system," and that takes many years.
+
+QUIC sidesteps this by living in **user space**, bundled with the application. There is no QUIC code in the OS. Chrome ships its own QUIC implementation ([in the Chromium source tree under `net/quic`](https://source.chromium.org/chromium/chromium/src/+/main:net/quic/)), Edge ships its own, nginx ships its own. To pick up a QUIC improvement you update the application, not the OS. That is why QUIC can evolve on a timescale of application release cycles instead of OS release cycles, and it was a deliberate choice to keep the protocol improvable decades from now.
+
+---
+
+## Why UDP underneath: protocol ossification
+
+The obvious question is why QUIC did not just sit directly on IP, the way TCP and UDP do, with its own protocol number. The answer is a concept called **protocol ossification**.
+
+Every packet crossing the internet passes through middleboxes: routers, switches, firewalls, NAT devices. The [IPv4 header](https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml) has a **protocol** field, a single number saying what it carries:
+
+```
+protocol =  1  -> ICMP
+protocol =  6  -> TCP
+protocol = 17  -> UDP
+```
+
+A router hops the packet along by checking this field against the set of protocols it knows. Now imagine QUIC claimed a fresh number, say 80, directly on IP. Many middleboxes on the internet are ten or twenty years old. They have never heard of protocol 80. Faced with a value they do not recognize, the safe default is to **drop the packet**. To actually deploy a new transport protocol on IP, you would have to update every middlebox on the internet to pass it, which is a decade-plus project.
+
+That rigidity is protocol ossification: the transport layer has effectively frozen, because anything new gets filtered by infrastructure that only understands what already exists.
+
+QUIC's workaround is to **hide inside UDP**. A QUIC packet goes in a UDP datagram, so the IP packet's protocol field reads 17, which every middlebox has understood for forty years. The middleboxes forward the UDP datagram without caring what is inside it. Only the destination looks past the UDP header and finds QUIC.
+
+```
+IP packet
+  protocol = 17 (UDP)        <- middleboxes see this, forward normally
+  UDP datagram
+    payload = QUIC packet     <- only the destination parses this
+      TLS + streams + ...
+```
+
+So QUIC ends up depending on nobody: not OS vendors, because it is in user space; not router vendors, because they already forward UDP; not a coordinated internet-wide infrastructure upgrade, because none is needed.
+
+---
+
+## The handshake: folding two round trips into one
+
+Connection setup is where QUIC's payoff is easiest to see.
+
+With TCP plus TLS, you pay for two handshakes in sequence. The [TCP three-way handshake](/networking/ch16-tcp-three-way-handshake) is one round trip: SYN, SYN-ACK, ACK. Only once the TCP connection exists can the TLS handshake start, and that is another round trip. So the first encrypted HTTP request cannot leave the client until **2 round trips** have elapsed.
+
+QUIC folds them together. Because TLS is part of the protocol, the first QUIC flight carries the transport parameters and the TLS ClientHello in one shot. The server replies with its half, and the client's next packet can already include the first encrypted HTTP request. That is **1 round trip** instead of 2.
+
+<QuicHandshakeExplorer />
+
+### 0-RTT: sending the request in the first packet
+
+QUIC can go further. When you complete a QUIC handshake, the server can hand the client a **session ticket**. If the client connects to the same server again later, it can present that ticket and encrypt an HTTP request using keys derived from the earlier session, putting the request in the **very first packet**. No round trips before application data: **0-RTT**.
+
+Two constraints:
+
+- You must have done a normal 1-RTT handshake with that server previously to have a valid ticket. 0-RTT is never the first contact.
+- It is limited to safe methods: GET, HEAD, OPTIONS. A 0-RTT packet can be captured and replayed by an attacker, and replaying a GET is harmless where replaying a POST or DELETE is not, so those are disallowed in 0-RTT.
+
+---
+
+## Connection migration: surviving a network switch
+
+This is the feature the video calls QUIC's USP.
+
+A TCP connection is identified by a four-tuple: source IP, source port, destination IP, destination port. If any one of those four changes, it is a different connection as far as TCP is concerned, and the old one breaks.
+
+Picture browsing on your phone at home, connected through your router with a local IP. You walk out the door and the phone switches to cellular. Your source IP changes from the router's network to the carrier's network. Every TCP connection you had is now identified by a stale four-tuple, so it breaks, and anything using HTTP/1.1 or HTTP/2 has to open fresh TCP connections and redo the handshakes.
+
+QUIC does not lean on the four-tuple as the identity. Each connection carries a **connection ID** that is independent of IP and port. When your address changes, the client keeps sending the same connection ID, and the server recognizes it: same connection, no need to rebuild anything. The [RFC 9000 connection migration section](https://www.rfc-editor.org/rfc/rfc9000.html#name-connection-migration) puts it directly: "The use of a connection ID allows connections to survive changes to endpoint addresses (IP address and port)."
+
+So switching from Wi-Fi to cellular mid-download stalls a TCP connection and keeps a QUIC one alive.
+
+---
+
+## Summary
+
+* **QUIC is a transport-layer protocol over UDP.** It reimplements what TCP does, flow control, congestion control, loss recovery, reliable in-order delivery, and adds encryption as a built-in rather than a separate layer. RFC 9000, May 2021, and the foundation of HTTP/3.
+* **TLS is integrated.** TCP needs a separate TLS layer to be secure because encryption was never part of its design; QUIC bakes it in, so every connection is encrypted.
+* **It runs in user space, not the OS kernel.** Applications like Chrome and nginx ship their own QUIC, so improvements arrive with an app update instead of waiting on OS releases across every device.
+* **It hides inside UDP because of protocol ossification.** A new protocol number on IP would be dropped by old middleboxes. Wrapping QUIC in UDP (IP protocol 17) means every router already knows how to forward it, and only the destination parses what is inside.
+* **The handshake is folded.** TCP plus TLS is 2 round trips before the first encrypted request; QUIC is 1, or 0 with a session ticket from a prior connection (GET, HEAD, OPTIONS only, because 0-RTT data can be replayed).
+* **Connection migration.** A connection ID, rather than the source or destination IP and port, identifies a QUIC connection, so it survives a client switching networks. The equivalent TCP connection would break.
