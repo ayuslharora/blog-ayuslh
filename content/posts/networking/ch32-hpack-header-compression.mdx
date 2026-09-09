@@ -194,17 +194,6 @@ If the H bit had been `0`, the length would have counted raw ASCII bytes instead
 
 ---
 
-## Seeing it in Wireshark
-
-Open an HTTP/2 capture and expand a HEADERS frame. Wireshark decodes the HPACK for you, and the fields line up with everything above.
-
-* `:method: GET` shows as **Indexed Header Field**, index **2**, and the raw byte in the hex pane is **`0x82`**, exactly the `1` + `0000010` derived earlier.
-* `:authority` on the first request shows as **Literal Header Field with Incremental Indexing**, name index **1**, first byte **`0x41`**.
-* On a later request with a different Stream ID, the same `:authority` header shows as **Indexed Header Field** with an index **above 61** (for example 76), meaning it is now being served from the dynamic table.
-* Walk further down the capture and that dynamic index keeps climbing as newer headers are inserted at 62 and push it down, which is the FIFO behaviour in action.
-
----
-
 ## Summary
 
 * **HPACK compresses and encodes HTTP/2 headers, and only headers.** It applies to the HEADERS frame in both requests and responses; DATA frames are untouched. It is always lossless.
