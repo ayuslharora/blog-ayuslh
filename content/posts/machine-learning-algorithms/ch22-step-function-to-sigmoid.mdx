@@ -49,7 +49,7 @@ Sigmoid takes any real number and squashes it into the range `(0, 1)`, approachi
 
 ## 3. Implementing It
 
-The only change from [Ch.21](/machine-learning-algorithms/ch21-perceptron-trick-from-scratch)'s code is which function computes `y_hat`:
+The only change from [Ch.21](/machine-learning-algorithms/ch21-perceptron-trick-from-scratch)'s code ([source notebook](https://github.com/campusx-official/100-days-of-machine-learning/blob/master/day58-logistic-regression/perceptron-trick-sigmoid.ipynb)) is which function computes `y_hat`:
 
 ```python
 def sigmoid(z):
@@ -80,7 +80,19 @@ The same four combinations of true label and prediction from [Ch.20](/machine-le
 
 And distance still matters within each case: a correctly classified point sitting *right next to* the line has $\hat y$ close to `0.5` rather than close to `0` or `1`, so $y - \hat y$ is bigger for it than for a point far away on the correct side, meaning nearby correct points push harder than distant correct ones. Exactly the graded behavior the step function couldn't give.
 
-## 5. Comparing All Three Lines
+## 5. Sigmoid Turns the Region Into a Probability Gradient
+
+The step function split the plane into two flat regions: everything on one side predicted `1`, everything on the other predicted `0`, with a vertical cliff along the boundary. Sigmoid replaces that cliff with a smooth ramp. On the line itself $W \cdot X = 0$, so $\sigma = 0.5$. Step just off the line into the positive region and $\sigma$ rises to `0.6`, then `0.7`, `0.8`, approaching `1` far out; step into the negative region and it falls to `0.4`, `0.3`, approaching `0`. Every level set ($\sigma = 0.7$, say) is a line parallel to the decision boundary.
+
+<SigmoidProbabilitySurface3d />
+
+That ramp has a natural reading: $\sigma(W \cdot X)$ is the model's estimated **probability that the student gets placed**. A point deep in the positive region has $P(\text{placed}) \approx 0.9$; one just past the boundary has $P(\text{placed}) \approx 0.55$; the topper still isn't at exactly `1` and the weakest candidate still isn't at exactly `0`. And since there are only two outcomes, the other probability comes for free:
+
+$$P(\text{not placed}) = 1 - \sigma(W \cdot X)$$
+
+This is the payoff of the swap. The model no longer just picks a side, it assigns every student a graded confidence, and that probabilistic view is exactly what the next post builds a real loss function on top of.
+
+## 6. Comparing All Three Lines
 
 Running the sigmoid version on the same dataset as [Ch.21](/machine-learning-algorithms/ch21-perceptron-trick-from-scratch) and plotting it alongside the original step-function perceptron and Scikit-Learn's `LogisticRegression`:
 
@@ -100,7 +112,7 @@ The brown sigmoid line sits dramatically closer to the black Logistic Regression
 
 But look closely: brown and black still aren't the same line. The gap has shrunk a lot, but it hasn't closed completely. Something is still missing.
 
-## 6. What's Still Missing
+## 7. What's Still Missing
 
 The video ends on this open question deliberately: sigmoid fixed the "correctly classified points do nothing" problem, but the sigmoid-perceptron still isn't identical to real Logistic Regression. The remaining gap comes from *how* the update rule was changed, it was changed by intuition and analogy ("make correct points push, make it graded by distance"), not derived from an actual objective function that defines what "best line" precisely means.
 
