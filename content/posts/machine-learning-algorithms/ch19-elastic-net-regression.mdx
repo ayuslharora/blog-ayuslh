@@ -75,6 +75,10 @@ print(r2_score(y_test, reg.predict(X_test)))
 
 Plain linear regression starts at `0.4399`. Ridge with `alpha=0.1` does a little better at `0.4520`; several values were tried and `0.1` gave the best result. Lasso with `alpha=0.01` barely edges out plain linear at `0.4411`, and Ridge slightly beats Lasso here. ElasticNet with `alpha=0.005` and `l1_ratio=0.9` (mostly L1, with a small L2 component mixed in) comes out on top at `0.4531`, a slight improvement over Ridge alone. This isn't a universal ranking: each model's `alpha` was hand-picked rather than cross-validated, and results will vary by dataset. The point is that with two hyperparameters instead of one, Elastic Net has strictly more room to search for a good fit than either Ridge or Lasso alone.
 
+<ElasticNetR2Surface3d />
+
+Ridge only ever sees the back edge of that surface (`l1_ratio = 0`) and Lasso only the front edge (`l1_ratio = 1`). Elastic Net is free to land anywhere on the sheet, and on this dataset the high ground is a broad plateau at small `alpha` that runs across the middle `l1_ratio` values rather than sitting at either edge.
+
 ## 4. What Changes as l1_ratio Moves From 0 to 1
 
 Sweeping `l1_ratio` at a fixed `alpha=0.1` shows the transition between Ridge-like and Lasso-like behavior directly:
