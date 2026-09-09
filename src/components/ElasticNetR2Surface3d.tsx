@@ -91,7 +91,7 @@ export default function ElasticNetR2Surface3d() {
             height: 440,
             margin: { l: 0, r: 0, t: 10, b: 0 },
             scene: {
-              xaxis: { title: { text: 'log₁₀(alpha)' } },
+              xaxis: { title: { text: 'log₁₀(α)' } },
               yaxis: { title: { text: 'l1_ratio' } },
               zaxis: { title: { text: 'test R²' } },
               camera: { eye: { x: 2.0, y: -2.0, z: 0.9 } },
@@ -107,7 +107,7 @@ export default function ElasticNetR2Surface3d() {
         />
       </div>
       <p className="text-center text-xs text-[var(--text-secondary)] mt-3">
-        Test R² of <code>ElasticNet</code> across the full <code>(alpha, l1_ratio)</code> grid on the diabetes dataset. Ridge and Lasso each search only a single edge of this surface (<code>l1_ratio = 0</code> and <code>l1_ratio = 1</code>); Elastic Net searches the whole sheet. The red marker is the grid maximum, R² ≈ {data.best.r2.toFixed(3)}.
+        Test R² of <code>ElasticNet</code> across the full (<code>α</code>, <code>l1_ratio</code>) grid on the diabetes dataset. Ridge and Lasso each search only a single edge of this surface (<code>l1_ratio = 0</code> and <code>l1_ratio = 1</code>); Elastic Net searches the whole sheet. The red marker is the grid maximum, R² ≈ {data.best.r2.toFixed(3)}.
       </p>
     </div>
   );
