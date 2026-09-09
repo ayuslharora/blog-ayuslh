@@ -17,7 +17,7 @@ This post covers the geometric intuition first, through an algorithm called the 
 
 ## 1. The Requirement: (Almost) Linearly Separable Data
 
-Logistic Regression draws a straight line (or in higher dimensions, a hyperplane) to separate two classes. Picture a dataset of students, `CGPA` on one axis, `IQ` on the other, colored by whether they got placed:
+Logistic Regression draws a straight line (or in higher dimensions, a hyperplane) to separate two classes. Picture a dataset of students, `CGPA` on one axis, `IQ` on the other, colored by whether they got placed: green got placed, blue did not, and the goal is a model that takes a new student's `CGPA` and `IQ` and predicts which group they land in.
 
 Data like this, where a single straight line can cleanly separate the two colors, is called **linearly separable**. It doesn't have to be perfect, a couple of stray points on the wrong side is fine, that's **almost linearly separable** and still works well in practice. What doesn't work is genuinely nonlinear data, concentric circles of two classes, for instance, where no straight line, no matter how it's drawn, ever separates the two groups:
 
@@ -65,6 +65,8 @@ The algorithm's core idea is almost embarrassingly simple:
 
 Repeat that enough times and the line gradually rotates and slides into a position that separates the two classes. The nudge itself follows a simple rule: if a point that should be negative is stuck in the positive region, subtract that point's coordinates (scaled down) from the line's coefficients; if a point that should be positive is stuck in the negative region, add them. Either direction pulls the line toward the misclassified point until it lands on the correct side.
 
+The video works this through with actual numbers in Desmos. Take the line $2x + 3y + 5 = 0$, coefficients $[2, 3, 5]$, and a negative point at $(4, 5)$ currently sitting in the positive region. Append a $1$ to the point's coordinates, giving $[4, 5, 1]$, then subtract it from the coefficients: $[2, 3, 5] - [4, 5, 1] = [-2, -2, 4]$, the new line $-2x - 2y + 4 = 0$. A positive point at $(1, 3)$ stuck on the negative side is the mirror image: $[2, 3, 5] + [1, 3, 1] = [3, 6, 6]$, the line $3x + 6y + 6 = 0$. Both new lines have rotated and shifted toward the point they got wrong. (These are shown at full strength, without the learning-rate scaling introduced next, to keep the arithmetic readable.)
+
 That "scaled down" part matters: nudges are never applied at full strength in one step, that would send the line flying past a reasonable position. Instead each nudge is scaled by a small constant called the **learning rate**, typically something like `0.01` or `0.1`, the same idea gradient descent uses in [Ch.7](/machine-learning-algorithms/ch7-gradient-descent).
 
 ## 6. Writing the Line as a Weight Vector
@@ -78,6 +80,10 @@ Prepending a constant column of `1`s to the input data (the same $x_0 = 1$ trick
 $$\sum_{i=0}^{p} w_i x_i = 0 \qquad\text{i.e.}\qquad W \cdot X = 0$$
 
 Predicting a new point's class is now just: compute $W \cdot X$, and if the result is $\ge 0$ predict the positive class, otherwise predict the negative class.
+
+<PerceptronScorePlane3d />
+
+Seen this way, "which side of the line" is really "above or below zero." The score $W \cdot X$ is a flat tilted plane sitting over the feature space, and the decision boundary is nothing more than its shadow where it crosses the horizontal $W \cdot X = 0$ sheet. Every nudge in the perceptron trick tilts or slides that plane until no point pokes through to the wrong side.
 
 ## 7. One Update Rule Instead of Two
 
