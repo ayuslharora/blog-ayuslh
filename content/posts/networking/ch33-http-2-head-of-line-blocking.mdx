@@ -1,0 +1,101 @@
+---
+title: "Ch.33: HTTP/2's Limitation, TCP-Level Head-of-Line Blocking"
+description: "Why HTTP/2 still suffers head-of-line blocking even after multiplexing solved it at the application layer: a single lost TCP segment stalls every stream on the connection, because TCP guarantees in-order delivery and has no idea which bytes belong to which HTTP/2 stream. This is the reason HTTP/3 drops TCP for QUIC."
+date: "2026-09-09T20:19:06+05:30"
+tags: ["networking", "http", "tcp", "application-layer", "transport-layer", "protocols", "http2", "http3", "quic", "head-of-line-blocking"]
+subtopic: "HTTP"
+draft: false
+source:
+  title: "HTTP2 Head of Line Blocking"
+  channel: "Chai aur Code"
+  url: "https://www.youtube.com/watch?v=75UeaBsdbF0"
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=75UeaBsdbF0)
+
+The last few chapters built HTTP/2 up: [multiplexing and stream IDs](/networking/ch29-http-2-multiplexing) in Ch.29, [frames](/networking/ch30-http-2-frames) in Ch.30, [why it is binary](/networking/ch31-http-2-binary-protocol) in Ch.31, [HPACK](/networking/ch32-hpack-header-compression) in Ch.32. This chapter is the one limitation HTTP/2 could not fix, and it is the whole reason HTTP/3 exists.
+
+The pattern is almost poetic: HTTP/1.1 had head-of-line blocking, HTTP/2 solved it, and HTTP/2 then had head-of-line blocking of its own, one layer down.
+
+---
+
+## Recap: head-of-line blocking in HTTP/1.1
+
+HTTP/1.1 runs over a single TCP connection and lets you send multiple requests on it. But there is a catch: once you send a request, you cannot send the response for a later request ahead of an earlier one. The server answers in order. If the first request is slow, everything queued behind it waits.
+
+```
+TCP connection
+ --> GET /a.js      (slow, server takes 2s)
+ --> GET /b.css     blocked: waiting for /a.js response
+ --> GET /image.png blocked: waiting for /a.js response
+```
+
+That is **application-level head-of-line blocking**. One HTTP request is blocking other HTTP requests. HTTP is an application-layer protocol, so the blockage lives at the application layer.
+
+HTTP/2 fixed this by [treating each request as a stream with a numeric stream ID](/networking/ch29-http-2-multiplexing). Responses carry the stream ID, so they can come back in any order and the browser still knows which response belongs to which request. `image.png` can be request number three and still have its response arrive first. At the application layer, nothing blocks anything anymore.
+
+---
+
+## The limitation: it moves down to TCP
+
+Here is the interesting part. HTTP/1.1 had application-level head-of-line blocking. HTTP/2 has **transport-level head-of-line blocking**. The blockage did not disappear; it moved from the application layer down to the transport layer, into TCP itself.
+
+Take this scenario. Two independent requests are travelling on one HTTP/2 connection:
+
+- **Stream 1** is a POST. Its headers go in one HEADERS frame, its body goes in a separate DATA frame.
+- **Stream 5** is a GET. Just a HEADERS frame.
+
+At the HTTP/2 layer this is fine in any order, because every frame is tagged with its stream ID. If stream 1 is slow to process, stream 5's response can still come back first. No application-level blocking.
+
+But [TCP breaks every chunk of application data into segments](/networking/ch20-mtu-mss-and-path-mtu-discovery), sized by the maximum segment size. So before those frames reach the server, TCP has cut them into segments. Say each frame becomes 4 segments:
+
+```
+stream 1 HEADERS  -> segments  1  2  3  4
+stream 1 DATA     -> segments  5  6  7  8
+stream 5 HEADERS  -> segments  9 10 11 12
+```
+
+The sequence numbers are continuous. This is a single TCP connection, and [TCP never reuses a sequence number within a connection](/networking/ch18-tcp-sequence-and-acknowledgment-numbers), so the DATA frame's first segment is sequence 5, not a fresh 1, and stream 5's headers start at 9.
+
+To TCP, this is just one ordered run of bytes from sequence 1 to 12. **TCP has no concept of a frame.** It does not know that segments 1 to 8 belong to one request and 9 to 12 to a completely different one. It was handed bytes, it chopped them into segments, and it will deliver them in order.
+
+Now suppose segment 5 is dropped somewhere on the network, but segments 6 through 12 all arrive at the server.
+
+[TCP guarantees in-order delivery.](/networking/ch15-transmission-control-protocol-tcp) It will not hand segments 6 to 12 up to the application until segment 5 has been retransmitted and received. Those bytes sit in the receive buffer, complete and correct, and the application never sees them.
+
+That means segments 9 to 12, which carry **stream 5's headers**, a different request that suffered no loss at all, are stuck waiting for **stream 1's** missing body segment. One lost TCP segment has stalled an unrelated HTTP/2 stream.
+
+This is **TCP-level head-of-line blocking**. In HTTP/1.1, one HTTP request blocked other HTTP requests. In HTTP/2, one TCP segment blocks other TCP segments, and therefore every stream riding on that connection.
+
+<Http2HolBlockingExplorer />
+
+---
+
+## Why HTTP/2 cannot escape this
+
+HTTP/2 did everything it could at its own layer. Streams, frames, stream IDs: all of that removes ordering requirements at the application layer. But HTTP/2 still runs on TCP, and TCP's entire delivery model is built on strict ordering. The moment a segment goes missing, TCP holds the line until it is recovered, and it holds it for all the bytes behind the gap regardless of which stream they belong to, because TCP cannot tell them apart.
+
+You cannot fix this by changing the application-layer protocol. HTTP/1.1 to HTTP/2 was an application-layer change, and both still use TCP underneath. To remove transport-level head-of-line blocking, you have to change the transport.
+
+---
+
+## This is why HTTP/3 uses QUIC
+
+HTTP/3's answer is to stop using TCP. It runs over **QUIC**, a transport-layer protocol that uses [UDP](/networking/ch13-user-datagram-protocol-udp) underneath. As noted back in the [OSI model chapter](/networking/ch10-osi-vs-tcp-ip-model), QUIC sits at the transport layer, in TCP's place.
+
+QUIC knows about streams. It tracks delivery and loss recovery **per stream**, not for one merged byte run. If a packet carrying stream 1's data is lost, QUIC holds back only stream 1's later data. Stream 5 was carried in different packets that arrived fine, so QUIC delivers stream 5 to the application immediately. The head-of-line block is contained to the stream that actually lost data, instead of freezing the whole connection.
+
+Toggle the explorer above to QUIC mode to see the same dropped segment affect only its own stream.
+
+HTTP/3 and QUIC have plenty of their own detail worth a chapter each later. For now the takeaway is just the reason they exist: TCP's in-order delivery, applied to a connection multiplexing many independent streams, produces transport-level head-of-line blocking, and the only way out is a transport that understands streams.
+
+---
+
+## Summary
+
+* **HTTP/1.1 had application-level head-of-line blocking:** one slow HTTP request held up every request queued behind it on the connection.
+* **HTTP/2 solved that** with streams and numeric stream IDs, so responses can return in any order and nothing blocks at the application layer.
+* **HTTP/2 then has transport-level head-of-line blocking.** TCP splits all frames into one continuous, ordered run of segments and has no idea which segment belongs to which stream.
+* **A single lost segment stalls every stream.** TCP guarantees in-order delivery, so it holds all segments behind the gap in its receive buffer until the missing one is retransmitted, including segments that belong to other, loss-free streams.
+* **The blockage moved from the application layer to the transport layer.** It did not go away, and it cannot be fixed by another application-layer protocol, because the ordering requirement is TCP's.
+* **HTTP/3 uses QUIC**, a transport-layer protocol over UDP that does loss recovery per stream. A lost packet only blocks its own stream; the rest of the connection keeps flowing. That is the core reason HTTP/3 abandoned TCP.
