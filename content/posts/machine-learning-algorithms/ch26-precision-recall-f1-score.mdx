@@ -81,6 +81,10 @@ $$
 
 F1 correctly ranks Model A higher, $80\%$ against $75\%$, because it penalizes Model B for its weaker precision even though B's perfect recall pulled the plain average even. That's the entire reason F1 uses the harmonic mean instead of the arithmetic one.
 
+<F1HarmonicSurface3d />
+
+The F1 sheet touches the flat arithmetic-mean plane only along the diagonal where precision equals recall. Step off that diagonal in either direction and F1 dips below the plane, always toward the smaller coordinate. Model B lives off the diagonal, which is why its F1 lands under its arithmetic average.
+
 ## 6. Computing All Three for Real
 
 Running `precision_score`, `recall_score`, and `f1_score` on the same heart disease models from [Ch.25](/machine-learning-algorithms/ch25-accuracy-confusion-matrix), following [the source notebook](https://github.com/campusx-official/100-days-of-machine-learning/blob/main/day59-classification-metrics/classification-metrics-binary.ipynb):
@@ -101,7 +105,7 @@ Both models catch almost every real case of heart disease (recall $\approx 0.97$
 
 Binary classification usually has a clear "positive" class to focus on, spam vs. not spam, cancer vs. not, so precision and recall are reported for that one class. With more than two classes, there's no single class to elevate above the others, so precision and recall get computed **once per class**, each one asking "treat this class as positive, everything else as negative" and applying the same formulas as before.
 
-As a worked illustration, take a 3-class dog/cat/rabbit classifier evaluated on 100 labeled photos, where rabbits are rare in the dataset (only 5 out of 100):
+As a worked illustration, take a 3-class dog/cat/rabbit classifier evaluated on 100 labeled photos, where rabbits are rare in the dataset (only 5 out of 100). The video uses a roughly balanced version of this matrix; this one deliberately makes rabbit rare and badly predicted, to show what the weighted average can bury.
 
 | Actual \\ Predicted | Dog | Cat | Rabbit | Actual total |
 |---|---|---|---|---|
