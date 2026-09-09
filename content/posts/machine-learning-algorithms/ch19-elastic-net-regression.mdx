@@ -9,7 +9,7 @@ draft: false
 
 *Inspired by:* [YouTube](https://www.youtube.com/watch?v=2g2DBkFhTTY)
 
-Across [Ch.13](/machine-learning-algorithms/ch13-ridge-regression) through [Ch.18](/machine-learning-algorithms/ch18-why-lasso-zeroes-coefficients), Ridge and Lasso came out as two different tools for two different situations. Ridge: use it when every input column genuinely matters and none should be dropped. Lasso: use it when some columns are dead weight and should be zeroed out via automatic feature selection. Elastic Net exists for a third, more common situation: a dataset with so many columns that nobody actually knows in advance which of those two situations applies.
+Across [Ch.13](/machine-learning-algorithms/ch13-ridge-regression) through [Ch.18](/machine-learning-algorithms/ch18-why-lasso-zeroes-coefficients), Ridge and Lasso came out as two different tools for two different situations. Ridge shrinks every coefficient toward zero but never all the way there: use it when every input column genuinely matters and none should be dropped. Lasso drives some coefficients to exactly zero as lambda grows, giving built-in feature selection: use it when only a subset of columns are actually important. Elastic Net exists for a third, more common situation: a dataset with so many columns (say 100 or more) that nobody can reasonably decide in advance which of those two situations applies.
 
 ---
 
@@ -19,7 +19,9 @@ Elastic Net's loss just adds both penalty terms to the same MSE:
 
 $$L = \sum_{i=1}^n (y_i - \hat y_i)^2 + a\sum_{j=1}^p w_j^2 + b\sum_{j=1}^p |w_j|$$
 
-$a$ controls how much Ridge-style L2 penalty gets applied, $b$ controls how much Lasso-style L1 penalty gets applied. Set $b=0$ and this is exactly Ridge. Set $a=0$ and this is exactly Lasso. Set both nonzero and the model gets some of each: some shrinkage on every coefficient (from the $a$ term) and some coefficients pushed all the way to exactly zero (from the $b$ term), with the balance between the two controlled by how $a$ and $b$ compare to each other.
+Here $a$ is the L2 (Ridge) weight and $b$ is the L1 (Lasso) weight. Set $b=0$ and this is exactly Ridge. Set $a=0$ and this is exactly Lasso. Set both nonzero and the model gets some of each: some shrinkage on every coefficient (from the $a$ term) and some coefficients pushed all the way to exactly zero (from the $b$ term), with the balance between the two controlled by how $a$ and $b$ compare to each other.
+
+A quick note on the video's notation: the video labels the two weights "a" and "b" but reverses their roles at different points in the explanation. This post uses $b$ for the L1 (Lasso) weight and $a$ for the L2 (Ridge) weight throughout, to match scikit-learn's convention.
 
 ## 2. Scikit-Learn's Parameterization: alpha and l1_ratio
 
@@ -27,11 +29,19 @@ $a$ controls how much Ridge-style L2 penalty gets applied, $b$ controls how much
 
 $$\text{alpha} = a + b \qquad\qquad \text{l1\_ratio} = \frac{b}{a+b}$$
 
-`alpha` is the total regularization strength, both penalties combined. `l1_ratio` is what fraction of that total is L1 versus L2, a number between `0` and `1`. The default `l1_ratio=0.5` means the two hyperparameters $a$ and $b$ are equal, half the penalty budget goes to each. Turning `l1_ratio` up toward `1` shifts weight onto the L1 term, more feature selection, sparser coefficients. Turning it down toward `0` shifts weight onto the L2 term, smoother shrinkage, nothing pushed to exact zero.
+`alpha` is the total regularization strength, both penalties combined. `l1_ratio` is the fraction of that total going to L1 (Lasso), a number between `0` and `1`. The defaults are `alpha=1.0` and `l1_ratio=0.5`. With two equations and two unknowns this gives $b = 1.0 \times 0.5 = 0.5$ and $a = 1.0 - 0.5 = 0.5$: equal Ridge and equal Lasso by default.
 
-Recovering $a$ and $b$ from `alpha` and `l1_ratio` is just algebra: $b = \text{alpha} \times \text{l1\_ratio}$, and $a = \text{alpha} - b$.
+Recovering $a$ and $b$ from `alpha` and `l1_ratio` is just algebra. The video derives it as: $A = \text{l1\_ratio} \times \lambda$ and $B = \lambda - A$, where the video's $A$ maps to our $b$ (the L1 weight) and the video's $B$ maps to our $a$ (the L2 weight), with $\lambda = \text{alpha}$. In plain terms:
+
+$$b = \text{alpha} \times \text{l1\_ratio} \qquad a = \text{alpha} \times (1 - \text{l1\_ratio})$$
+
+So the L1 penalty weight is $\text{alpha} \times \text{l1\_ratio}$ and the L2 penalty weight is $\text{alpha} \times (1 - \text{l1\_ratio})$. Turning `l1_ratio` up toward `1` shifts weight onto the L1 term, more feature selection, sparser coefficients. Turning it down toward `0` shifts weight onto the L2 term, smoother shrinkage, nothing pushed to exact zero. Note that scikit-learn internally halves the L2 term and scales the squared errors by $\frac{1}{2n}$, which affects the exact coefficient values but not the conceptual behavior described here.
+
+One slip worth catching from the video: when `l1_ratio=0.9` the video says "90% Ridge, giving more weightage to Ridge." That is backwards. With scikit-learn's definition, `l1_ratio=0.9` means 90% L1 and 10% L2, so the model is mostly Lasso at that setting.
 
 ## 3. Trying All Four on the Diabetes Dataset
+
+The following code is from [the source notebook](https://github.com/campusx-official/100-days-of-machine-learning/blob/master/day57-elasticnet-regression/elastic-net-regression.ipynb):
 
 ```python
 from sklearn.datasets import load_diabetes
@@ -63,7 +73,7 @@ print(r2_score(y_test, reg.predict(X_test)))
 # 0.4531
 ```
 
-Plain linear regression starts at `0.4399`. Tuned Ridge does a little better at `0.4520`. Tuned Lasso barely edges out plain linear regression at `0.4411`. `ElasticNet` with `l1_ratio=0.9`, mostly L1 with a small amount of L2 mixed in, comes out on top at `0.4531`. This isn't a universal ranking (each model's `alpha` was hand-picked here rather than cross-validated, and results will vary by dataset), but it illustrates the point: with two hyperparameters instead of one, Elastic Net has strictly more room to search for a good fit than either Ridge or Lasso alone.
+Plain linear regression starts at `0.4399`. Ridge with `alpha=0.1` does a little better at `0.4520`; several values were tried and `0.1` gave the best result. Lasso with `alpha=0.01` barely edges out plain linear at `0.4411`, and Ridge slightly beats Lasso here. ElasticNet with `alpha=0.005` and `l1_ratio=0.9` (mostly L1, with a small L2 component mixed in) comes out on top at `0.4531`, a slight improvement over Ridge alone. This isn't a universal ranking: each model's `alpha` was hand-picked rather than cross-validated, and results will vary by dataset. The point is that with two hyperparameters instead of one, Elastic Net has strictly more room to search for a good fit than either Ridge or Lasso alone.
 
 ## 4. What Changes as l1_ratio Moves From 0 to 1
 
@@ -82,7 +92,7 @@ for r in l1_ratios:
 
 <img src="/images/ch19-elasticnet-l1ratio.png" alt="Two side-by-side charts. Left: number of nonzero coefficients out of 10 plotted against l1_ratio, staying flat at 10 for most of the range, dipping to 9, briefly returning to 10, then dropping sharply to 7 as l1_ratio approaches 1. Right: all ten coefficient paths against l1_ratio, staying small and flat for most of the range then rising or falling sharply near l1_ratio=1" className="w-full h-auto" />
 
-For most of the range, all 10 coefficients stay nonzero, only near `l1_ratio=1` (pure Lasso) does the count drop to 7, three columns finally zeroed out. The right panel explains why the coefficients themselves barely move for most of the sweep, then shoot away from zero near the right edge: `alpha` is the *combined* budget, so as `l1_ratio` climbs, the L2 share $a = \text{alpha}(1-\text{l1\_ratio})$ shrinks toward nothing while the L1 share stays comparatively small. Near `l1_ratio=1` almost the entire, fairly gentle, `alpha=0.1` penalty budget is L1 alone, a much weaker constraint than the combined penalty was in the middle of the sweep, so the coefficients that survive suddenly have far more freedom to grow. Sparsity from L1 and strength of shrinkage from the total budget move somewhat independently of each other, which is exactly why sweeping `l1_ratio` alone doesn't produce a smooth, monotonic transition.
+For most of the range, all 10 coefficients stay nonzero; only near `l1_ratio=1` (pure Lasso) does the count drop to 7, three columns finally zeroed out. The right panel explains why the coefficients themselves barely move for most of the sweep, then shoot away from zero near the right edge: `alpha` is the combined budget, so as `l1_ratio` climbs, the L2 share $a = \text{alpha}(1-\text{l1\_ratio})$ shrinks toward nothing while the L1 share stays comparatively small. Near `l1_ratio=1` almost the entire, fairly gentle, `alpha=0.1` penalty budget is L1 alone, a much weaker constraint than the combined penalty was in the middle of the sweep, so the coefficients that survive suddenly have far more freedom to grow. Sparsity from L1 and strength of shrinkage from the total budget move somewhat independently of each other, which is exactly why sweeping `l1_ratio` alone doesn't produce a smooth, monotonic transition.
 
 ## 5. When to Reach for Elastic Net
 
@@ -90,7 +100,7 @@ Two situations from the video are worth calling out specifically:
 
 **Large, unfamiliar feature sets.** With a handful of columns it's usually possible to reason about which ones matter. With dozens or hundreds of columns, much less so, and manually deciding "Ridge, because everything matters" or "Lasso, because most of this is noise" stops being a call anyone can make confidently. Elastic Net sidesteps the decision: tune `l1_ratio` (alongside `alpha`) with cross-validation and let the data settle how much feature selection actually helps.
 
-**Multicollinearity.** When input columns are strongly correlated with each other, height and weight is the video's example, Lasso's behavior gets erratic: it tends to arbitrarily keep one of a correlated pair and zero out the other, even when both carry real signal. Ridge handles correlated features more gracefully, spreading weight across them instead of picking one. Elastic Net, with its L2 component still present, inherits some of that same stability while keeping Lasso's ability to drop genuinely useless columns.
+**Multicollinearity.** When input columns are strongly correlated with each other, the video uses height and weight as the example (when height increases, weight tends to increase too), Lasso's behavior gets erratic. It tends to arbitrarily keep one of a correlated pair and zero out the other, even when both carry real signal. Ridge handles correlated features more gracefully, spreading weight across them instead of picking one. Elastic Net, with its L2 component still present, inherits some of that same stability while keeping Lasso's ability to drop genuinely useless columns.
 
 ## 6. Two Ways to Fit It in Scikit-Learn
 
@@ -106,8 +116,12 @@ from sklearn.linear_model import SGDRegressor
 reg = SGDRegressor(penalty='elasticnet', alpha=0.1, l1_ratio=0.5)
 ```
 
-Both fit the same model in principle. `ElasticNet` uses coordinate descent, the same closed-form-per-coordinate approach Lasso needs since it lacks a clean single closed-form solution ([Ch.18](/machine-learning-algorithms/ch18-why-lasso-zeroes-coefficients)), while `SGDRegressor` reaches an approximate answer through stochastic gradient steps. The dedicated `ElasticNet` class is generally the better default: it converges to a more precise answer and doesn't carry the extra learning-rate tuning that comes with an SGD-based estimator.
+Both fit the same model in principle. `ElasticNet` uses coordinate descent, the same closed-form-per-coordinate approach Lasso relies on since it lacks a clean single closed-form solution ([Ch.18](/machine-learning-algorithms/ch18-why-lasso-zeroes-coefficients)), while `SGDRegressor` reaches an approximate answer through stochastic gradient steps. The dedicated `ElasticNet` class is generally the better default: it is more optimized and specifically built for this task, converging to a more precise answer without the extra learning-rate tuning that comes with an SGD-based estimator.
 
 ---
 
-Ridge, Lasso, and Elastic Net all modify the same base loss function with a different regularization term, and picking between them comes down to one question: is it already known which features matter? Yes, every feature matters: Ridge. Yes, only some do: Lasso. Not sure: Elastic Net, and let cross-validation over `alpha` and `l1_ratio` work it out. That closes out this blog's tour of linear regression's regularization techniques.
+Ridge, Lasso, and Elastic Net all modify the same base loss function with a different regularization term, and picking between them comes down to one question: is it already known which features matter? Yes, every feature matters: Ridge. Yes, only some do: Lasso. Not sure: Elastic Net, and let cross-validation over `alpha` and `l1_ratio` work it out.
+
+As a practical exercise, go to Kaggle, pick a higher-dimensional dataset with 50 or more columns, apply Ridge, Lasso, and Elastic Net to it, and document your observations. Does Elastic Net genuinely outperform the other two on a larger feature set? The answer will depend on the dataset, and that hands-on comparison is a good way to build intuition for when each regularizer earns its keep.
+
+That closes out this blog's tour of linear regression's regularization techniques. Next up is logistic regression.
