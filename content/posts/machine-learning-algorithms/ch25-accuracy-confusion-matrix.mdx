@@ -93,6 +93,10 @@ $$
 
 but the reverse doesn't work, accuracy alone can't tell you the four individual cell counts. That's the whole reason the confusion matrix exists: it keeps information accuracy throws away. This generalizes past 2×2 too, an $n$-class problem produces an $n \times n$ confusion matrix, still with correct predictions running along the diagonal.
 
+<ConfusionMatrix3d />
+
+On a 10-class problem the diagonal becomes a solid wall and every off-diagonal cell is a named confusion ("true 4, predicted 8"). A single accuracy number would collapse that entire landscape into one height; the matrix keeps the shape.
+
 ## 6. Type I and Type II Errors
 
 The two off-diagonal cells have standard names that come up constantly in interviews:
