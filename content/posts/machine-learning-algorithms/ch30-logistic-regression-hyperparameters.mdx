@@ -27,6 +27,10 @@ Seeing `C`'s effect directly, fitting the same dataset at three different values
 
 All three reach the same accuracy on this easily-separable toy dataset, but the learned weight vector's magnitude grows substantially as `C` increases from `0.01` to `100`, `0.44` up to `3.85`, exactly the shrink-toward-zero behavior regularization is supposed to produce, weaker regularization (higher `C`) lets the weights grow larger and the boundary fit the training points more tightly.
 
+<CProbabilitySurface3d />
+
+Weight magnitude isn't only about where the boundary sits, it also sets how sharply the model commits. Small `C` keeps the probability ramp gentle, so even points well clear of the boundary get a hedged probability; large `C` steepens it toward a hard 0/1 step, the model turning confident the moment a point crosses the line.
+
 ## 2. Solvers: How the Loss Actually Gets Minimized
 
 [Ch.24](/machine-learning-algorithms/ch24-logistic-regression-gradient-descent) minimized log loss with plain gradient descent, computed and coded by hand. `scikit-learn`'s `solver` parameter picks between five different, more sophisticated optimization algorithms for doing that same minimization: `'newton-cg'`, `'lbfgs'`, `'liblinear'`, `'sag'`, `'saga'`. Each one is a different numerical strategy with its own trade-offs (memory use, convergence speed, dataset size it scales to), not something this series derives from scratch, but the one detail worth remembering is that **not every solver supports every penalty**:
