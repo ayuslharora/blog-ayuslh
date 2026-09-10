@@ -66,7 +66,21 @@ We asked this about the load balancer; we ask it again here. Replication handles
 - One slave is promoted to be the new master. All writes go to it from then on.
 - A fresh slave is added to take over replication for the promoted node.
 
-In real systems, promoting a master is messier than it sounds. A slave may not have every write the old master had at the moment it died, so the missing data has to be reconciled with recovery scripts. Other schemes like multi-master and circular replication exist, but they add their own complexity and are outside the scope here.
+### Which slave gets promoted?
+
+If there are several slaves, they are not all equally good candidates. The system (or the failover tool running it) looks at a few things before picking one.
+
+- **How up to date it is.** Replication is asynchronous, so when the master dies, each slave has applied a slightly different amount of the master's recent writes. The slave that is furthest ahead, meaning it has the most of those writes already, is the safest choice, because whatever it is missing is the only data at risk of being lost.
+- **How far behind it was running.** A slave that normally lags by a few milliseconds is a better bet than one that is usually seconds behind and still catching up.
+- **Whether the machine can handle the job.** The master does more work than a slave: it takes every write and also feeds all the other slaves. The promoted machine needs enough CPU, memory, disk space, and disk speed to carry that, not just the lighter read load it had before.
+- **Where it sits.** A slave in the same region or data center as the application servers keeps write latency low and has a fast network path to the other slaves it now has to feed.
+- **Whether it has been stable.** A machine that has been restarting or throwing errors recently is passed over for one with a clean recent history.
+- **What the config says.** Failover tools let you rank the slaves in advance, or mark some as "never promote." A slave kept on purpose as a delayed backup, or one used only for analytics, or one on weaker hardware, is usually excluded so it is never chosen.
+- **Same database version.** The other slaves have to re-point at the new master and keep replicating, so the promoted node should run the same engine version as the rest.
+
+In systems that use a voting mechanism (a quorum), the replicas vote and the one that a majority agrees is the most up to date wins.
+
+In real systems, promoting a master is still messier than it sounds. Even the best candidate may not have every write the old master had at the moment it died, so the missing data has to be reconciled with recovery scripts. Other schemes like multi-master and circular replication exist, but they add their own complexity and are outside the scope here.
 
 ## The design so far
 
