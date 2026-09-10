@@ -49,6 +49,7 @@ import GdLogLossDescent3d from '../../../components/GdLogLossDescent3d';
 import ConfusionMatrix3d from '../../../components/ConfusionMatrix3d';
 import F1HarmonicSurface3d from '../../../components/F1HarmonicSurface3d';
 import RocCurve3d from '../../../components/RocCurve3d';
+import SoftmaxSurfaces3d from '../../../components/SoftmaxSurfaces3d';
 import RidgeLambdaExplorer from '../../../components/RidgeLambdaExplorer';
 import DecisionTreeHyperparameterExplorer from '../../../components/DecisionTreeHyperparameterExplorer';
 import RegressionTreeExplorer from '../../../components/RegressionTreeExplorer';
@@ -201,6 +202,7 @@ export default async function PostPage({
             ConfusionMatrix3d,
             F1HarmonicSurface3d,
             RocCurve3d,
+            SoftmaxSurfaces3d,
             RidgeLambdaExplorer,
             DecisionTreeHyperparameterExplorer,
             RegressionTreeExplorer,

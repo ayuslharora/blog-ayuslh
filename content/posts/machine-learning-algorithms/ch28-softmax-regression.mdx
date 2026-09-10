@@ -100,6 +100,8 @@ clf = LogisticRegression(multi_class="multinomial")
 clf.fit(X_train, y_train)
 ```
 
+(The video passes `multi_class="multinomial"` explicitly. Recent `scikit-learn` deprecated that argument, from version 1.5 it warns, and from 1.8 it is removed: `LogisticRegression` now always does multinomial when there are more than two classes, so plain `LogisticRegression()` is enough.)
+
 Running this on the Iris dataset (sepal length and petal length as the two input features, three species as the three classes):
 
 ```python
@@ -119,6 +121,10 @@ Plotting the model's decision regions across the two input features shows all th
 <img src="/images/ch28-softmax-decision-regions.png" alt="Scatter plot of Iris flowers by sepal length and petal length, colored by species: blue setosa points cluster in the bottom-left, orange versicolor in the middle, green virginica in the upper-right. The background is shaded into three regions, light blue, light yellow, light green, by which class the softmax model predicts there, with two nearly straight boundary lines separating them" className="w-full h-auto" />
 
 Two boundary lines split the plane into three regions, one per class, the direct multi-class generalization of the single boundary line a binary Logistic Regression draws.
+
+<SoftmaxSurfaces3d />
+
+That flat map is really a top-down view of three probability sheets. Softmax produces one sheet per class, every point on all three summing to `1`, and the predicted class at any location is simply whichever sheet is on top there. The boundary lines are the seams where two sheets are exactly equal.
 
 ## 9. What's Left
 
