@@ -69,6 +69,10 @@ best_threshold = thresholds[np.argmin(distance_to_corner)]
 
 The closest point to the top-left corner lands at a threshold of `0.37`, not the default `0.5`, with TPR $\approx 0.73$ and FPR $\approx 0.22$. Note this is a Logistic Regression model, so `0.37` is picked by geometry here, balancing TPR and FPR equally; if false positives were known to be the costlier error for this particular problem, that same curve would instead be searched for the point with the lowest FPR the model can manage while keeping TPR still acceptable, not necessarily the corner-closest point.
 
+<RocCurve3d />
+
+Adding threshold as a third axis makes the sweep explicit: the curve is one continuous path from threshold `1` (bottom, model calls nothing positive, so it sits at the origin) up to threshold `0` (top, model calls everything positive, so it sits at `(1, 1)`). The flat 2D ROC curve is what that path looks like from directly overhead, with the threshold information flattened out of view.
+
 ## 6. AUC: One Number for the Whole Curve
 
 The ROC curve itself is a full picture, but comparing two models by staring at two overlapping curves is awkward. **AUC**, the Area Under the (ROC) Curve, condenses the entire curve into a single number: literally the 2D area between the curve and the x-axis, over the full `0` to `1` range on both axes.
