@@ -47,6 +47,28 @@ The flow the first time a file is requested, and every time after:
 
 So the first request for a file at a given edge is a cache miss and pays the origin round trip. Every request after that, until the TTL expires, is a hit served locally.
 
+### A page load, end to end
+
+Put the pieces together with one real page load. You open `www.mysite.com`.
+
+1. Your browser needs an IP for `www.mysite.com`. It asks DNS, which returns the address of the load balancer in front of the web tier. The browser connects there and asks for the page.
+2. A web server builds the HTML. It reads what it needs from the cache and the database, renders the page, and sends it back. This response is different for every user, so the CDN plays no part in it.
+3. The HTML does not contain the images and scripts, only links to them, and those links point at a different hostname:
+
+```
+<script src="https://static.mysite.com/app.4f9c2a.js"></script>
+<img src="https://static.mysite.com/hero.jpg">
+```
+
+`static.mysite.com` is a CDN hostname.
+
+4. Your browser asks DNS for `static.mysite.com`. That name is handed to the CDN, which picks an edge server near you and returns its address. The browser requests `app.4f9c2a.js` from that edge.
+5. The edge checks its local copy. On a hit, the file comes back from a server a few milliseconds away. On a miss, the edge fetches it from the origin once, caches it, and returns it, and every request after that in your area gets the fast local copy.
+6. The video on the page works the same way. The player pulls it in small chunks from a nearby edge, one chunk at a time as it plays.
+7. Anything that changes while you use the page, a search, a comment, a fresh set of recommendations, is a separate request back to `api.mysite.com`, which resolves to the origin. The CDN does not answer these, because the response depends on who you are.
+
+The hostname is the tell. Assets load from a CDN hostname and come from a server near you. The page itself and the API calls use the app hostname and come from the origin.
+
 ### Considerations of using a CDN
 
 - **Cost.** CDNs are run by third parties and bill you for data transferred in and out. A file that is rarely requested gets little benefit from being on the CDN and still costs you transfer fees, so it is worth pulling infrequently used assets back off the CDN.
