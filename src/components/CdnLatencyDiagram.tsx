@@ -13,27 +13,28 @@ function ImgMarker({ x, y }: { x: number; y: number }) {
 
 export default function CdnLatencyDiagram() {
   return (
-    <Figure width={760} height={330} caption="A client near a CDN node fetches the asset in a fraction of the round trip to the origin.">
-      <Box x={40} y={22} w={120} h={46} label="Client" />
-      <Box x={40} y={150} w={120} h={46} label="Client" />
-      <Box x={520} y={38} w={230} h={180} label="Origin" />
-      <Box x={300} y={236} w={150} h={60} label="CDN" />
+    <Figure width={760} height={350} caption="A client near a CDN node fetches the asset in a fraction of the round trip to the origin.">
+      <Box x={40} y={26} w={120} h={44} label="Client" />
+      <Box x={40} y={128} w={120} h={44} label="Client" />
+      <Box x={515} y={50} w={230} h={200} label="Origin" />
+      <Box x={300} y={246} w={150} h={64} label="CDN" />
 
       {/* shared bus from both clients */}
-      <Wire points="160,45 210,45 210,266" />
-      <Wire points="160,173 210,173" />
+      <Wire points="160,48 215,48 215,150" />
+      <Wire points="160,150 215,150" />
 
-      {/* direct path to origin */}
-      <PlainArrow x1={210} y1={173} x2={516} y2={173} color="blue" text="120ms" textPos={{ x: 370, y: 160 }} />
+      {/* direct path to the origin, entering at its middle */}
+      <PlainArrow x1={215} y1={150} x2={511} y2={150} color="blue" text="120ms" textPos={{ x: 365, y: 136 }} />
 
-      {/* short hop to the CDN node */}
-      <PlainArrow x1={210} y1={266} x2={296} y2={266} color="blue" text="40ms" textPos={{ x: 240, y: 252 }} />
+      {/* short hop down to the CDN node */}
+      <Wire points="215,150 215,278" />
+      <PlainArrow x1={215} y1={278} x2={296} y2={278} color="blue" text="40ms" textPos={{ x: 250, y: 264 }} />
 
-      {/* CDN pulls the asset from the origin once */}
-      <polyline points="450,272 606,272 606,220" fill="none" stroke="#f97316" strokeWidth={1.6} />
+      {/* CDN pulls the asset from the origin once, connecting the two IMG markers */}
+      <polyline points="433,289 574,289 574,236" fill="none" stroke="#f97316" strokeWidth={1.6} />
 
-      <ImgMarker x={602} y={194} />
-      <ImgMarker x={360} y={272} />
+      <ImgMarker x={560} y={208} />
+      <ImgMarker x={405} y={276} />
     </Figure>
   );
 }
