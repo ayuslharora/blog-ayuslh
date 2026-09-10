@@ -45,20 +45,20 @@ cache.get('myKey')
 
 ### Other caching strategies
 
-Read-through is one point in a larger space. Caching strategies split along two questions: how does data get into the cache, and how does the cache stay in step with the database when a write happens.
+Read-through is one way to run a cache. There are others. They differ on two things: how data gets into the cache, and what happens to the cache when someone writes.
 
-**Getting data in.**
+**How data gets in**
 
-- **Cache-aside (lazy loading).** The application code owns the logic: on a read it checks the cache, and on a miss it queries the database and writes the result back into the cache itself. The cache sits "aside" from the database and knows nothing about it. This is the most common setup, because it is simple and the cache only ever holds data that was actually asked for. The costs: the miss path is three steps spelled out in application code everywhere data is read, and a popular key expiring can fire a burst of identical queries at the database all at once, a cache stampede, covered in [its own post](/til/system-design-thundering-herd-problem).
-- **Read-through.** Same read path, but the cache itself does the database load on a miss instead of the application. The application only ever talks to the cache. This keeps the miss logic in one place rather than scattered through the codebase, at the cost of a cache that has to be taught how to fetch from the source. The first read of any key still pays the full miss penalty.
+- **Cache-aside.** The app does the work. On a read it looks in the cache first. On a miss it reads the database and then puts that value in the cache itself. The cache does not know the database exists. This is the most common setup: it is simple, and the cache only holds data someone actually asked for. Two downsides. The miss steps have to be written out in the app everywhere it reads data. And if a popular key expires, many requests can miss at the same moment and hit the database together, a cache stampede, covered in [its own post](/til/system-design-thundering-herd-problem).
+- **Read-through.** Same idea, but the cache reads the database on a miss, not the app. The app only talks to the cache. The miss logic lives in one place instead of being copied around, but the cache has to know how to load from the database. The first read of a key is still slow.
 
-**Keeping it in step on writes.**
+**What happens on a write**
 
-- **Write-through.** Every write goes to the cache and the database together, as one synchronous operation. The cache is never stale, and a read right after a write always sees the new value. The price is paid on every write: it now carries both the cache and the database latency, and you end up caching data that may never be read.
-- **Write-back (write-behind).** A write lands in the cache and returns immediately; the cache flushes to the database later, batched or after a short delay. Writes are fast, write-heavy bursts are absorbed, and repeated writes to the same key collapse into one database write. The risk is real: if the cache node dies before it flushes, those writes are gone, and until it flushes the database is behind the cache.
-- **Write-around.** Writes go straight to the database and skip the cache; the key is only cached later, on a read miss. This suits data that is written but rarely read back soon after, since it avoids filling the cache with entries nobody reads. The tradeoff is that a read immediately after a write always misses.
+- **Write-through.** Write to the cache and the database at the same time, in one step. The cache is never out of date. The cost: every write is slower now, and you cache things that may never be read.
+- **Write-back.** Write to the cache and return right away. The cache saves to the database a bit later. Writes are fast, and many writes to the same key become one database write. The danger: if the cache server dies before it saves, those writes are lost.
+- **Write-around.** Write straight to the database and skip the cache. The key gets cached later, on the first read that misses. Good when data is written but not read again soon. The catch: a read right after a write always misses.
 
-Real systems combine one choice from each group. Cache-aside with write-around is a common pairing for read-heavy data that tolerates a little staleness; read-through with write-through is the choice when reads must always reflect the last write. The book stays with the read-through model, and that is enough to follow the rest of this chapter.
+Real systems pick one from each list. A common pair is cache-aside with write-around, for data that is read a lot and can be slightly out of date. Read-through with write-through is for when a read must always show the latest write. The book uses read-through, and that is all you need for the rest of the chapter.
 
 ### When a cache is the right tool
 
