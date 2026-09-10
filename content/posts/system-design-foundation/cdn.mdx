@@ -25,7 +25,17 @@ The direct fetch from the origin takes the full long-distance round trip. The sa
 
 ### Static content only
 
-This is for static content: images, video, CSS, JavaScript, fonts, anything that is the same bytes for every user. Caching dynamic responses (an HTML page assembled from the request path, query string, cookies, and headers) is a newer and more delicate problem, and the book leaves it out of scope. Treat a CDN here as a store for files that do not change per request.
+This is for static content: images, video, CSS, JavaScript, fonts, anything that is the same bytes for every user. A CDN here is a store for files that do not change from one request to the next.
+
+### Beyond static files: dynamic content
+
+This part goes past the book, which only uses the CDN for static files.
+
+CDNs can also cache dynamic responses, like an HTML page that is put together differently for each visitor. The way they do it is with a cache key. For a static file the key is just the file's URL, so every request for that URL gets the same cached copy. For a dynamic page the CDN builds the key from the parts of the request that actually change what comes back: usually the path, the query string, and a few named cookies or headers. Two requests that build the same key share one cached copy. A different key is a separate copy.
+
+Dynamic pages go out of date quickly, so this is paired with short expiry times, or with an explicit purge the moment the underlying data changes. Many CDNs also let you run small pieces of code at the edge to build or personalize a page right there, instead of asking the origin every time.
+
+The book stops at static files, and so does the rest of this chapter.
 
 ### How a CDN serves a file
 
