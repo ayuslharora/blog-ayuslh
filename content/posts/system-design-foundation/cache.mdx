@@ -83,7 +83,7 @@ Without any expiration policy, entries live in memory indefinitely, which both w
 
 The cache and the database hold two copies of the same data, and keeping them in agreement is its own problem. A write that changes the database and a write that updates or invalidates the cache are two separate operations, not one transaction, so there is always a moment where one has happened and the other has not. A crash or a race in that gap leaves the cache holding a value the database no longer has.
 
-This gets harder as the system spreads across regions, because now there are multiple cache deployments to keep in sync with the database and with each other. Facebook's paper "Scaling Memcache at Facebook" is the standard reference for how far this problem goes at scale.
+This gets harder as the system spreads across regions, because now there are multiple cache deployments to keep in sync with the database and with each other. Facebook's paper [Scaling Memcache at Facebook](https://www.usenix.org/conference/nsdi13/technical-sessions/presentation/nishtala) (Nishtala et al., NSDI 2013) is the standard reference for how far this problem goes at scale.
 
 ### When the cache fills up: eviction
 
