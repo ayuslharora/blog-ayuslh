@@ -182,6 +182,23 @@ export function DbIcon({ x, y, label }: { x: number; y: number; label?: string }
   );
 }
 
+export function NoSqlIcon({ x, y, label }: { x: number; y: number; label?: string }) {
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <path d="M0,8 A28,8 0 0 1 56,8 V38 A28,8 0 0 1 0,38 Z" fill="#2563eb" />
+      <ellipse cx={28} cy={8} rx={28} ry={8} fill="#3b82f6" />
+      <text x={28} y={29} fontSize={17} fontWeight={700} fill="white" textAnchor="middle">
+        {"{ }"}
+      </text>
+      {label && (
+        <text x={28} y={64} fontSize={14} fontWeight={600} fill="var(--text-primary)" textAnchor="middle">
+          {label}
+        </text>
+      )}
+    </g>
+  );
+}
+
 export function CacheIcon({ x, y, label = "Cache" }: { x: number; y: number; label?: string }) {
   return (
     <g transform={`translate(${x},${y})`}>
@@ -253,6 +270,7 @@ const ARROW_COLORS = {
   default: { stroke: "var(--text-primary)", marker: "url(#book-figure-arrow)" },
   blue: { stroke: "#2563eb", marker: "url(#book-figure-arrow-blue)" },
   green: { stroke: "#15803d", marker: "url(#book-figure-arrow-green)" },
+  purple: { stroke: "#7c3aed", marker: "url(#book-figure-arrow-purple)" },
 } as const;
 
 export function PlainArrow({
@@ -263,6 +281,7 @@ export function PlainArrow({
   text,
   textPos,
   dashed,
+  startArrow,
   color = "default",
 }: {
   x1: number;
@@ -272,6 +291,7 @@ export function PlainArrow({
   text?: string;
   textPos?: { x: number; y: number };
   dashed?: boolean;
+  startArrow?: boolean;
   color?: keyof typeof ARROW_COLORS;
 }) {
   const { stroke, marker } = ARROW_COLORS[color];
@@ -285,6 +305,7 @@ export function PlainArrow({
         stroke={stroke}
         strokeWidth={1.5}
         strokeDasharray={dashed ? "5 4" : undefined}
+        markerStart={startArrow ? marker : undefined}
         markerEnd={marker}
       />
       {text && textPos && (
@@ -368,6 +389,9 @@ export function ArrowMarkerDefs() {
       </marker>
       <marker id="book-figure-arrow-green" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={7} markerHeight={7} orient="auto-start-reverse">
         <path d="M0,0 L10,5 L0,10 z" fill="#15803d" />
+      </marker>
+      <marker id="book-figure-arrow-purple" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={7} markerHeight={7} orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed" />
       </marker>
     </defs>
   );

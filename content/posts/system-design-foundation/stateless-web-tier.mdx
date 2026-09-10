@@ -1,0 +1,59 @@
+---
+title: "Stateless Web Tier"
+description: "Moving user session data off the web servers and into a shared store, so any server can handle any request and the web tier can scale and auto-scale freely."
+date: "2026-09-11T03:52:00+05:30"
+tags: ["system-design", "book-notes", "scalability"]
+subtopic: "ch1: Scale From Zero to Millions of Users"
+draft: false
+---
+
+## Stateless web tier
+
+The web tier has more than one server behind a load balancer, but there is still something holding it back. Each web server keeps its own copy of things it should not own: the logged-in user's session, and sometimes files like a profile image the user just uploaded. That data lives in one server's memory or on one server's disk. Once it is there, every later request from that user has to come back to that same server.
+
+To scale the web tier properly you need to take that data out of the web servers and put it somewhere all of them can reach. A web server that keeps no per-user data between requests is a stateless web server, and a whole tier of them is a stateless web tier.
+
+### Stateful vs stateless
+
+The one difference is memory of the client. A stateful server remembers data about a client from one request to the next. A stateless server remembers nothing; every request arrives with everything the server needs to handle it, or the server fetches what it needs from a shared store.
+
+Here is a stateful setup:
+
+<StatefulArchitectureDiagram />
+
+User A's session data and profile image are stored on Server 1. For Server 1 to recognize User A on the next request, that request has to land on Server 1. If the load balancer sends it to Server 2 instead, Server 2 has never seen User A, has no session for them, and the request fails authentication. So every request from User A is pinned to Server 1, every request from User B to Server 2, every request from User C to Server 3.
+
+You can make the load balancer do this pinning. It is called a sticky session: the load balancer tags the user on their first request and sends every later request from them to the same server. It works, but it costs you:
+
+- **Uneven load.** Traffic is now tied to which users a server picked up, not to how busy each server actually is. One server can be swamped while another sits idle.
+- **Hard to add or remove servers.** Add a server and it gets none of the existing pinned users, only new ones. Remove a server and every session on it is gone.
+- **Fragile on failure.** When a server crashes, every user pinned to it loses their session and gets logged out, even though the other servers are fine.
+
+### The stateless version
+
+Move the session data into a shared store that sits outside the web tier. Now every web server is interchangeable:
+
+<StatelessArchitectureDiagram />
+
+A request can go to any web server. That server reads the user's session from the shared store, handles the request, and writes any change back. No server owns any user. The load balancer can spread requests purely by how busy each server is, because there is nothing tying a user to a machine.
+
+This is simpler to reason about, more robust when a server dies (the session is still in the shared store, so the user's next request just goes to another server), and it scales cleanly.
+
+### Picking the shared store
+
+The shared store could be a relational database, an in-memory store like Memcached or Redis, or a NoSQL database. For this design we pick NoSQL, because it is the easiest of the three to scale out as session volume grows.
+
+With session data out of the web servers, the web tier can now auto-scale: the system adds web servers automatically when traffic climbs and removes them when it drops, with no session data lost either way. That is only safe because a new server needs no warm-up and a removed server takes nothing important with it.
+
+### The design so far
+
+<WebDataStatelessTierDesignDiagram />
+
+1. Static assets still come from the CDN, from an edge near the user.
+2. Dynamic requests go through the load balancer to any web server.
+3. Session data lives in the shared NoSQL store, so every web server is interchangeable and the web tier can auto-scale.
+4. Reads go through the cache to a slave database on a miss; writes go to the master database, which replicates to the slaves.
+
+### What is still fragile
+
+Everything so far runs in one data center. If your users are spread across the world, users far from that data center see slow page loads, and if that one site has an outage, the whole service is down for everyone. As traffic grows internationally, one location stops being enough. Serving from more than one data center is the next post.

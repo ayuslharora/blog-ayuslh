@@ -37,6 +37,9 @@ import WebDataCacheTierDesignDiagram from '../../../components/WebDataCacheTierD
 import CdnLatencyDiagram from '../../../components/CdnLatencyDiagram';
 import CdnWorkflowDiagram from '../../../components/CdnWorkflowDiagram';
 import WebDataCdnCacheTierDesignDiagram from '../../../components/WebDataCdnCacheTierDesignDiagram';
+import StatefulArchitectureDiagram from '../../../components/StatefulArchitectureDiagram';
+import StatelessArchitectureDiagram from '../../../components/StatelessArchitectureDiagram';
+import WebDataStatelessTierDesignDiagram from '../../../components/WebDataStatelessTierDesignDiagram';
 import MnistPca3d from '../../../components/MnistPca3d';
 import LinRegCostSurface from '../../../components/LinRegCostSurface';
 import GradientDescentAnimation from '../../../components/GradientDescentAnimation';
@@ -201,6 +204,9 @@ export default async function PostPage({
             CdnLatencyDiagram,
             CdnWorkflowDiagram,
             WebDataCdnCacheTierDesignDiagram,
+            StatefulArchitectureDiagram,
+            StatelessArchitectureDiagram,
+            WebDataStatelessTierDesignDiagram,
             MnistPca3d,
             LinRegCostSurface,
             GradientDescentAnimation,
