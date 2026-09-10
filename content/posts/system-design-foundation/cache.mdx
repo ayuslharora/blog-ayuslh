@@ -47,12 +47,12 @@ cache.get('myKey')
 
 Read-through is one way to run a cache. There are others. They differ on two things: how data gets into the cache, and what happens to the cache when someone writes.
 
-**How data gets in**
+**On a read**
 
 - **Cache-aside.** The app does the work. On a read it looks in the cache first. On a miss it reads the database and then puts that value in the cache itself. The cache does not know the database exists. This is the most common setup: it is simple, and the cache only holds data someone actually asked for. Two downsides. The miss steps have to be written out in the app everywhere it reads data. And if a popular key expires, many requests can miss at the same moment and hit the database together, a cache stampede, covered in [its own post](/til/system-design-thundering-herd-problem).
 - **Read-through.** Same idea, but the cache reads the database on a miss, not the app. The app only talks to the cache. The miss logic lives in one place instead of being copied around, but the cache has to know how to load from the database. The first read of a key is still slow.
 
-**What happens on a write**
+**On a write**
 
 - **Write-through.** Write to the cache and the database at the same time, in one step. The cache is never out of date. The cost: every write is slower now, and you cache things that may never be read.
 - **Write-back.** Write to the cache and return right away. The cache saves to the database a bit later. Writes are fast, and many writes to the same key become one database write. The danger: if the cache server dies before it saves, those writes are lost.
