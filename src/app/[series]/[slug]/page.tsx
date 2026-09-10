@@ -52,6 +52,7 @@ import RocCurve3d from '../../../components/RocCurve3d';
 import SoftmaxSurfaces3d from '../../../components/SoftmaxSurfaces3d';
 import PolyLogisticScoreSurface3d from '../../../components/PolyLogisticScoreSurface3d';
 import CProbabilitySurface3d from '../../../components/CProbabilitySurface3d';
+import KnnNeighbors3d from '../../../components/KnnNeighbors3d';
 import RidgeLambdaExplorer from '../../../components/RidgeLambdaExplorer';
 import DecisionTreeHyperparameterExplorer from '../../../components/DecisionTreeHyperparameterExplorer';
 import RegressionTreeExplorer from '../../../components/RegressionTreeExplorer';
@@ -207,6 +208,7 @@ export default async function PostPage({
             SoftmaxSurfaces3d,
             PolyLogisticScoreSurface3d,
             CProbabilitySurface3d,
+            KnnNeighbors3d,
             RidgeLambdaExplorer,
             DecisionTreeHyperparameterExplorer,
             RegressionTreeExplorer,

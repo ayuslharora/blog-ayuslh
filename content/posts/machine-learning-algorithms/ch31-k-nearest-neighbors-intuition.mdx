@@ -28,6 +28,10 @@ Take the CGPA/IQ/placement dataset used throughout this series' earlier posts. P
 
 That's the entire algorithm. There's no loss function to minimize and no weights to learn through gradient descent, every part of the computation above happens directly on the raw stored training data.
 
+<KnnNeighbors3d />
+
+Nothing about the picture changes with more features, the vote is the same "count the K nearest, majority wins" in 3D as in 2D, or in 30D. This query point also shows why `K` isn't just a smoothing dial: its three closest neighbors happen to form a small malignant pocket, and only a wide enough `K` reaches past that pocket to the benign majority that matches its true label.
+
 ## 3. KNN Barely "Trains"
 
 Worth noticing explicitly: everything in Section 2 (computing distances, sorting, voting) happens when a *new* point needs a prediction, not beforehand. Calling `.fit()` on a KNN model doesn't compute anything, it just stores the training data for later. All the real work is deferred to prediction time. This makes KNN what's called a **lazy learner**, and it's the root cause of one of its biggest weaknesses, covered in Section 7.
