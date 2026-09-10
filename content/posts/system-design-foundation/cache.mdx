@@ -110,6 +110,8 @@ Two mitigations, used together:
 
 The web tier and the data tier are both redundant now, and a cache tier sits between them absorbing the repeated reads:
 
+<WebDataCacheTierDesignDiagram />
+
 1. The client's request reaches a web server through the load balancer.
 2. The web server checks the cache for the data it needs.
 3. On a hit, it responds from the cache. On a miss, it reads from a slave database, writes the result into the cache, and then responds.
