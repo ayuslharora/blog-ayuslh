@@ -219,6 +219,36 @@ export function RouterIcon({ x, y, label = "Router" }: { x: number; y: number; l
   );
 }
 
+export function CloudIcon({ x, y, label = "CDN" }: { x: number; y: number; label?: string }) {
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <path
+        d="M28,64 C10,64 6,42 24,39 C21,18 52,10 61,28 C68,13 96,17 94,36 C114,34 118,64 96,64 Z"
+        fill="#e0f2fe"
+        stroke="#38bdf8"
+        strokeWidth={1.6}
+      />
+      <path d="M62,24 L46,46 L58,46 L52,64 L74,38 L62,38 Z" fill="#0ea5e9" />
+      {label && (
+        <text x={60} y={86} fontSize={14} fontWeight={600} fill="var(--text-primary)" textAnchor="middle">
+          {label}
+        </text>
+      )}
+    </g>
+  );
+}
+
+export function CircledNumber({ cx, cy, n }: { cx: number; cy: number; n: number }) {
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={9} fill="none" stroke="var(--text-primary)" strokeWidth={1.2} />
+      <text x={cx} y={cy + 4} fontSize={11} fill="var(--text-primary)" textAnchor="middle">
+        {n}
+      </text>
+    </g>
+  );
+}
+
 const ARROW_COLORS = {
   default: { stroke: "var(--text-primary)", marker: "url(#book-figure-arrow)" },
   blue: { stroke: "#2563eb", marker: "url(#book-figure-arrow-blue)" },

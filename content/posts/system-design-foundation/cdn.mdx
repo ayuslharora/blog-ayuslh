@@ -1,0 +1,74 @@
+---
+title: "Content Delivery Network (CDN)"
+description: "Serving static files (images, video, CSS, JavaScript) from a network of edge servers close to the user: how a CDN fills on a miss, the TTL that controls freshness, and the cost, fallback, and invalidation tradeoffs."
+date: "2026-09-11T03:15:22+05:30"
+tags: ["system-design", "book-notes", "scalability"]
+subtopic: "ch1: Scale From Zero to Millions of Users"
+draft: false
+---
+
+## Content delivery network (CDN)
+
+Adding a cache tier fixed the repeated database reads. The web servers still do one slow thing on every page load: they ship the static files. A single page pulls a logo, a few images, a stylesheet or two, a bundle of JavaScript, maybe a video. None of that changes per user, and none of it has to come from your servers.
+
+A CDN is a network of servers spread across many locations that serves those static files for you. You upload the files once; the CDN copies them out to its edge servers, and each user is served from the edge server nearest to them.
+
+### Why distance matters
+
+A request to your origin server crosses the physical distance between the user and your data center, and back, for every file. If your origin is in San Francisco, a user in Los Angeles gets their files quickly, a user in Europe waits noticeably longer, and a user in Australia waits longer still. The bytes travel at a fixed speed and every extra mile is added latency.
+
+An edge server near the user cuts that round trip down to a short local hop:
+
+<CdnLatencyDiagram />
+
+The direct fetch from the origin takes the full long-distance round trip. The same file from a nearby CDN node is an order of magnitude faster, and the CDN only pays the long trip to the origin once, the first time that file is asked for.
+
+### Static content only
+
+This is for static content: images, video, CSS, JavaScript, fonts, anything that is the same bytes for every user. Caching dynamic responses (an HTML page assembled from the request path, query string, cookies, and headers) is a newer and more delicate problem, and the book leaves it out of scope. Treat a CDN here as a store for files that do not change per request.
+
+### How a CDN serves a file
+
+The file's URL points at a domain the CDN provider gives you, not at your own domain. Real examples of what those URLs look like on Amazon CloudFront and Akamai:
+
+- `https://mysite.cloudfront.net/logo.jpg`
+- `https://mysite.akamai.com/image-manager/img/logo.jpg`
+
+The flow the first time a file is requested, and every time after:
+
+<CdnWorkflowDiagram />
+
+1. User A requests `image.png` through its CDN URL.
+2. The CDN edge server does not have `image.png` yet, so it requests the file from the origin. The origin can be a web server or object storage such as Amazon S3.
+3. The origin returns `image.png`. The response carries an optional `Time-to-Live` (TTL) header saying how long the file may be cached.
+4. The CDN stores the file and returns it to User A. It stays cached at that edge until the TTL runs out.
+5. Later, User B requests the same file.
+6. It comes straight back from the edge cache, no origin call, as long as the TTL has not expired.
+
+So the first request for a file at a given edge is a cache miss and pays the origin round trip. Every request after that, until the TTL expires, is a hit served locally.
+
+### Considerations of using a CDN
+
+- **Cost.** CDNs are run by third parties and bill you for data transferred in and out. A file that is rarely requested gets little benefit from being on the CDN and still costs you transfer fees, so it is worth pulling infrequently used assets back off the CDN.
+- **Setting an appropriate cache expiry.** The TTL is a freshness tradeoff. Too long, and the CDN keeps serving an old copy after you have changed the file at the origin. Too short, and edges keep re-fetching from the origin before anyone reuses the cached copy, which wastes the CDN's main advantage. Time-sensitive content needs a deliberate TTL, not a default.
+- **CDN fallback.** Decide what your site does when the CDN is down. During a CDN outage the client should notice the failure and fall back to requesting the files from the origin directly, so a CDN problem degrades performance instead of taking the site offline.
+- **Invalidating files.** To remove a file from the CDN before its TTL expires, you have two options:
+  - Call the invalidation API your CDN provider exposes, which tells the edges to drop that object.
+  - Use object versioning: change the URL so it points at a new object. Add a version parameter to the query string, for example `image.png?v=2`. The old URL stays cached and untouched; the new URL is a fresh miss that fills from the origin.
+
+### What is still fragile
+
+Two failure modes are worth naming. A stale TTL means users see an old file until it expires, which is why invalidation and versioning exist. A CDN outage means every static request falls through to your origin at once, which is why the client needs an origin fallback path.
+
+There is also a problem the CDN does not touch. The web servers still keep each user's session state in their own memory, so once a user's session lands on Server 1, every later request from that user has to go back to Server 1. That pins users to servers and makes the web tier harder to scale and to recover. Fixing it is the next post, on the stateless web tier.
+
+## The design so far
+
+The cache absorbs repeated database reads, and the CDN now serves every static file from an edge near the user:
+
+<WebDataCdnCacheTierDesignDiagram />
+
+1. Static assets (JavaScript, CSS, images, video) are no longer served by the web servers. The browser fetches them from the CDN, from an edge server close to the user.
+2. Dynamic requests still go through the load balancer to a web server.
+3. The web server reads through the cache and only touches a slave database on a miss, so the database load is much lighter than before.
+4. Writes still go to the master database.
