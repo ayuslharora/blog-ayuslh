@@ -49,8 +49,10 @@ Read-through is one way to run a cache. There are others. They differ on two thi
 
 **On a read**
 
-- **Cache-aside.** The app does the work. On a read it looks in the cache first. On a miss it reads the database and then puts that value in the cache itself. The cache does not know the database exists. This is the most common setup: it is simple, and the cache only holds data someone actually asked for. Two downsides. The miss steps have to be written out in the app everywhere it reads data. And if a popular key expires, many requests can miss at the same moment and hit the database together, a cache stampede, covered in [its own post](/til/system-design-thundering-herd-problem).
-- **Read-through.** Same idea, but the cache reads the database on a miss, not the app. The app only talks to the cache. The miss logic lives in one place instead of being copied around, but the cache has to know how to load from the database. The first read of a key is still slow.
+Both of these serve reads from the cache and go to the database only on a miss. The one difference is who handles the miss: your application, or the cache itself.
+
+- **Cache-aside.** Your application handles it. The code checks the cache; if the key is not there, it reads the database, writes that value into the cache, and returns it. The cache is a plain store that knows nothing about the database. This is the most common setup, and the simplest. Two downsides: those miss steps have to be written out everywhere the app reads this kind of data, and if a popular key expires, many requests miss at once and hit the database together (a cache stampede, covered in [its own post](/til/system-design-thundering-herd-problem)).
+- **Read-through.** The cache handles it. Your application just asks the cache for the key and gets a value back. On a miss, the cache reads the database itself, using a load function you gave it when setting it up, then stores the value and returns it. The application never makes the database call. The upside over cache-aside is that this miss logic sits in one place instead of being copied everywhere. The first read of a key is still slow.
 
 **On a write**
 
