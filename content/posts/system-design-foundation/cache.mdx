@@ -1,0 +1,99 @@
+---
+title: "Cache"
+description: "Adding a cache tier between the web servers and the database: the read-through pattern, and the tradeoffs that decide what to cache, when it expires, and what happens when it fills up or goes offline."
+date: "2026-09-11T01:56:37+05:30"
+tags: ["system-design", "book-notes", "scalability"]
+subtopic: "ch1: Scale From Zero to Millions of Users"
+draft: false
+---
+
+## Cache
+
+Every time a page loads, the web server makes one or more calls to the database to fetch the data that page needs. When the same data is requested over and over, those repeated database calls become the thing that slows the application down. A cache is what you put in front of that work.
+
+A cache is a small, fast, in-memory store that holds the result of an expensive operation or a piece of frequently read data. The first request pays the full cost, computing the result or querying the database, and the result is kept in the cache. Every request after that reads it straight from memory and skips the expensive work.
+
+### The cache tier
+
+The cache tier is a temporary data store layer that sits between the web tier and the data tier, and it is much faster than the database because it answers from memory. Giving it its own tier, rather than caching inside each web server's process, buys three things:
+
+- **Better performance.** Reads that hit the cache are served from memory instead of going to disk-backed database queries.
+- **Less database load.** Every cache hit is a database query that never happens, so the database has spare capacity for the writes and the uncached reads that actually need it.
+- **Independent scaling.** The cache is its own pool of servers, so you can add cache capacity to match your read pattern without touching the database, and vice versa.
+
+### Read-through cache
+
+When the web server needs some data, it goes through the cache first:
+
+1. Check the cache for the data.
+2. If it is there (a cache hit), return it to the client.
+3. If it is not (a cache miss), query the database, write the result into the cache, then return it to the client.
+
+<CacheReadThroughDiagram />
+
+The cache fills itself lazily: a key only lands in the cache the first time something misses on it. This pattern, where the cache sits in the read path and populates on a miss, is called a read-through cache. Other strategies exist (write-through, write-back, cache-aside, and so on), and the right one depends on the data's size, how it is accessed, and how much staleness you can tolerate. Read-through is the default to reason from.
+
+Talking to a cache is simple, because most cache servers ship client libraries for the common languages. A typical Memcached call looks like this:
+
+```
+SECONDS = 1
+cache.set('myKey', 'hi there', 3600 * SECONDS)
+cache.get('myKey')
+```
+
+`set` stores a value under a key with a time to live, here one hour. `get` reads it back, or returns nothing if the key has expired or been evicted since.
+
+### When a cache is the right tool
+
+Cache data that is read often and written rarely. A user's profile, a product description, the list of top posts on a page: read on nearly every request, changed once in a while. That is the ideal shape.
+
+It is a poor fit for data you cannot afford to lose. A cache keeps everything in volatile memory, so if the cache server restarts, everything in it is gone. That is acceptable for a copy of something and unacceptable for the only copy. Anything that has to survive belongs in a persistent store, and the cache only ever holds a duplicate of it.
+
+### Expiration policy
+
+It is good practice to give cached entries an expiration time. When an entry expires it is dropped from the cache, so the next read for that key misses and reloads a fresh copy from the database.
+
+The size of that window is a real tradeoff:
+
+- **Too short**, and keys expire before they get reused, so the cache barely deflects any load and the database is queried almost as often as if there were no cache.
+- **Too long**, and the cache keeps serving a value long after the database copy changed, so users see stale data.
+
+Without any expiration policy, entries live in memory indefinitely, which both wastes space on data nobody reads anymore and maximizes how stale a served value can get.
+
+### Consistency
+
+The cache and the database hold two copies of the same data, and keeping them in agreement is its own problem. A write that changes the database and a write that updates or invalidates the cache are two separate operations, not one transaction, so there is always a moment where one has happened and the other has not. A crash or a race in that gap leaves the cache holding a value the database no longer has.
+
+This gets harder as the system spreads across regions, because now there are multiple cache deployments to keep in sync with the database and with each other. Facebook's paper "Scaling Memcache at Facebook" is the standard reference for how far this problem goes at scale.
+
+### When the cache fills up: eviction
+
+A cache has a fixed amount of memory. Once it is full, storing a new entry means removing an existing one to make room. That removal is called cache eviction, and the rule for choosing the victim is the eviction policy:
+
+- **Least Recently Used (LRU)** evicts whatever has gone longest without being read. This is the most common choice, because "not touched in a while" is usually a good proxy for "not needed soon".
+- **Least Frequently Used (LFU)** evicts whatever has been read the fewest times, keeping popular keys even if they have gone briefly quiet.
+- **First In First Out (FIFO)** evicts the oldest entry regardless of how often it is read.
+
+LRU is the default; the others are worth reaching for when your access pattern has a shape LRU handles badly.
+
+### When the cache goes offline
+
+A single cache server is a single point of failure: a part of the system that, if it fails, takes the whole system down with it. It is the same problem we hit with one web server and one database. If the cache dies, every read misses and falls through to the database at once, and a database sized for cache-assisted traffic can fall over under the full unfiltered load.
+
+<SinglePointOfFailureDiagram />
+
+Two mitigations, used together:
+
+- **Spread the cache across several servers, in more than one data center**, so losing one server or one site takes out a fraction of the cache rather than all of it.
+- **Overprovision memory** by some percentage above what you currently need, so a traffic spike or the loss of one node does not immediately push the remaining cache into constant eviction.
+
+## The design so far
+
+The web tier and the data tier are both redundant now, and a cache tier sits between them absorbing the repeated reads:
+
+1. The client's request reaches a web server through the load balancer.
+2. The web server checks the cache for the data it needs.
+3. On a hit, it responds from the cache. On a miss, it reads from a slave database, writes the result into the cache, and then responds.
+4. Writes still go straight to the master database.
+
+Response times for dynamic data are in good shape. What is left is static content, the JavaScript, CSS, image, and video files that every page pulls and that do not need to come from your servers at all. Pushing those onto a content delivery network (CDN) is the next post.

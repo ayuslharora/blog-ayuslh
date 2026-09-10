@@ -31,6 +31,8 @@ import DatabaseArchitectureDiagram from '../../../components/DatabaseArchitectur
 import LoadBalancerDiagram from '../../../components/LoadBalancerDiagram';
 import DatabaseReplicationDiagram from '../../../components/DatabaseReplicationDiagram';
 import WebDataTierDesignDiagram from '../../../components/WebDataTierDesignDiagram';
+import CacheReadThroughDiagram from '../../../components/CacheReadThroughDiagram';
+import SinglePointOfFailureDiagram from '../../../components/SinglePointOfFailureDiagram';
 import MnistPca3d from '../../../components/MnistPca3d';
 import LinRegCostSurface from '../../../components/LinRegCostSurface';
 import GradientDescentAnimation from '../../../components/GradientDescentAnimation';
@@ -189,6 +191,8 @@ export default async function PostPage({
             LoadBalancerDiagram,
             DatabaseReplicationDiagram,
             WebDataTierDesignDiagram,
+            CacheReadThroughDiagram,
+            SinglePointOfFailureDiagram,
             MnistPca3d,
             LinRegCostSurface,
             GradientDescentAnimation,

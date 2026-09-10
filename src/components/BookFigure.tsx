@@ -182,6 +182,43 @@ export function DbIcon({ x, y, label }: { x: number; y: number; label?: string }
   );
 }
 
+export function CacheIcon({ x, y, label = "Cache" }: { x: number; y: number; label?: string }) {
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <rect x={0} y={0} width={104} height={52} rx={6} fill="#dbeafe" stroke="#2563eb" strokeWidth={1.6} />
+      <text x={52} y={31} fontSize={14} fontWeight={700} fill="#1d4ed8" textAnchor="middle">
+        CACHE
+      </text>
+      {label && (
+        <text x={52} y={72} fontSize={14} fontWeight={600} fill="var(--text-primary)" textAnchor="middle">
+          {label}
+        </text>
+      )}
+    </g>
+  );
+}
+
+export function RouterIcon({ x, y, label = "Router" }: { x: number; y: number; label?: string }) {
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <rect x={0} y={16} width={56} height={20} rx={4} fill="none" stroke="var(--text-primary)" strokeWidth={1.6} />
+      <g stroke="var(--text-primary)" strokeWidth={1.6} strokeLinecap="round" fill="none">
+        <line x1={15} y1={16} x2={15} y2={3} />
+        <polyline points="10,8 15,2 20,8" />
+        <line x1={41} y1={16} x2={41} y2={3} />
+        <polyline points="36,8 41,2 46,8" />
+      </g>
+      <circle cx={13} cy={26} r={2} fill="var(--text-primary)" />
+      <circle cx={21} cy={26} r={2} fill="var(--text-primary)" />
+      {label && (
+        <text x={28} y={54} fontSize={13} fill="var(--text-primary)" textAnchor="middle">
+          {label}
+        </text>
+      )}
+    </g>
+  );
+}
+
 const ARROW_COLORS = {
   default: { stroke: "var(--text-primary)", marker: "url(#book-figure-arrow)" },
   blue: { stroke: "#2563eb", marker: "url(#book-figure-arrow-blue)" },
