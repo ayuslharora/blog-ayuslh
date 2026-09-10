@@ -8,7 +8,6 @@ import {
   ServerIcon,
   CacheIcon,
   DbIcon,
-  CircledNumber,
   PlainArrow,
   Figure,
 } from "./BookFigure";
@@ -26,7 +25,6 @@ export default function WebDataCdnCacheTierDesignDiagram() {
       <PlainArrow x1={140} y1={124} x2={170} y2={124} color="blue" />
 
       <CloudIcon x={600} y={64} />
-      <CircledNumber cx={636} cy={162} n={1} />
 
       <PlainArrow x1={500} y1={100} x2={596} y2={100} color="blue" text="static assets" textPos={{ x: 548, y: 86 }} />
 
@@ -52,7 +50,6 @@ export default function WebDataCdnCacheTierDesignDiagram() {
       <PlainArrow x1={380} y1={458} x2={245} y2={658} color="blue" text="Write" textPos={{ x: 312, y: 560 }} />
 
       <CacheIcon x={490} y={520} />
-      <CircledNumber cx={555} cy={550} n={2} />
 
       <PlainArrow x1={512} y1={574} x2={468} y2={656} color="green" text="Read on miss" textPos={{ x: 536, y: 620 }} />
 
