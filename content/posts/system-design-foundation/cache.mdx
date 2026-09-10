@@ -31,7 +31,7 @@ When the web server needs some data, it goes through the cache first:
 
 <CacheReadThroughDiagram />
 
-The cache fills itself lazily: a key only lands in the cache the first time something misses on it. This pattern, where the cache sits in the read path and populates on a miss, is called a read-through cache. Other strategies exist (write-through, write-back, cache-aside, and so on), and the right one depends on the data's size, how it is accessed, and how much staleness you can tolerate. Read-through is the default to reason from.
+The cache fills itself lazily: a key only lands in the cache the first time something misses on it. This pattern, where the cache sits in the read path and loads from the database on a miss, is called a read-through cache.
 
 Talking to a cache is simple, because most cache servers ship client libraries for the common languages. A typical Memcached call looks like this:
 
@@ -42,6 +42,23 @@ cache.get('myKey')
 ```
 
 `set` stores a value under a key with a time to live, here one hour. `get` reads it back, or returns nothing if the key has expired or been evicted since.
+
+### Other caching strategies
+
+Read-through is one point in a larger space. Caching strategies split along two questions: how does data get into the cache, and how does the cache stay in step with the database when a write happens.
+
+**Getting data in.**
+
+- **Cache-aside (lazy loading).** The application code owns the logic: on a read it checks the cache, and on a miss it queries the database and writes the result back into the cache itself. The cache sits "aside" from the database and knows nothing about it. This is the most common setup, because it is simple and the cache only ever holds data that was actually asked for. The costs: the miss path is three steps spelled out in application code everywhere data is read, and a popular key expiring can fire a burst of identical queries at the database all at once, a cache stampede, covered in [its own post](/til/system-design-thundering-herd-problem).
+- **Read-through.** Same read path, but the cache itself does the database load on a miss instead of the application. The application only ever talks to the cache. This keeps the miss logic in one place rather than scattered through the codebase, at the cost of a cache that has to be taught how to fetch from the source. The first read of any key still pays the full miss penalty.
+
+**Keeping it in step on writes.**
+
+- **Write-through.** Every write goes to the cache and the database together, as one synchronous operation. The cache is never stale, and a read right after a write always sees the new value. The price is paid on every write: it now carries both the cache and the database latency, and you end up caching data that may never be read.
+- **Write-back (write-behind).** A write lands in the cache and returns immediately; the cache flushes to the database later, batched or after a short delay. Writes are fast, write-heavy bursts are absorbed, and repeated writes to the same key collapse into one database write. The risk is real: if the cache node dies before it flushes, those writes are gone, and until it flushes the database is behind the cache.
+- **Write-around.** Writes go straight to the database and skip the cache; the key is only cached later, on a read miss. This suits data that is written but rarely read back soon after, since it avoids filling the cache with entries nobody reads. The tradeoff is that a read immediately after a write always misses.
+
+Real systems combine one choice from each group. Cache-aside with write-around is a common pairing for read-heavy data that tolerates a little staleness; read-through with write-through is the choice when reads must always reflect the last write. The book stays with the read-through model, and that is enough to follow the rest of this chapter.
 
 ### When a cache is the right tool
 
