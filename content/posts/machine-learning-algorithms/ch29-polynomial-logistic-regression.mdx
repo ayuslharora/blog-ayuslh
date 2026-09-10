@@ -48,6 +48,10 @@ Testing this on a toy dataset shaped so that no straight line can separate its t
 
 Plain Logistic Regression (`degree=1`, no transform) draws a single straight line and gets 10-fold cross-validated accuracy of `0.83`, visibly misclassifying a cluster of points sitting right where the true boundary curves away from a straight line. Applying `PolynomialFeatures(degree=3)` first raises accuracy to `0.90`, and the plotted boundary now visibly bends to follow the data's actual shape instead of cutting straight through it.
 
+<PolyLogisticScoreSurface3d />
+
+The curve isn't produced by anything non-linear in the model. The degree-3 model's score is still a flat cut through its (now 10-dimensional) feature space, but plotted back over the original two axes it's a bent surface, and a flat plane sliced by a bent surface meets it along a curve. That curve, viewed top-down, is the decision boundary above.
+
 ## 5. Degree Is Just Another Complexity Knob
 
 Pushing the degree further doesn't keep helping. At `degree=15`, accuracy actually drops to `0.87`, below the `degree=3` result, and the boundary in the plot turns visibly jagged, chasing individual outlier points with sharp little detours instead of following the data's overall shape. That's the exact same bias-variance story covered in [Ch.12](/machine-learning-algorithms/ch12-bias-variance-tradeoff): too low a degree underfits (a straight line can't capture a curved boundary), too high a degree overfits (the model starts memorizing noise instead of the underlying pattern), and somewhere in between, here around `degree=3` to `5`, sits the sweet spot that generalizes best. Degree is a hyperparameter like any other, worth sweeping across a small range and checking cross-validated accuracy at each value rather than guessing.
