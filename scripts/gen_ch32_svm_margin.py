@@ -1,11 +1,11 @@
 """Generate the margin-comparison and max-margin-hyperplane charts for Ch.32.
 
-No usable transcript/notebook existed for this video (the auto-transcript was
-too corrupted to use); the post is instead based on the user's own notes plus
-a whiteboard screenshot from the video. This script builds a real, from-first-
-principles illustration of the same concept the whiteboard sketch showed: two
-arbitrary separating lines with different margins, then the actual maximum-
-margin hyperplane found by fitting a linear SVM.
+There is no CampusX companion notebook for this SVM-intuition video; the video
+is a whiteboard geometry walkthrough. This script builds a real, from-first-
+principles illustration of the same concept: two arbitrary separating lines
+with different margins (pi_1 wide, pi_2 narrow, matching the video's "pi1 is
+the better hyperplane"), then the actual maximum-margin hyperplane found by
+fitting a linear SVM.
 
 Run: python3 scripts/gen_ch32_svm_margin.py
 Writes: public/images/ch32-svm-margin-comparison.png
@@ -25,13 +25,18 @@ ax.scatter(X[y == 0, 0], X[y == 0, 1], marker="x", color="#dc2626", s=90, linewi
 ax.scatter(X[y == 1, 0], X[y == 1, 1], marker="+", color="#16a34a", s=110, linewidths=2, label="class 1")
 
 x_line = np.linspace(X[:, 0].min() - 1, X[:, 0].max() + 1, 100)
-# pi_1: hugs close to class 1's nearest points (small margin, still a valid separator)
-y_pi1 = -1.0 * x_line + 0.2
-# pi_2: sits centered between both clusters (larger margin)
-y_pi2 = -1.0 * x_line - 1.2
+# The clusters separate along the x - y direction (line family y = x - c, with
+# a valid separator for c between the red and green edges). Both lines below
+# classify every point correctly.
+# pi_1: c near the middle of the gap -- roughly equidistant, the wide-margin
+#       line SVM would prefer ("pi1 is the better hyperplane" in the video).
+y_pi1 = x_line + 0.1
+# pi_2: c near the red cluster's edge -- still a valid separator, but with
+#       almost no room on the red side.
+y_pi2 = x_line + 2.4
 
-ax.plot(x_line, y_pi1, color="#111827", linewidth=2, label=r"$\pi_1$ (small margin)")
-ax.plot(x_line, y_pi2, color="#2563eb", linewidth=2, label=r"$\pi_2$ (larger margin)")
+ax.plot(x_line, y_pi1, color="#111827", linewidth=2, label=r"$\pi_1$ (wide margin)")
+ax.plot(x_line, y_pi2, color="#2563eb", linewidth=2, label=r"$\pi_2$ (narrow margin)")
 ax.set_xlim(X[:, 0].min() - 1, X[:, 0].max() + 1)
 ax.set_ylim(X[:, 1].min() - 1, X[:, 1].max() + 1)
 ax.legend(frameon=False, loc="lower right")

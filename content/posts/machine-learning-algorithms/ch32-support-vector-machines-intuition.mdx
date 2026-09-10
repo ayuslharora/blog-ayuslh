@@ -17,9 +17,9 @@ This series moves on to a new algorithm: the **Support Vector Machine (SVM)**. L
 
 Take a small dataset with two classes, cleanly separable by a straight line. Draw two different candidate separating lines, $\pi_1$ and $\pi_2$, both of which classify every training point correctly:
 
-<img src="/images/ch32-svm-margin-comparison.png" alt="Scatter plot of two linearly separable classes, red x's in the upper left and green plus signs in the lower right. Two parallel diagonal lines both correctly separate the classes: a black line pi_1 sitting close to the red cluster with little room to spare, and a blue line pi_2 sitting more centered between the two clusters with visibly more space on both sides" className="w-full h-auto" />
+<img src="/images/ch32-svm-margin-comparison.png" alt="Scatter plot of two linearly separable classes, red x's in the upper left and green plus signs in the lower right. Two parallel diagonal lines both correctly separate the classes: a black line pi_1 sitting roughly centered between the two clusters with room on both sides, and a blue line pi_2 sitting right up against the red cluster with almost no space on that side" className="w-full h-auto" />
 
-Both lines get 100% training accuracy, so accuracy alone can't say which is better. But $\pi_1$ hugs the red cluster closely, leaving almost no breathing room on that side, while $\pi_2$ sits with a comfortable gap from both classes. Intuitively, $\pi_2$ feels like the safer choice: a new point that lands slightly off from where its class usually sits is far more likely to cross $\pi_1$ than to cross $\pi_2$. That gap is called the **margin**, and SVM's entire strategy is built around maximizing it.
+Both lines get 100% training accuracy, so accuracy alone can't say which is better. But $\pi_2$ hugs the red cluster closely, leaving almost no breathing room on that side, while $\pi_1$ sits with a comfortable gap from both classes. Intuitively, $\pi_1$ is the safer choice: a new point that lands slightly off from where its class usually sits is far more likely to cross $\pi_2$ than to cross $\pi_1$. That gap is called the **margin**, and SVM's entire strategy is built around maximizing it, which is why it would pick $\pi_1$ here.
 
 ## 2. Margin and Prediction Confidence
 
@@ -38,6 +38,10 @@ The specific points that the two shifted lines end up touching have a name: **su
 <img src="/images/ch32-svm-max-margin.png" alt="The same two-class scatter plot with the actual maximum-margin hyperplane drawn as a solid blue diagonal line, flanked by two parallel dashed blue lines marking the margin boundary. One red x and one green plus, each the closest point of their class to the boundary, are circled in orange as the support vectors. The plot title reads margin width (d) = 3.78" className="w-full h-auto" />
 
 Only two points here are circled as support vectors, one from each class, and they're the sole reason the boundary sits exactly where it does. Every other point could be moved around freely, as long as it doesn't cross into the margin, without changing the fitted line at all. That's a real structural difference from something like Logistic Regression, where every training point pulls on the fitted line through gradient descent; an SVM's boundary is decided entirely by whichever handful of points happen to sit closest to the other class.
+
+<SvmMarginSlab3d />
+
+Lifting the score $w^Tx + b$ into a third axis makes the construction from Section 3 literal: it's a tilted plane, the boundary is its intersection with the flat $\text{score}=0$ sheet, and the two "slide until you touch a point" hyperplanes are the sheets at $\text{score}=+1$ and $-1$. The support vectors are precisely the points touching those sheets, and maximizing the margin is tilting the plane so the two sheets sit as far apart as they can while still keeping every point on the correct side.
 
 ## 5. Where SVM Holds Up Well, and Where It Doesn't
 
