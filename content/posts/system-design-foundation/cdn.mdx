@@ -27,16 +27,6 @@ The direct fetch from the origin takes the full long-distance round trip. The sa
 
 This is for static content: images, video, CSS, JavaScript, fonts, anything that is the same bytes for every user. A CDN here is a store for files that do not change from one request to the next.
 
-### Beyond static files: dynamic content
-
-This part is extra depth. The design we build here only puts static files on the CDN.
-
-CDNs can also cache dynamic responses, like an HTML page that is put together differently for each visitor. The way they do it is with a cache key. For a static file the key is just the file's URL, so every request for that URL gets the same cached copy. For a dynamic page the CDN builds the key from the parts of the request that actually change what comes back: usually the path, the query string, and a few named cookies or headers. Two requests that build the same key share one cached copy. A different key is a separate copy.
-
-Dynamic pages go out of date quickly, so this is paired with short expiry times, or with an explicit purge the moment the underlying data changes. Many CDNs also let you run small pieces of code at the edge to build or personalize a page right there, instead of asking the origin every time.
-
-For the rest of this series, the CDN holds static files and nothing else.
-
 ### How a CDN serves a file
 
 The file's URL points at a domain the CDN provider gives you, not at your own domain. Real examples of what those URLs look like on Amazon CloudFront and Akamai:
@@ -65,6 +55,16 @@ So the first request for a file at a given edge is a cache miss and pays the ori
 - **Invalidating files.** To remove a file from the CDN before its TTL expires, you have two options:
   - Call the invalidation API your CDN provider exposes, which tells the edges to drop that object.
   - Use object versioning: change the URL so it points at a new object. Add a version parameter to the query string, for example `image.png?v=2`. The old URL stays cached and untouched; the new URL is a fresh miss that fills from the origin.
+
+### Beyond static files: dynamic content
+
+Everything above treats the CDN as a store for static files. It can do more, and this is extra depth on top of the design we build here.
+
+CDNs can also cache dynamic responses, like an HTML page that is put together differently for each visitor. The way they do it is with a cache key. For a static file the key is just the file's URL, so every request for that URL gets the same cached copy. For a dynamic page the CDN builds the key from the parts of the request that actually change what comes back: usually the path, the query string, and a few named cookies or headers. Two requests that build the same key share one cached copy. A different key is a separate copy.
+
+Dynamic pages go out of date quickly, so this is paired with short expiry times, or with an explicit purge the moment the underlying data changes. Many CDNs also let you run small pieces of code at the edge to build or personalize a page right there, instead of asking the origin every time.
+
+For the rest of this series, the CDN holds static files and nothing else.
 
 ### What is still fragile
 
