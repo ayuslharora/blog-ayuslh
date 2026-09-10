@@ -22,6 +22,8 @@ $$w \cdot x + b = -1 \quad \text{(touches the nearest negative point)}$$
 
 Every training point must sit on the correct side of *its* plane: positive-class points need $w \cdot x + b \geq 1$, negative-class points need $w \cdot x + b \leq -1$. Nothing is allowed inside the strip between the two planes, that strip is exactly the margin.
 
+Why exactly $\pm 1$, rather than $\pm 25$ or $\pm 37$? Because it's a free normalization, not a real assumption. Scaling every coefficient of a line's equation by the same factor leaves the line unchanged ($2x + 3y + 3 = 0$ and $20x + 30y + 30 = 0$ are the same line), so $w$ and $b$ can always be rescaled to make the nearest points land at exactly $w \cdot x + b = \pm 1$. Fixing the value at $\pm 1$ just pins down that scaling so the margin comes out as a clean formula in the next section. The two values are equal in magnitude because the boundary sits exactly halfway between the two supporting planes.
+
 ## 2. One Constraint Instead of Two
 
 Labeling the classes $y = +1$ and $y = -1$ (not $0/1$, specifically so this trick works) turns the two separate conditions into a single inequality. Multiply both sides of each condition by its own label:
@@ -37,7 +39,7 @@ That's the constraint hard margin SVM has to satisfy for *every single point*, n
 
 ## 3. Margin Width, from the Distance Formula
 
-The margin is the distance between the two supporting planes $w \cdot x + b = 1$ and $w \cdot x + b = -1$. The distance from a point $x_0$ to a plane $w \cdot x + b = c$ is the standard point-to-hyperplane distance:
+The margin is the distance between the two supporting planes $w \cdot x + b = 1$ and $w \cdot x + b = -1$. The video derives it by taking a support vector $x_1$ on the positive plane and $x_2$ on the negative plane and projecting $x_2 - x_1$ onto the unit vector $w / \|w\|$ (which is perpendicular to all three parallel planes); substituting $w \cdot x_1 = 1 - b$ and $w \cdot x_2 = -1 - b$ collapses that projection to $2/\|w\|$. The same result drops straight out of the standard point-to-hyperplane distance:
 
 $$\text{distance} = \frac{|w \cdot x_0 + b - c|}{\|w\|}$$
 
@@ -60,6 +62,10 @@ Putting it together, hard margin SVM is exactly this optimization problem:
 $$\min_{w, b} \frac{1}{2}\|w\|^2 \quad \text{subject to} \quad y_i(w \cdot x_i + b) \geq 1 \ \ \forall i$$
 
 A quadratic objective with linear inequality constraints is a **convex quadratic program**, a well-studied class of problem with a unique global minimum and no risk of getting stuck in a local one. That's what a solver like scikit-learn's `SVC` is actually solving under the hood; the Lagrangian-duality machinery used to solve it is its own topic, saved for when it's actually needed.
+
+<SvmQpSurface3d />
+
+The picture shows why the constraints are doing all the work. Left alone, $\frac{1}{2}\|w\|^2$ is minimized at $w = 0$, the bottom of the bowl, which would be a margin of infinite width and no ability to classify anything. The $y_i(w \cdot x_i + b) \geq 1$ constraints carve out the feasible patch and push the solution up its wall to the lowest point that still separates every training example.
 
 <img src="/images/ch33-hard-margin-svm.png" alt="Scatter plot of two linearly separable classes, red x's for the y=-1 class and green plus signs for the y=+1 class. A solid blue diagonal line marks the decision hyperplane w.x+b=0, flanked by two parallel dashed black lines marking w.x+b=+1 and w.x+b=-1. One point from each class touches its respective dashed line and is circled in orange as a support vector. Plot title reads margin width = 2/||w|| = 3.78" className="w-full h-auto" />
 

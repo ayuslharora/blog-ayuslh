@@ -54,6 +54,7 @@ import PolyLogisticScoreSurface3d from '../../../components/PolyLogisticScoreSur
 import CProbabilitySurface3d from '../../../components/CProbabilitySurface3d';
 import KnnNeighbors3d from '../../../components/KnnNeighbors3d';
 import SvmMarginSlab3d from '../../../components/SvmMarginSlab3d';
+import SvmQpSurface3d from '../../../components/SvmQpSurface3d';
 import RidgeLambdaExplorer from '../../../components/RidgeLambdaExplorer';
 import DecisionTreeHyperparameterExplorer from '../../../components/DecisionTreeHyperparameterExplorer';
 import RegressionTreeExplorer from '../../../components/RegressionTreeExplorer';
@@ -211,6 +212,7 @@ export default async function PostPage({
             CProbabilitySurface3d,
             KnnNeighbors3d,
             SvmMarginSlab3d,
+            SvmQpSurface3d,
             RidgeLambdaExplorer,
             DecisionTreeHyperparameterExplorer,
             RegressionTreeExplorer,
