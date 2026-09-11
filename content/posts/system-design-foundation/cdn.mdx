@@ -90,7 +90,10 @@ For the rest of this series, the CDN holds static files and nothing else.
 
 ### What is still fragile
 
-Two failure modes are worth naming. A stale TTL means users see an old file until it expires, which is why invalidation and versioning exist. A CDN outage means every static request falls through to your origin at once, which is why the client needs an origin fallback path.
+Two failure modes are worth naming:
+
+- A stale TTL means users see an old file until it expires, which is why invalidation and versioning exist.
+- A CDN outage means every static request falls through to your origin at once, which is why the client needs an origin fallback path.
 
 There is also a problem the CDN does not touch. The web servers still keep each user's session state in their own memory, so once a user's session lands on Server 1, every later request from that user has to go back to Server 1. That pins users to servers and makes the web tier harder to scale and to recover. Fixing it is the next post, on the stateless web tier.
 
