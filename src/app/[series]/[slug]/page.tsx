@@ -68,6 +68,7 @@ import SvmSlackSurface3d from '../../../components/SvmSlackSurface3d';
 import KernelLiftExplorer3d from '../../../components/KernelLiftExplorer3d';
 import ManualLiftExplorer3d from '../../../components/ManualLiftExplorer3d';
 import DecisionTreeHypercuboids3d from '../../../components/DecisionTreeHypercuboids3d';
+import EntropySimplex3d from '../../../components/EntropySimplex3d';
 import RidgeLambdaExplorer from '../../../components/RidgeLambdaExplorer';
 import DecisionTreeHyperparameterExplorer from '../../../components/DecisionTreeHyperparameterExplorer';
 import RegressionTreeExplorer from '../../../components/RegressionTreeExplorer';
@@ -239,6 +240,7 @@ export default async function PostPage({
             KernelLiftExplorer3d,
             ManualLiftExplorer3d,
             DecisionTreeHypercuboids3d,
+            EntropySimplex3d,
             RidgeLambdaExplorer,
             DecisionTreeHyperparameterExplorer,
             RegressionTreeExplorer,

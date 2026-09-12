@@ -93,6 +93,12 @@ A few things fall out of working through this by hand, worth stating explicitly 
 
 It's worth re-reading the entropy curve from Section 2 with a decision-tree lens rather than a pure-math one: a node is "good" (low entropy) exactly when it's lopsided toward one class, and "bad" (high entropy) exactly when it's a coin flip. Every split a tree makes is, in effect, trying to drag each child node's $p$ away from `0.5` and toward one of the two edges of that curve.
 
+The same shape holds with more than two classes, just harder to draw as a line. With three classes, $p_3 = 1-p_1-p_2$, so the space of valid splits is a triangle instead of a line segment, and entropy becomes a surface over it:
+
+<EntropySimplex3d />
+
+Every corner of the triangle is a pure node, one class at 100%, entropy `0`, exactly like the two ends of the binary curve. The center, all three classes equally likely, is the single highest point, $\log_2 3 \approx 1.585$, the direct three-class analogue of the binary peak at `p = 0.5`. A tree still wants every split to push nodes away from that center and toward a corner; there's just more room to do it in.
+
 ## 7. Gini Impurity
 
 Entropy involves a logarithm for every class, computed at every candidate split, for every node, this adds up. **Gini impurity** measures almost the same thing, "how mixed is this set," with cheaper arithmetic:
@@ -105,13 +111,15 @@ Overlaying both curves for the binary case shows how similar they actually are:
 
 Same shape, same zeros at the pure ends, same peak location at `p = 0.5`, just a lower ceiling (`0.5` instead of `1`) and no logarithm to compute. This is why **CART**, the specific algorithm named at the end of the last post, defaults to Gini impurity rather than entropy: in practice the two pick nearly identical splits almost all the time, but Gini is faster to compute at scale. Running the root-node numbers through Gini instead of entropy confirms the same feature wins:
 
+That similarity isn't a guarantee, though. The two criteria can disagree on some datasets: entropy occasionally produces a more balanced tree, while Gini's speed can come at the cost of a bit more overfitting on specific data. Neither wins outright, which is why `scikit-learn`'s `DecisionTreeClassifier` exposes `criterion` as a hyperparameter (`'gini'` by default, `'entropy'` available), worth including in a grid search alongside the tree's other hyperparameters rather than assumed away.
+
 $$\text{Gini}(S) = 1 - \left(\frac{9}{14}\right)^2 - \left(\frac{5}{14}\right)^2 \approx 0.459$$
 
 For `outlook`: `Gini(sunny) = 0.480`, `Gini(overcast) = 0.000`, `Gini(rain) = 0.480`, weighted average `≈ 0.343`, a Gini-based "gain" of `0.459 − 0.343 ≈ 0.116`, still the largest of the three features. The specific numbers differ from entropy's, but the winner doesn't.
 
 ## 8. Handling Numerical Data
 
-Section 4 (of the [previous post](/machine-learning-algorithms/ch37-decision-tree-intuition)) left one question open: for a numeric feature, which threshold do you actually split on? The answer is a search, not a formula: sort the feature's unique values, take the midpoint between each consecutive pair as a *candidate* threshold, and compute information gain for that candidate exactly like a categorical split, `< threshold` versus `≥ threshold` playing the role of the two branches.
+Section 4 (of the [previous post](/machine-learning-algorithms/ch37-decision-tree-intuition)) left one question open: for a numeric feature, which threshold do you actually split on? The answer is a search, not a formula: sort the feature's unique values, take a *candidate* threshold from each one, and compute information gain for that candidate exactly like a categorical split, `< threshold` versus `≥ threshold` playing the role of the two branches. (The video walks this sweep using each observed value directly as a candidate threshold; the more common convention, used here, is the midpoint between each consecutive pair of sorted values, which lands the boundary evenly between two real points rather than on top of one.)
 
 Running that sweep over `temperature` in the Play Tennis data (14 rows, unique values 64 through 85, giving 13 candidate midpoints):
 
