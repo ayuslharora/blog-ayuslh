@@ -49,7 +49,7 @@ manual_clf.score(X3, y)
 1.0
 ```
 
-<img src="/images/ch36-circles-linear-vs-manual3d.png" alt="A 3D scatter plot with axes x1, x2, and z equals x1 squared plus x2 squared. Red x markers, the inner class, sit high up near the top since points close to the origin still have small x1 and x2 but the ring's points are farther out. Green plus markers, the outer ring, sit low near z=0. A translucent blue horizontal plane slices between them, all red above it, all green below, with the title reporting 100% accuracy." className="w-full h-auto" />
+<ManualLiftExplorer3d />
 
 Perfect separation, same idea as Ch.35's picture, now backed by a classifier that actually scores 100%. The inner cluster sits close to the origin, so its $z$ stays small; the outer ring sits farther out, so its $z$ is large. One new coordinate, and a plane does the rest.
 
@@ -74,9 +74,28 @@ rbf_clf.score(X, y)
 
 100% accuracy, and the decision boundary on the right is a circle, curved the way a straight line never could be, despite `SVC` never seeing a third feature. That's the trick: the RBF kernel produces the *effect* of lifting into a higher-dimensional space (in fact an infinite-dimensional one) without ever constructing a point in it. The actual mechanism, how a kernel function computes what's needed without visiting that space, is the math saved for the next post. What today's code confirms is that the effect is real and it's one argument away, not a manual feature-engineering project.
 
-## 5. More Kernel Isn't Automatically Better
+## 5. The Polynomial Kernel's Default Isn't Automatically Good
 
-`SVC` ships a few kernel choices beyond `rbf`, including `poly`, whose flexibility is set directly by a `degree` argument. It's tempting to assume higher degree means a better fit, so it's worth checking that assumption on a harder dataset (`make_moons`, two interleaving crescents) with a held-out test split:
+`SVC` ships a few kernel choices beyond `rbf`, including `poly`, whose flexibility is set by a `degree` argument, `3` by default. On the same circles data, that default is a bad fit:
+
+```python
+for degree in [1, 2, 3, 4]:
+    clf = SVC(kernel="poly", degree=degree).fit(X, y)
+    print(degree, clf.score(X, y))
+```
+
+```
+1  0.59
+2  1.00
+3  0.665
+4  1.00
+```
+
+`degree=1` is just a line again (59%, same as the linear kernel). `degree=3`, the default anyone gets by typing `kernel="poly"` and stopping there, only reaches 66.5%, worse than `degree=2` or `degree=4`. The circles boundary is symmetric around the origin, exactly the shape an *even*-degree polynomial (built from terms like $x_1^2$ and $x_2^2$) can represent directly; an odd degree has no way to express that symmetry cleanly. The lesson isn't "prefer even degrees," it's that a kernel's default hyperparameter is not automatically the right one for the data at hand, worth confirming with a quick sweep like this one rather than assumed.
+
+## 6. More Degree Isn't Automatically Better, Either
+
+Beyond just picking a good degree, it's tempting to assume higher degree always means a better fit. Checking that on a harder dataset (`make_moons`, two interleaving crescents) with a held-out test split makes the counterexample explicit:
 
 ```python
 from sklearn.datasets import make_moons

@@ -66,6 +66,7 @@ import SvmMarginSlab3d from '../../../components/SvmMarginSlab3d';
 import SvmQpSurface3d from '../../../components/SvmQpSurface3d';
 import SvmSlackSurface3d from '../../../components/SvmSlackSurface3d';
 import KernelLiftExplorer3d from '../../../components/KernelLiftExplorer3d';
+import ManualLiftExplorer3d from '../../../components/ManualLiftExplorer3d';
 import RidgeLambdaExplorer from '../../../components/RidgeLambdaExplorer';
 import DecisionTreeHyperparameterExplorer from '../../../components/DecisionTreeHyperparameterExplorer';
 import RegressionTreeExplorer from '../../../components/RegressionTreeExplorer';
@@ -235,6 +236,7 @@ export default async function PostPage({
             SvmQpSurface3d,
             SvmSlackSurface3d,
             KernelLiftExplorer3d,
+            ManualLiftExplorer3d,
             RidgeLambdaExplorer,
             DecisionTreeHyperparameterExplorer,
             RegressionTreeExplorer,
