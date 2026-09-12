@@ -35,7 +35,7 @@ The 1D example is deliberately easy to fix, one specific transform matches its e
 
 The same idea generalizes: add a third coordinate built from the existing two, $z = e^{-(x^2+y^2)}$, a bump function that's tallest at the origin and decays outward. Since the red cluster sits near the origin, its points map to *large* $z$. Since the green ring sits farther out, its points map to *small* $z$, closer to $0$.
 
-<img src="/images/ch35-kernel-trick-2d-to-3d.png" alt="A 3D scatter plot. Red x markers, originally a tight cluster near the center of the xy plane, are lifted high up along the z axis by the transform z equals e to the negative x squared plus y squared. Green plus markers, originally forming a ring around that cluster, stay low near z=0 since they are farther from the origin. A translucent blue horizontal plane sits between the two groups, with all red points above it and all green points below it." className="w-full h-auto" />
+<KernelLiftExplorer3d />
 
 Plotted in 3D, with $z$ as a genuine third axis, a flat horizontal *plane* slices cleanly between the two classes: red above it, green below. Exactly the same move as the 1D case, one dimension short of separable, add a dimension built from a function of the existing coordinates, and a linear separator (a plane instead of a line, but still linear) appears where none existed before.
 
