@@ -4,7 +4,7 @@ description: "sklearn's SVC turns the geometric lift from Ch.35 into one keyword
 date: "2026-08-30T15:40:00+05:30"
 tags: ["machine-learning", "machine-learning-algorithms", "svm", "support-vector-machines", "classification", "kernel-trick"]
 subtopic: "Support Vector Machines"
-draft: true
+draft: false
 ---
 
 [Ch.35](/machine-learning-algorithms/ch35-kernel-trick-geometric-intuition) built the geometric case for the kernel trick with two hand-picked examples: a 1D line lifted to 2D by squaring, and concentric circles lifted to 3D by $z = e^{-(x^2+y^2)}$. Both were true, and both dodged the actual question, in real code, how do you get that lift without manually inventing a formula for every dataset? This post runs the demo for real: an actual dataset, an actual failing SVM, an actual fix, and the sklearn keyword that makes the fix redundant.
