@@ -21,19 +21,19 @@ Imagine a small table of Play Store customers, three columns: `gender`, `occupat
 |--------|------------|------------|
 | male   | student    | PUBG       |
 | female | student    | PUBG       |
-| male   | teacher    | WhatsApp   |
-| female | teacher    | Gpay       |
+| male   | programmer | WhatsApp   |
+| female | programmer | GitHub     |
 | male   | student    | PUBG       |
-| female | teacher    | WhatsApp   |
+| female | programmer | GitHub     |
 
-Forget "machine learning" for a second and just think like a programmer staring at this table: could you write a plain function that predicts `app` from `gender` and `occupation`? Looking at `occupation` first, every `student` row downloads PUBG, no exceptions, that column alone cleanly peels off one group. Among the remaining `teacher` rows, `gender` finishes the job: teachers who are `female` lean one way, `male` another. As a nested condition, that's just:
+Forget "machine learning" for a second and just think like a programmer staring at this table: could you write a plain function that predicts `app` from `gender` and `occupation`? Looking at `occupation` first, every `student` row downloads PUBG, no exceptions, that column alone cleanly peels off one group. Among the remaining `programmer` rows, `gender` finishes the job: `female` programmers download GitHub, `male` programmers download WhatsApp. As a nested condition, that's just:
 
 ```
 if occupation == "student":
     predict PUBG
 else:
     if gender == "female":
-        predict Gpay / WhatsApp (whichever is more common among female teachers)
+        predict GitHub
     else:
         predict WhatsApp
 ```
@@ -59,6 +59,10 @@ Every one of these threshold questions, in feature space, is a straight cut para
 <img src="/images/ch37-decision-boundary.png" alt="Scatter plot of Iris flowers by petal length and petal width, three classes shown as red circles, green squares, and blue triangles. The background is shaded into rectangular regions by a depth-3 decision tree, with clean vertical and horizontal boundaries separating the classes" className="w-full h-auto" />
 
 That's the geometric signature of a decision tree, worth contrasting with SVM's tilted straight line or KNN's locally-warped boundary: a decision tree's boundary is always a set of axis-aligned rectangles, because every single split can only ever cut along one feature at a time.
+
+The video poses this as an exercise: imagine the same idea one dimension up. With three features instead of two, each cut is a flat plane parallel to one of the axes, and the regions those cuts carve out are boxes, **hypercuboids**, rather than rectangles:
+
+<DecisionTreeHypercuboids3d />
 
 The actual fitted tree behind that picture, for reference on the terminology below:
 
@@ -87,12 +91,12 @@ Every worked example above followed exactly this shape by hand. The one line doi
 
 A quick reference for the vocabulary used throughout this series:
 
-- **Root node** — the very first question, sitting at the top, applied to the entire dataset.
-- **Decision node** (internal node) — any node that still asks a further question.
-- **Leaf node** — a node with no further questions, holding a final prediction.
-- **Splitting** — dividing a node's rows into child nodes based on a question.
-- **Pruning** — the reverse of splitting: removing branches after the fact to fight overfitting.
-- **Parent / child** — a node that splits is the parent of the two (or more) nodes it splits into.
+- **Root node**: the very first question, sitting at the top, applied to the entire dataset.
+- **Decision node** (internal node): any node that still asks a further question.
+- **Leaf node**: a node with no further questions, holding a final prediction.
+- **Splitting**: dividing a node's rows into child nodes based on a question.
+- **Pruning**: the reverse of splitting: removing branches after the fact to fight overfitting.
+- **Parent / child**: a node that splits is the parent of the two (or more) nodes it splits into.
 
 ## 8. Unanswered Questions
 
@@ -109,11 +113,13 @@ Both are covered next, once **entropy**, **information gain**, and **Gini impuri
 - Easy to interpret and explain, the tree can literally be drawn and read like a flowchart, no coefficients to squint at.
 - Requires little data preparation: no feature scaling or standardization needed, since splits only ever compare a feature to a threshold, not to each other.
 - Naturally handles both numeric and categorical features, and both classification and regression, without changing the core algorithm.
+- Fast: predicting on a new point means walking down one path from root to leaf, ignoring every other branch along the way, roughly logarithmic in the number of nodes rather than touching every training point the way KNN does.
 
 **Disadvantages:**
 - Prone to overfitting: an unconstrained tree can memorize the training set by splitting all the way down to single-row leaves.
 - Unstable: small changes in the training data can produce a noticeably different tree, since an early split near the root reshapes everything beneath it.
 - Its axis-aligned boundaries are a poor geometric fit for data that's naturally separated by a diagonal or curved boundary, needing many small steps to approximate what a single line could do.
+- Struggles on imbalanced datasets: with, say, 95% of rows one class, splits can chase the majority class and perform poorly on the minority one, the same failure mode [Ch.25](/machine-learning-algorithms/ch25-accuracy-confusion-matrix) covered for accuracy generally.
 
 ## 10. CART
 
