@@ -15,7 +15,7 @@ Everything about decision trees so far, [the core intuition](/machine-learning-a
 
 ## 1. Why Not Just Fit a Line?
 
-Take a dataset where the target has a clear but non-linear relationship with the feature: `y` rises, plateaus, then falls as `x` increases. [Linear regression](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) is only allowed to draw one straight line through it, so it splits the difference and fits nothing well. A decision tree instead cuts the `x` axis into pieces and predicts a flat value inside each piece, so it can bend with the data as sharply as it needs to.
+A lot of regression problems really are close to linear, marks in an exam against hours of study for a semester, say: study more, generally score more, with plenty of individual scatter around that trend. [Linear regression](/machine-learning-algorithms/ch1-simple-linear-regression-intuition) handles that case fine. But push the same idea a little further and it breaks: past some point, more hours stop helping, burnout and diminishing returns start pulling marks back down, and the true relationship rises, then falls. A single straight line can't bend to follow that, it can only split the difference and fit the middle badly in both directions. A decision tree instead cuts the `x` axis into pieces and predicts a flat value inside each piece, so it can bend with the data as sharply as it needs to.
 
 <img src="/images/ch40-line-vs-staircase.png" alt="Two scatter plots of the same 1-D dataset where y rises then falls as x increases. Left: linear regression draws a single downward-sloping straight line that misses the curve entirely. Right: a decision tree regressor with max_depth 3 draws a piecewise-constant staircase that tracks the rise, plateau, and fall of the points" className="w-full h-auto" />
 
@@ -57,7 +57,9 @@ for t in midpoints:
 
 The error curve on the right has a single clear trough: cutting too early (small threshold) or too late (large threshold) leaves one group with a wide spread of targets and a large residual sum. The minimum is where the two groups are internally most alike. A hand-rolled search over midpoints lands on exactly the same threshold sklearn's `DecisionTreeRegressor` uses for its root split.
 
-Then recurse: run the identical search inside the left region, and again inside the right region, each split shrinking the error a little more. With more than one feature, the search also loops over every feature at each node and keeps the single best feature-threshold pair.
+Then recurse: run the identical search inside the left region, and again inside the right region, each split shrinking the error a little more.
+
+With more than one feature, a node has to pick *which column* to cut, not just where. The rule is a direct extension of the single-feature search: run the exact same midpoint sweep independently on every feature, keep each feature's own best (lowest-SSE) threshold, then compare those best-SSE values across features and split on whichever feature reached the lowest one. On `load_diabetes`, sweeping `bmi` alone gets its lowest weighted SSE at threshold `≈0.0094` (SSE `≈1.891M`); sweeping `s5` alone gets `≈1.857M` at threshold `≈-0.0038`. `s5`'s number is smaller, so the root node splits on `s5`, exactly the feature and threshold sklearn's `DecisionTreeRegressor` picks on its own. Every node repeats this feature-vs-feature competition independently, which is why a tree with many input columns can split on a different feature at almost every node.
 
 ## 4. Overfitting Is the Same Story
 
@@ -73,7 +75,9 @@ The fix is the same set of stopping controls as the classifier, tuned the same w
 
 - **`criterion`** is `squared_error` by default (the left-plus-right variance from section 3), with `friedman_mse`, `absolute_error`, and `poisson` as alternatives. `gini` and `entropy` do not exist here, they only make sense for classes.
 
-Everything else transfers directly. On a one-feature toy problem `max_features` has nothing to do, and it stays mostly a Random Forest concern anyway, but on wide tabular data it behaves exactly as it does for the classifier.
+On `load_diabetes` with `max_depth=5` and a fixed train/test split, `criterion="squared_error"` scores `R² ≈ 0.33` on the held-out set against `"absolute_error"`'s `R² ≈ 0.12`, a real gap, though not always this size on other data. `splitter` moves things less: `"best"` scores the same `≈0.33`, `"random"` comes in at `≈0.34`, close enough that the difference is mostly noise here, same as it was for the classifier, with `"random"` generally the one to reach for if overfitting is the concern.
+
+Everything else transfers directly. `max_features` has nothing to do on the earlier one-feature toy problem, but on `load_diabetes`'s 10 columns it behaves exactly as it does for the classifier: restricting a node to a random subset of features (half the columns, `max_features=5`) combined with a tighter `min_samples_split` (a quarter of the training rows, `88` out of `353`) lifts this particular split's test `R²` from `0.33` to `≈0.39`, a concrete case of the general pattern that tighter constraints can help once the unconstrained tree is overfitting.
 
 ```python
 from sklearn.datasets import load_diabetes
@@ -105,6 +109,4 @@ Here two features, `s5` and `bmi`, account for roughly three-quarters of the mod
 
 ## 7. In Practice
 
-A decision tree regressor is a classification tree with the leaf output swapped from majority-vote to mean, and the split score swapped from Gini/entropy to squared error. It captures non-linear, non-monotone relationships that a straight line cannot, at the cost of a blocky piecewise-constant prediction and the same appetite for overfitting that every unconstrained tree has. The staircase never extrapolates: outside the range of the training data it just repeats the nearest leaf's mean forever, which is one reason a single tree is usually a building block for [Random Forests](/machine-learning-algorithms/ch37-decision-tree-intuition) rather than a final model on its own.
-
-One last practical note: to actually *see* the tree a fit produced, `sklearn.tree.plot_tree` and `export_text` are the built-ins, but [`dtreeviz`](https://github.com/parrt/dtreeviz) is worth installing. It draws each split as a histogram or scatter of the data reaching that node, shows where the threshold falls, and traces the path a single prediction takes down to its leaf, for both classifier and regressor trees. It makes the "what is this tree doing" question much easier to answer than a plain box-and-arrow diagram.
+A decision tree regressor is a classification tree with the leaf output swapped from majority-vote to mean, and the split score swapped from Gini/entropy to squared error. It captures non-linear, non-monotone relationships that a straight line cannot, at the cost of a blocky piecewise-constant prediction and the same appetite for overfitting that every unconstrained tree has. The staircase never extrapolates: outside the range of the training data it just repeats the nearest leaf's mean forever, which is one reason a single tree is usually a building block for [Random Forests](/machine-learning-algorithms/ch37-decision-tree-intuition) rather than a final model on its own, echoing exactly the point §6 already made about `feature_importances_`: the ensemble version tends to be the more useful one, worth trying alongside, or instead of, a single tree.
