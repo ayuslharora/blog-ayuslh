@@ -101,3 +101,9 @@ Instead of budgeting size, this sets a minimum bar on split *quality*: a split o
 ## 9. Tuning in Practice
 
 None of these hyperparameters has a universally correct value, they're all found the same way: fit with a candidate value, compare train accuracy against test accuracy, and adjust. A large gap (high train, low test) means overfitting, tighten a constraint. Both scores low and close together means underfitting, loosen one. The mental model that ties every hyperparameter in this post together is the same one: more freedom to split (`max_depth`, `max_leaf_nodes` unrestricted, `min_samples_leaf` at 1, `min_impurity_decrease` at 0) pushes toward overfitting, and tighter limits on any of them push back toward underfitting, until train and test accuracy land close together.
+
+Every chart so far tuned one hyperparameter at a time, which hides how they interact. Gridding `max_depth` against `min_samples_leaf` together shows it directly:
+
+<DepthLeafSurface3d />
+
+`min_samples_leaf = 1` reaches the same peak as `min_samples_leaf = 5`, but only at exactly the right depth, push depth further and it starts overfitting again. `min_samples_leaf = 5` holds that peak across a wide range of depths instead of just one, a size constraint doing part of the job a depth limit alone would otherwise have to get exactly right. In practice this is the case for tuning more than one hyperparameter together (a grid search) rather than sweeping each in isolation.
