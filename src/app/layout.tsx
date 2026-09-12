@@ -47,13 +47,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en-IN" suppressHydrationWarning>
-      <body className={`${inter.className} min-h-screen flex flex-col antialiased overflow-x-hidden`}>
-        {/* Plain synchronous script (not next/script): must block parsing and
-            run before first paint, or a dark-mode browser flashes light on load. */}
+      <head>
+        {/* Plain synchronous script (not next/script), placed first in <head>:
+            must run before any stylesheet/font finishes loading, or a dark-mode
+            browser can flash light on a slow/cold load. */}
         <script
           id="theme-init"
           dangerouslySetInnerHTML={{ __html: themeInitScript }}
         />
+      </head>
+      <body className={`${inter.className} min-h-screen flex flex-col antialiased overflow-x-hidden`}>
         <script
           id="jsonld-website"
           type="application/ld+json"
