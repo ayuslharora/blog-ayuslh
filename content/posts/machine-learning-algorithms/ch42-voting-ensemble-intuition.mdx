@@ -9,7 +9,7 @@ draft: true
 
 *Inspired by:* [YouTube](https://www.youtube.com/watch?v=_W1i-c_6rOk)
 
-Voting is the first and simplest of the four ensemble families from the [previous post](/blog/ch41-ensemble-learning-introduction). It gets three posts: this one is pure intuition and the probability argument for *why* voting works, the next one builds a voting **classifier** in code, and the one after that does a voting **regressor**. No companion notebook here; the charts below are computed from the same arithmetic the video works by hand.
+Voting is the first and simplest of the four ensemble families from the [previous post](/machine-learning-algorithms/ch41-ensemble-learning-introduction). It gets three posts: this one is pure intuition and the probability argument for *why* voting works, the next one builds a voting **classifier** in code, and the one after that does a voting **regressor**. No companion notebook here; the charts below are computed from the same arithmetic the video works by hand.
 
 ---
 
@@ -36,7 +36,7 @@ Voting does not always help. It helps only when two things hold.
 
 **2. Every base model must be better than random guessing.** For binary classification that means accuracy above 50%. If the base models are worse than a coin flip, voting does not just fail to help, it actively hurts: the ensemble ends up *worse* than the worst individual model. Section 5 shows this happening.
 
-The KBC "ask the audience" analogy from the last post is the intuition for condition 1. A room full of software developers is a great crowd for a programming question and a useless one for a history question, because their knowledge is correlated. A room with an engineer, a doctor, a lawyer, and a historian covers more ground: whatever the question, someone in the mix probably knows, and the rest do not all fail together.
+The KBC "ask the audience" analogy from the last post is the intuition for condition 1. A room full of computer-science people is a great crowd for a programming question and a useless one for anything outside that domain, because their knowledge is correlated. A room with a chartered accountant, an engineer, a doctor, a painter, and a poet covers more ground: whatever the question, someone in the mix probably knows, and the rest do not all fail together.
 
 ## 3. Why It Works, as Probability
 
