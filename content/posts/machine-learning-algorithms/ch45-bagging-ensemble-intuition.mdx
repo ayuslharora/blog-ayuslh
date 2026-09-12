@@ -99,7 +99,7 @@ In scikit-learn all four come from the same `BaggingClassifier`, toggled by `boo
 
 ## 9. When to Use Bagging
 
-- Whenever your base model is **low bias, high variance**: fully grown decision trees, and to a lesser extent KNN with small `k`. Bagging a model that's already low-variance (linear or logistic regression, a well-regularised SVM) does very little, since there's no variance to cancel.
+- Whenever your base model is **low bias, high variance**: fully grown decision trees are the standard example, but SVMs and KNN with a small `k` fall in the same bucket too, all three overfit in exactly the way bagging is built to cancel out. Bagging a model that's already low-variance (linear or logistic regression, a well-regularised SVM) does very little, since there's no variance to cancel.
 - As a near-default on tabular problems. It's cheap to try, rarely hurts, and often gives a few points for free.
 
 ## 10. What's Next
