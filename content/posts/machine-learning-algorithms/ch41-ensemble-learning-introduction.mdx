@@ -30,7 +30,7 @@ Before the mechanics, the belief the whole field rests on: **a large, diverse cr
 - **Movie ratings.** An IMDb score is thousands of people watching separately and rating separately, collapsed into one number that tracks "what people collectively feel" surprisingly well.
 - **Elections.** A democracy assumes that if most people back a choice, that choice is probably reasonable. One vote each, aggregated.
 
-The classic anecdote is Francis Galton at a country fair: hundreds of people guessed the weight of an ox, no single guess was exact, but the **average** of all the guesses landed almost exactly on the true weight. For more on this, the book *The Wisdom of Crowds* by James Surowiecki is the usual pointer.
+There's an old anecdote, a couple hundred years old by some accounts, of a fair where a host put an animal on stage and asked the crowd to guess its weight, prize to whoever got closest. No single guess was exact, but the **average** of everyone's guesses landed remarkably close to the true weight. Somehow the crowd, collectively, knew, and *The Wisdom of Crowds* by James Surowiecki is the usual pointer for reading more on why.
 
 Ensemble learning is this fact turned into an algorithm: gather many models, ask each one, and decide from their combined answer.
 
@@ -48,7 +48,7 @@ Say you have a trained ensemble of five base models. A new data point arrives, f
 
 An ensemble of five identical models is just one model asked five times. For the crowd to be wise, its members have to bring **different** information.
 
-The KBC analogy again: if every person in the audience is a software developer, "ask the audience" only helps on computer science questions and is useless on everything else. An audience with an engineer, a doctor, a lawyer, a historian, and a politician covers far more ground; whatever the question, someone probably knows.
+The KBC analogy again: if every person in the audience is a software developer, "ask the audience" only helps on computer science questions and is useless on everything else. An audience with a chartered accountant, a civil engineer, a doctor, a politician, and a philosopher covers far more ground; whatever the question, someone probably knows.
 
 There are two ways to manufacture that difference between base models:
 
@@ -101,7 +101,7 @@ In both cases the ensemble is not doing anything clever per model; it is letting
 ## 7. Benefits
 
 - **Better performance.** The headline reason. Most of the time, an ensemble beats the best single model you had.
-- **Bias and variance control.** The central struggle in applied ML is that lowering one usually raises the other. Ensembles help push both down, and *which* one they target depends on the family. Put an ensemble around a low-bias, high-variance model like a deep decision tree and it keeps the low bias while cutting the variance (this is bagging). Put one around a high-bias, low-variance model and it can cut the bias while keeping the variance low (this is boosting).
+- **Bias and variance control.** The central struggle in applied ML is that lowering one usually raises the other, they trade off against each other rather than both improving together. Ensembles help push both down at once, which single-model tuning usually can't. Wrap one around a low-bias, high-variance model (a deep, unpruned decision tree) and it keeps the low bias while pulling the variance down. Wrap one around a high-bias, low-variance model (logistic or linear regression) and it can pull the bias down while leaving the variance where it was. Exactly *which* family does which, and why, is worth its own detailed look once each family has been covered individually.
 - **Robustness.** An ensemble's predictions move less when the input data shifts. This is closely related to the variance point, but in practice it shows up as a model that does not fall apart on slightly different data.
 
 ## 8. The Cost
@@ -112,7 +112,7 @@ There is one real disadvantage: **compute**. Where you used to train one model, 
 
 Treat an ensemble as the **last** step. Do the data cleaning, the preprocessing, the feature engineering, build and tune a model, evaluate it, and *then* wrap an ensemble around it. Most of the time the result improves.
 
-If you work as a data scientist, use ensembles on real projects. In Kaggle-style competitions they are effectively mandatory; the reason those competitions are associated with ensembles at all is that top entries lean on them heavily. The Netflix Prize is the contest that first made the technique famous.
+If you work as a data scientist, use ensembles on real projects. In Kaggle-style competitions they are effectively mandatory; top entries lean on them heavily, and XGBoost in particular became famous largely because of how well it did in Kaggle competitions.
 
 One more practical note from the video: on small to medium tabular datasets, well-built ensemble methods very often beat deep learning, so this block of the series is worth learning well before reaching for a neural network.
 
