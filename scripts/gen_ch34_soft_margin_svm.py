@@ -1,7 +1,7 @@
 """Generate the soft-margin SVM diagram for Ch.34.
 
-The source auto-transcript for this video was too corrupted to use directly
-(same issue as ch33); this instead illustrates the math derived in the post:
+There is no CampusX companion notebook for this whiteboard-derivation video;
+this illustrates the math derived in the post from first principles:
 overlapping classes that hard margin cannot separate, slack variables letting
 points sit inside the margin or cross it, and the C tradeoff between margin
 width and how many violations get tolerated.

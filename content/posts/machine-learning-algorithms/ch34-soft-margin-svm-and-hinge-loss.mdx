@@ -47,6 +47,10 @@ $C$ is the hyperparameter that decides how much the second term matters relative
 
 This is exactly the same bias-variance dial seen with logistic regression's [regularization strength](/machine-learning-algorithms/ch30-logistic-regression-hyperparameters), just written as $C$ instead of $\lambda$, and inverted: scikit-learn's `SVC(C=...)` uses large $C$ for *less* regularization, the opposite convention from $\lambda$.
 
+<SvmSlackSurface3d />
+
+Lifting the score onto a third axis makes $\xi_i$ visible directly: a point that clears its supporting sheet contributes nothing, while a point inside the margin or on the wrong side pokes through it by exactly $\xi_i$. Switching from `C = 0.05` to `C = 20` pulls the two margin sheets closer together (narrower margin, less slack tolerated) and shrinks how far the remaining violators are allowed to poke through.
+
 ## 3. Turning Slack Into a Loss Function
 
 The constraint $y_i(w \cdot x_i + b) \geq 1 - \xi_i$ combined with $\xi_i \geq 0$ pins down the smallest $\xi_i$ can possibly be for a given point: either $0$ (if the constraint is already met) or exactly $1 - y_i(w \cdot x_i + b)$ (if it isn't). That's precisely what $\max(0, \cdot)$ computes:
