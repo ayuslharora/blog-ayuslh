@@ -74,6 +74,8 @@ Run on a moderately hard synthetic binary dataset (12 features, meaningful class
 
 Soft voting (0.791) edges out every individual model, including the best one (Random Forest at 0.787). Hard voting (0.777) actually falls *below* the best individual model here, a reminder that this is a real dataset with real correlated errors, not the idealised independent-70%-models arithmetic from the last post. Logistic Regression drags the hard vote down by throwing a full vote at every prediction even when it is barely better than a coin flip on this data; soft voting lets its low-confidence votes matter less.
 
+The video makes the same point on real data it deliberately made hard: keep only Iris's `virginica`/`versicolor` rows (dropping `setosa`, which every model separates trivially) and only `sepal length`/`sepal width` as features, two classes that overlap heavily on just those two columns. Reproducing that setup, `LogisticRegression` alone reaches `≈0.75` 10-fold CV accuracy, comfortably ahead of `KNeighborsClassifier` (`≈0.59`) and `RandomForestClassifier` (`≈0.60`) on this particular subset. Voting the three together under `voting="hard"` lands at `≈0.66`, *worse* than just using Logistic Regression by itself. This is the case the video is careful to call out: a voting ensemble is not automatically the right choice, sometimes the honest answer is to check the individual scores first and go with whichever single model is already winning.
+
 ## 4. Weights: Not Every Vote Has to Count the Same
 
 By default every base model gets one equal vote. `VotingClassifier` accepts a `weights` argument to change that:
@@ -106,6 +108,8 @@ Run on a second synthetic dataset where the base models are more spread out in s
 | equal (1, 1, 1) | 0.860 |
 
 The best weighting (0.878) beats equal weighting (0.860) by almost 2 points, and it makes intuitive sense: it downweights the weakest model (`lr`) and upweights the strongest (`rf`), roughly in proportion to how each actually performs. That is the general pattern, weight base models by how much you trust them, though which exact combination wins is still something you search for rather than guess.
+
+Weighting is also the fix for the Iris case from §3, where plain hard voting (`≈0.66`) lost to Logistic Regression alone (`≈0.75`). Sweeping `weights=[i, j, k]` for `lr`, `knn`, `rf` over `i, j, k ∈ {1, 2, 3}` (27 combinations, still hard voting), the best combination found is `(3, 1, 1)`, three times the weight on `lr` and equal weight on the other two, which brings the ensemble back up to `≈0.75`, matching Logistic Regression's own score rather than beating it. Heavily upweighting the model that was already winning doesn't manufacture a better ensemble here, it just stops the weaker models from dragging it down, which is exactly what happened without weights.
 
 ## 5. Diversity Without Different Algorithms
 
