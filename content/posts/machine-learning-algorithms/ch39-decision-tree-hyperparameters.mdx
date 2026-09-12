@@ -15,7 +15,13 @@ An unconstrained decision tree will keep splitting until every leaf is pure, or 
 
 ## 1. Overfitting and Underfitting, the Two Failure Modes
 
-A tree that's grown too deep has **overfit**: near-perfect training accuracy, visibly worse test accuracy, and a decision boundary with tiny islands carved out for single stray points. A tree that's cut off too early has **underfit**: it hasn't captured the real shape of the data and performs poorly on both training and test sets. Every hyperparameter below is a knob between these two failure modes, and tuning them is the practical answer to the question [ch37](/machine-learning-algorithms/ch37-decision-tree-intuition) left open: when should splitting stop?
+Left unrestricted (`max_depth=None`, the default), a decision tree keeps splitting until every leaf is pure or has just one row left. Follow that all the way down and you eventually land on a leaf holding, say, two rows. Every decision the tree makes for any future point that lands in that leaf now rests entirely on those two rows. If they're genuine signal, fine, but if they're noise, outliers, or bad data, all the effort spent building the if-else chain above them was spent arriving at a leaf you can't actually trust. That's **overfitting**: the tree performs beautifully on training data (it's literally memorizing rows) but falls apart on anything new.
+
+The geometric picture makes this concrete. A decision tree splits by drawing axis-parallel lines through the feature space, cutting it into boxes. Split enough times and you can end up with a box that's labeled, say, green, purely because a handful of green points happened to fall inside it, even though every point *around* that box is red. A new query point landing in that box gets confidently labeled green, when the surrounding evidence says it should almost certainly be red. This is the same failure mode $k=1$ nearest-neighbors has: trusting a single nearby point (or a tiny handful of them) too much.
+
+The opposite failure, **underfitting**, shows up when the tree is stopped too early. With `max_depth=1`, a node with, say, 100 "yes" rows and 100 "no" rows gets exactly one split to work with, and every point on one side of that split is labeled by nothing more than a majority vote: whichever class has more rows on that side wins, regardless of where the point actually sits relative to the real boundary. The tree hasn't learned the data's shape at all, it's just guessed the locally dominant class, and it performs poorly on training data *and* test data alike.
+
+Every hyperparameter below is a knob between these two failure modes, and tuning them is the practical answer to the question [ch37](/machine-learning-algorithms/ch37-decision-tree-intuition) left open: when should splitting stop?
 
 The demo dataset throughout is sklearn's `make_moons`, two interleaved, non-linearly-separable classes with some added noise, split 70/30 into train and test:
 
@@ -29,7 +35,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 ```
 
-Every hyperparameter in the rest of this post is a live control in the explorer below, running a `DecisionTreeClassifier` on exactly that dataset and re-fitting on each change. Push `max_depth` up until the boundary starts carving islands, then bring `min_samples_leaf` up to smooth them back out, and watch the train/test accuracy gap.
+Every hyperparameter in the rest of this post is a live control in the explorer below, the same kind of interactive web app the video itself walks through hyperparameter by hyperparameter, running a `DecisionTreeClassifier` and re-fitting on each change. Push `max_depth` up until the boundary starts carving islands, then bring `min_samples_leaf` up to smooth them back out, and watch the train/test accuracy gap.
 
 <DecisionTreeHyperparameterExplorer />
 
@@ -48,7 +54,7 @@ for depth in [1, 4, None]:
 
 <img src="/images/ch39-max-depth-under-over-fit.png" alt="Three decision boundary plots on the moons dataset. max_depth=1 shows a single straight cut with low train and test accuracy (underfit). max_depth=4 shows a rectangular boundary that follows the two moon shapes with matched train and test accuracy. max_depth=None shows a jagged boundary with tiny islands around individual points, perfect train accuracy but lower test accuracy than the depth-4 tree" className="w-full h-auto" />
 
-`max_depth = 1` is a single axis-aligned cut, it can't do much better than guess which half of the plane each moon mostly falls in. `max_depth = None` chases every noisy point, including ones that shouldn't be trusted, carving out small islands that hurt more than they help on new data. `max_depth = 4` sits in between: close to the actual moon-shaped boundary, and (in this run) matched train/test accuracy rather than a gap between them. Small `max_depth` underfits, large or unset `max_depth` overfits, and the right value is a balance found by comparing train and test scores, not read off a formula.
+`max_depth = 1` is a single axis-aligned cut, it can't do much better than guess which half of the plane each moon mostly falls in. `max_depth = None` chases every noisy point, including ones that shouldn't be trusted, carving out small islands that hurt more than they help on new data. `max_depth = 4` sits in between: close to the actual moon-shaped boundary, and (in this run) matched train/test accuracy rather than a gap between them. Small `max_depth` underfits, large or unset `max_depth` overfits, and the right value sits somewhere in the middle, found by comparing train and test scores rather than read off a formula. Doing that comparison by eye on a 2D toy dataset is one thing; doing it systematically on real, high-dimensional data (a proper grid search) is a separate technique, picked back up in §9.
 
 ## 3. `criterion`: Gini vs. Entropy
 
@@ -60,7 +66,7 @@ The two curves track each other closely, gini criterion peaked at 0.944 test acc
 
 ## 4. `splitter`: Best vs. Random
 
-By default (`splitter="best"`), a node checks every feature and every candidate threshold on that feature, and picks whichever split gives the highest information gain. `splitter="random"` instead picks one random feature at each node and searches for the best threshold only on that one, trading a slightly worse-fitting tree for less overfitting, since the randomness stops the tree from over-committing to whichever feature looks marginally best on this particular training sample. It's a lighter-weight regularizer than the size-based hyperparameters below, useful mainly as a quick thing to try, not something with a generally "correct" setting.
+By default (`splitter="best"`), a node checks every feature and every candidate threshold on that feature, and picks whichever split gives the highest information gain. `splitter="random"` instead picks one random feature at each node and searches for the best threshold only on that one, trading a slightly worse-fitting tree for less overfitting, since the randomness stops the tree from over-committing to whichever feature looks marginally best on this particular training sample. Across a few random seeds, `splitter="best"` on this dataset lands around 0.91-0.93 test accuracy and `splitter="random"` around 0.89-0.93, close enough that the gap is mostly seed noise rather than a decisive win either way. That matches what the difference usually looks like in practice: it's a lighter-weight regularizer than the size-based hyperparameters below, worth trying but rarely anyone's default choice.
 
 ## 5. `min_samples_split` and `min_samples_leaf`
 
@@ -84,7 +90,7 @@ for leaf in [1, 5, 20]:
 
 ## 6. `max_features`
 
-Restricts how many features a node is allowed to consider when searching for its best split, rather than checking all of them. With only two features (as in the `make_moons` demo) this has little room to matter, its real use is on wider datasets, and on the ones where it matters most, it's rarely tuned by hand at all: it's the core randomization trick behind Random Forests, where each tree in the ensemble only ever gets to see a random subset of columns at each split, decorrelating the trees from each other so their errors don't all point the same way.
+Restricts how many features a node is allowed to consider when searching for its best split, rather than checking all of them. Say a dataset has 100 columns and `max_features` is set to 50: at every single node, a random 50-column subset is drawn, nobody controls which 50, and the split search runs only over information gain on those columns. With only two features (as in the `make_moons` demo) this has almost no room to matter, its real effect shows up on wider datasets. The randomness it introduces makes training-data performance a little worse than an unrestricted tree would get, which sounds like a bad trade in isolation, but it's exactly the kind of hyperparameter that pays off once decision trees stop being used alone and start being combined into ensembles, a thread the closing section picks back up.
 
 ## 7. `max_leaf_nodes`
 
@@ -96,7 +102,11 @@ Two leaves means the tree got exactly one split to work with (train 0.82, test 0
 
 ## 8. `min_impurity_decrease`
 
-Instead of budgeting size, this sets a minimum bar on split *quality*: a split only happens if it reduces weighted impurity by at least this amount. A node where the best available split barely helps (the classes are already nearly separated, or the split would only isolate a couple of noisy points) gets left as a leaf instead of split further. Set it too high and the tree stops early even where a real pattern remained to be found, underfitting; set it too low (the default, `0.0`) and the tree accepts splits that only marginally help, one step short of what `min_samples_leaf` and `max_depth` are already there to prevent.
+Instead of budgeting size, this sets a minimum bar on split *quality*: a split only happens if it reduces weighted impurity by at least this amount. Concretely, on the root node of this dataset, the parent's Gini impurity is `0.498` (210 rows split roughly evenly between classes), and the best available split sends 84 rows to a child with Gini `0.245` and 126 rows to a child with Gini `0.328`. Weight those by how many rows land in each side and subtract from the parent:
+
+$$0.498 - \left(\frac{84}{210}(0.245) + \frac{126}{210}(0.328)\right) \approx 0.203$$
+
+That `0.203` is the actual impurity decrease this split buys, so `min_impurity_decrease` values up to about `0.2` still let the root split happen; push it past that and even the *best* available split at the root isn't good enough, and the tree never grows past a single leaf. Sweeping the threshold confirms the pattern: `0.0` (the default) reaches its full depth of 9 and 24 leaves (train 1.00, test 0.92); `0.01` cuts it back to depth 5, 7 leaves (train 0.94, test 0.91); `0.02` allows only the root split, depth 2, 4 leaves (train 0.90, test 0.90); `0.05` stops even earlier. Set it too high and the tree stops early even where a real pattern remained to be found, underfitting; set it too low (the default) and the tree accepts splits that only marginally help, one step short of what `min_samples_leaf` and `max_depth` are already there to prevent.
 
 ## 9. Tuning in Practice
 
@@ -105,5 +115,7 @@ None of these hyperparameters has a universally correct value, they're all found
 Every chart so far tuned one hyperparameter at a time, which hides how they interact. Gridding `max_depth` against `min_samples_leaf` together shows it directly:
 
 <DepthLeafSurface3d />
+
+It's worth caring about all eight of these specifically for decision trees, and not waiting to pick them up later by accident, because decision trees don't stay standalone models for long: Random Forests, bagging, and gradient boosting are all built out of many decision trees combined. Knowing what `max_depth`, `min_samples_leaf`, `max_features`, and the rest each do to a single tree is exactly the knowledge that carries forward once the model being tuned is an ensemble of them.
 
 `min_samples_leaf = 1` reaches the same peak as `min_samples_leaf = 5`, but only at exactly the right depth, push depth further and it starts overfitting again. `min_samples_leaf = 5` holds that peak across a wide range of depths instead of just one, a size constraint doing part of the job a depth limit alone would otherwise have to get exactly right. In practice this is the case for tuning more than one hyperparameter together (a grid search) rather than sweeping each in isolation.
