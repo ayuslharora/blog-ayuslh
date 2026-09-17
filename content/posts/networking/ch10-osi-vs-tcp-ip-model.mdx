@@ -71,6 +71,8 @@ There is no need to overthink this layer: any software you build that runs on a 
 - **FTP (File Transfer Protocol):** Used for transferring computer files between a client and a server on a computer network.
 - **SSH (Secure Shell):** A cryptographic network protocol for operating network services securely over an unsecured network (like logging into a remote EC2 instance).
 
+If the network is fine but the server returns an error: Layer 7 problem.
+
 ### Layer 6: Presentation Layer
 
 Just below the Application Layer is the Presentation Layer. This is where data transformation happens, including operations like **encoding, encryption, serialization, and compression**.
@@ -83,6 +85,8 @@ Operations happening here:
 - **Compression:** If you have a large payload, you might compress it using a library like Zlib. 
 
 Any operation where you transform plain data from the Application Layer into a transmittable format is part of the Presentation Layer.
+
+If you can connect but communication is garbled or decryption fails: Layer 6 problem.
 
 ### Layer 5: Session Layer
 
@@ -105,6 +109,8 @@ The Transport Layer is crucial because almost every protocol in the higher layer
 **Key Concepts:**
 - **Ports:** This layer introduces the concept of ports. If your React application is running on port 3000, and your backend is on port 8000, the port number helps direct the received packets to the correct application on a machine.
 
+If everything connects but data is corrupted or lost: Layer 4/higher problem.
+
 ### Layer 3: Network Layer
 
 While the Transport Layer uses ports to find the right application on a machine, the Network Layer is responsible for global routing. It uses **IP Addresses** (a virtual address concept) to navigate data across the vast public internet to reach the correct destination machine in the first place.
@@ -115,11 +121,15 @@ Without the Network Layer, your computer wouldn't know how to reach a server sit
 - **IP (Internet Protocol):** The primary protocol for routing packets across network boundaries.
 - **ICMP (Internet Control Message Protocol):** Used mainly for network diagnostics. When you use tools like `ping` or `traceroute` to check if a server is online or to trace the path a packet takes, you are using ICMP under the hood.
 
+If you can reach your router but not the internet: Layer 3 problem.
+
 ### Layer 2: Data Link Layer
 
 The Network Layer deals with virtual IP addresses, but the Data Link Layer deals directly with the local, physical medium using **MAC Addresses**. 
 
 Because the Network Layer is technically "above" the Data Link layer, this layer doesn't actually care about IP addresses. Its only job is local delivery. Once the data reaches your local network (like your home Wi-Fi or office Ethernet), the Data Link Layer uses the physical MAC address burnt into the network card to locate the specific device (like your mobile phone or laptop) and physically send the data frame to it over the local hop.
+
+If your device is connected to the network but can't communicate with other devices on the same subnet: Layer 2 problem.
 
 ### Layer 1: Physical Layer
 
@@ -129,6 +139,8 @@ Once it receives data from the Data Link Layer, the Physical Layer converts it i
 - **Electric signals** (over copper Ethernet cables)
 - **Radio waves** (over Wi-Fi)
 - **Light pulses** (over Fiber Optics)
+
+If your cable is unplugged: Layer 1 problem.
 
 This completes the journey. You initiate something at the Application Layer (Layer 7), it transforms layer by layer down the stack, and finally, the Physical Layer blasts it across the wire to its destination.
 
