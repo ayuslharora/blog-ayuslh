@@ -47,7 +47,7 @@ export function buildPersonJsonLd() {
     },
     knowsAbout: [
       'System Design',
-      'Backend Engineering',
+      'Machine Learning',
       'Computer Networking',
       'Distributed Systems',
     ],
