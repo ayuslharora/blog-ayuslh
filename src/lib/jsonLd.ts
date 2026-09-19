@@ -192,10 +192,10 @@ export function buildWebsiteJsonLd() {
     '@type': 'WebSite',
     '@id': `${SITE_URL}/#website`,
     name: 'Ayush Arora',
-    alternateName: ['Ayush Arora Blog', 'blog.ayuslh.in'],
+    alternateName: ['Ayush Arora Blog', "Ayush's Blog", 'blog.ayuslh.in'],
     url: SITE_URL,
     description:
-      'In-depth notes and write-ups on system design, backend engineering, and computer networking, by Ayush Arora.',
+      'Technical deep dives into system design, machine learning, and computer networking, from first principles to production.',
     inLanguage: 'en-IN',
     author: { '@id': AUTHOR_ID },
     publisher: { '@id': AUTHOR_ID },

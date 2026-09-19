@@ -12,11 +12,11 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: {
-    default: 'Ayush Arora | System Design, Backend, and Networking Notes',
+    default: "Ayush Arora's Blog | Technical Deep Dives",
     template: '%s | Ayush Arora',
   },
   description:
-    'In-depth notes and write-ups on system design, backend engineering, and computer networking, from Designing Data-Intensive Applications to how an HTTP request actually works.',
+    'Technical deep dives into system design, machine learning, and computer networking, from first principles to production.',
   metadataBase: new URL('https://blog.ayuslh.in'),
   alternates: { canonical: '/' },
   openGraph: {
