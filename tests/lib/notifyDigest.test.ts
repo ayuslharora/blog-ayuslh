@@ -57,4 +57,17 @@ describe('buildDigest', () => {
   it('throws on an empty list', () => {
     expect(() => buildDigest([])).toThrow();
   });
+
+  it('stringifies a non-string description instead of crashing', () => {
+    const d = buildDigest([p(1, { description: 42 as unknown as string })]);
+    expect(d.preheader).toBe('42');
+    expect(d.posts[0].caption).toBe('42');
+  });
+
+  it('falls back to title/description when emailSubject or emailCaption is an empty string', () => {
+    const d = buildDigest([p(1, { emailSubject: '', emailCaption: '' })]);
+    expect(d.subject).toBe('Post 1');
+    expect(d.preheader).toBe('Description 1');
+    expect(d.posts[0].caption).toBe('Description 1');
+  });
 });
