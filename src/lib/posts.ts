@@ -19,6 +19,9 @@ export type PostMeta = {
   draft: boolean;
   source?: PostSource;
   subtopic?: string;
+  broadcast: boolean;
+  emailSubject?: string;
+  emailCaption?: string;
 };
 
 export type Post = PostMeta & { content: string };
@@ -45,7 +48,7 @@ function readAllPostFiles(baseDir: string): RawFile[] {
   return files;
 }
 
-function parsePost(series: string, slug: string, raw: string): Post {
+export function parsePost(series: string, slug: string, raw: string): Post {
   // gray-matter only recognizes frontmatter if `---` is the file's literal
   // first line - a leading blank line (e.g. from an editor's auto-format)
   // silently makes it return no frontmatter at all.
@@ -63,6 +66,9 @@ function parsePost(series: string, slug: string, raw: string): Post {
     draft: data.draft ?? false,
     source: data.source ?? undefined,
     subtopic: data.subtopic ?? undefined,
+    broadcast: data.broadcast !== false,
+    emailSubject: data.emailSubject ?? undefined,
+    emailCaption: data.emailCaption ?? undefined,
     content: content.trim(),
   };
 }
