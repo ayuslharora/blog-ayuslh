@@ -19,8 +19,12 @@ on:
         type: boolean
         default: true
 
+# Scoped per commit, not shared across the whole workflow: a shared group would let a later
+# push's queued run cancel an earlier push's still-pending run before it ever sends, silently
+# dropping that earlier post from the email. Each push/dispatch's diff and idempotency key are
+# independent, so running them concurrently is safe; only the send order can vary.
 concurrency:
-  group: notify-subscribers
+  group: notify-subscribers-${{ github.sha }}
   cancel-in-progress: false
 
 permissions:

@@ -24,7 +24,13 @@ export function readPostsAtCommit(sha: string, cwd: string = process.cwd()): Pos
   for (const file of files) {
     const match = POST_PATH.exec(file);
     if (!match || match[2].startsWith('_')) continue;
-    posts.push(parsePost(match[1], match[2], git(['show', `${sha}:${file}`], cwd)));
+    // A single post with malformed frontmatter must not take down the whole
+    // notify run, especially since the push that fixes it would fail too.
+    try {
+      posts.push(parsePost(match[1], match[2], git(['show', `${sha}:${file}`], cwd)));
+    } catch (err) {
+      console.error(`Skipping ${file} at ${sha}: ${err instanceof Error ? err.message : err}`);
+    }
   }
   return posts;
 }

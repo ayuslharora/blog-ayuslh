@@ -36,7 +36,10 @@ beforeAll(() => {
   git('commit', '-q', '-m', 'first');
   first = git('rev-parse', 'HEAD');
   write('content/posts/net/later.mdx', post('Later', false));
-  git('commit', '-q', '-am', 'publish later');
+  write('content/posts/net/broken-yaml.mdx', '---\ntitle: "Broken\ndescription: [unterminated\n---\nbody');
+  write('content/posts/net/numeric-description.mdx', '---\ntitle: "Numeric Description"\ndescription: 42\ndraft: false\n---\nbody');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'publish later, add a post with malformed frontmatter and one with a non-string description');
   second = git('rev-parse', 'HEAD');
 });
 
@@ -48,11 +51,26 @@ describe('readPostsAtCommit', () => {
 
   it('reflects frontmatter at each commit, so a draft flip shows up as newly live', () => {
     const newly = findNewlyLive(readPostsAtCommit(first, dir), readPostsAtCommit(second, dir));
-    expect(newly.map((p) => p.slug)).toEqual(['later']);
+    expect(newly.map((p) => p.slug).sort()).toEqual(['later', 'numeric-description']);
   });
 
   it('never announces the untitled file', () => {
-    expect(findNewlyLive([], readPostsAtCommit(second, dir)).map((p) => p.slug).sort()).toEqual(['later', 'live']);
+    expect(findNewlyLive([], readPostsAtCommit(second, dir)).map((p) => p.slug).sort()).toEqual([
+      'later',
+      'live',
+      'numeric-description',
+    ]);
+  });
+
+  it('never crashes or announces a file with unparseable frontmatter', () => {
+    expect(() => readPostsAtCommit(second, dir)).not.toThrow();
+    const newly = findNewlyLive([], readPostsAtCommit(second, dir));
+    expect(newly.map((p) => p.slug)).not.toContain('broken-yaml');
+  });
+
+  it('still reads a post whose description is not a string', () => {
+    const post = readPostsAtCommit(second, dir).find((p) => p.slug === 'numeric-description');
+    expect(post?.title).toBe('Numeric Description');
   });
 });
 
