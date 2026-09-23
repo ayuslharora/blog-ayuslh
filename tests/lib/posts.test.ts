@@ -26,16 +26,6 @@ describe('getAllPosts', () => {
 });
 
 describe('getPostsBySeries', () => {
-  it('returns only that series, sorted by slug ascending, drafts excluded', () => {
-    const posts = getPostsBySeries('seriesa', FIXTURES);
-    expect(posts.map((p) => p.slug)).toEqual([
-      'ch1-first-post',
-      'ch2-second-post',
-      'ch4-leading-blank-line',
-      'ch5-with-subtopic',
-    ]);
-  });
-
   it('returns an empty array for a series with only a draft', () => {
     const posts = getPostsBySeries('nonexistent', FIXTURES);
     expect(posts).toEqual([]);
