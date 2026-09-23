@@ -12,7 +12,6 @@ function toEmailPost(post: Post): EmailPost {
   return {
     url: `${SITE_URL}/${post.series}/${post.slug}`,
     seriesTitle: getSeriesTitle(post.series),
-    subtopic: post.subtopic,
     title: post.title,
     caption: post.emailCaption ?? post.description,
     readingMinutes: getReadingTimeMinutes(post.content),

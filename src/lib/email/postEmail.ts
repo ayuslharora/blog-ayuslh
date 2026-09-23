@@ -7,7 +7,6 @@ export const UNSUBSCRIBE_PLACEHOLDER = '{{{RESEND_UNSUBSCRIBE_URL}}}';
 export type EmailPost = {
   url: string;
   seriesTitle: string;
-  subtopic?: string;
   title: string;
   caption: string;
   readingMinutes: number;
@@ -15,7 +14,7 @@ export type EmailPost = {
 
 function renderPostBlock(post: EmailPost, single: boolean, isFirst: boolean): string {
   const url = escapeHtml(post.url);
-  const eyebrow = escapeHtml([post.seriesTitle, post.subtopic].filter(Boolean).join(' · '));
+  const eyebrow = escapeHtml(post.seriesTitle);
   const tail = single
     ? `<tr><td class="t-muted" style="padding:14px 36px 0;font-size:13px;color:#71717a;">${post.readingMinutes} min read</td></tr>
 <tr><td style="padding:24px 36px 32px;">${renderButton(post.url, 'Read the post')}</td></tr>`

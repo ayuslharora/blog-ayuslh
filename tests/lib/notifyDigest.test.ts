@@ -26,7 +26,6 @@ describe('buildDigest', () => {
       {
         url: 'https://blog.ayuslh.in/machine-learning-algorithms/post-5',
         seriesTitle: 'Machine Learning Algorithms',
-        subtopic: 'Ensemble Learning',
         title: 'Post 5',
         caption: 'Description 5',
         readingMinutes: 7,

@@ -6,7 +6,6 @@ import { escapeHtml } from '../../src/lib/email/escapeHtml';
 const post = (n: number, extra: Partial<EmailPost> = {}): EmailPost => ({
   url: `https://blog.ayuslh.in/series/post-${n}`,
   seriesTitle: 'Machine Learning Algorithms',
-  subtopic: 'Ensemble Learning',
   title: `Post ${n}`,
   caption: `Caption ${n}`,
   readingMinutes: 7,
@@ -24,7 +23,7 @@ describe('renderPostEmail', () => {
     const { html, text } = renderPostEmail({ posts: [post(1)], preheader: 'Short inbox line', overflowCount: 0 });
     expect(html).toContain('Read the post');
     expect(html).toContain('7 min read');
-    expect(html).toContain('Machine Learning Algorithms · Ensemble Learning');
+    expect(html).toContain('Machine Learning Algorithms');
     expect(html).toContain('href="https://blog.ayuslh.in/series/post-1"');
     expect(html).toContain('Short inbox line');
     expect(html).toContain('https://blog.ayuslh.in/email/avatar.gif');
