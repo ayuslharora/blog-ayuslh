@@ -10,12 +10,13 @@ const isDev = process.env.NODE_ENV !== 'production';
 
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://challenges.cloudflare.com`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
   "connect-src 'self'",
   "frame-ancestors 'none'",
+  "frame-src 'self' https://challenges.cloudflare.com",
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",
