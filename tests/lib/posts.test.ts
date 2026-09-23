@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
-import { getAllPosts, getAllSeries, getPostBySlug, getPostsBySeries } from '../../src/lib/posts';
+import { getAllPosts, getAllSeries, getPostBySlug, getPostsBySeries, parsePost } from '../../src/lib/posts';
 
 const FIXTURES = path.join(__dirname, '../fixtures/content/posts');
 
@@ -78,6 +78,28 @@ describe('subtopic field', () => {
     const posts = getPostsBySeries('seriesa', FIXTURES);
     const post = posts.find((p) => p.slug === 'ch1-first-post');
     expect(post?.subtopic).toBeUndefined();
+  });
+});
+
+describe('email frontmatter fields', () => {
+  const base = '---\ntitle: "T"\ndescription: "D"\ndate: "2026-01-01T00:00:00+05:30"\n';
+
+  it('defaults broadcast to true and leaves the overrides undefined', () => {
+    const post = parsePost('s', 'x', `${base}---\nbody`);
+    expect(post.broadcast).toBe(true);
+    expect(post.emailSubject).toBeUndefined();
+    expect(post.emailCaption).toBeUndefined();
+  });
+
+  it('reads broadcast: false and both overrides', () => {
+    const post = parsePost(
+      's',
+      'x',
+      `${base}broadcast: false\nemailSubject: "Inbox subject"\nemailCaption: "Inbox caption"\n---\nbody`
+    );
+    expect(post.broadcast).toBe(false);
+    expect(post.emailSubject).toBe('Inbox subject');
+    expect(post.emailCaption).toBe('Inbox caption');
   });
 });
 

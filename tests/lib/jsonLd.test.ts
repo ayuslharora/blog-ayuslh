@@ -15,6 +15,7 @@ const post: PostMeta = {
   date: '2026-07-08',
   tags: ['system-design'],
   draft: false,
+  broadcast: true,
 };
 
 describe('serializeJsonLd', () => {

@@ -1,0 +1,72 @@
+name: Notify subscribers
+
+on:
+  push:
+    branches: [main]
+    paths: ['content/posts/**']
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Posts live at head but not at this commit get announced'
+        required: true
+        default: 'HEAD~1'
+      head:
+        description: 'Commit to announce up to'
+        required: true
+        default: 'HEAD'
+      dry_run:
+        description: 'Only print the email; do not send'
+        type: boolean
+        default: true
+
+concurrency:
+  group: notify-subscribers
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+
+      - name: Resolve commit range
+        id: range
+        env:
+          EVENT: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
+          INPUT_BASE: ${{ inputs.base }}
+          INPUT_HEAD: ${{ inputs.head }}
+        run: |
+          if [ "$EVENT" = "push" ]; then
+            echo "before=$PUSH_BEFORE" >> "$GITHUB_OUTPUT"
+            echo "after=$PUSH_AFTER" >> "$GITHUB_OUTPUT"
+          else
+            echo "before=$(git rev-parse "$INPUT_BASE")" >> "$GITHUB_OUTPUT"
+            echo "after=$(git rev-parse "$INPUT_HEAD")" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send new-post email
+        env:
+          BEFORE_SHA: ${{ steps.range.outputs.before }}
+          AFTER_SHA: ${{ steps.range.outputs.after }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_SEGMENT_ID: ${{ secrets.RESEND_SEGMENT_ID }}
+        run: npm run notify
