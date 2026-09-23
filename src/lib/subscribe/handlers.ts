@@ -13,9 +13,9 @@ export type SubscribeDeps = {
 };
 
 export async function handleSubscribe(body: unknown, deps: SubscribeDeps): Promise<HandlerResult> {
-  const { email: rawEmail, company, turnstileToken } = (body ?? {}) as Record<string, unknown>;
+  const { email: rawEmail, hpCheck, turnstileToken } = (body ?? {}) as Record<string, unknown>;
 
-  if (typeof company === 'string' && company.length > 0) return { status: 200, body: { ok: true } };
+  if (typeof hpCheck === 'string' && hpCheck.length > 0) return { status: 200, body: { ok: true } };
 
   const email = normalizeEmail(rawEmail);
   if (!email) return { status: 400, body: { error: 'Please enter a valid email address.' } };

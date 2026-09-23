@@ -21,7 +21,7 @@ function subscribeDeps(overrides: Partial<SubscribeDeps> = {}) {
 describe('handleSubscribe', () => {
   it('silently accepts bots that fill the honeypot without sending anything', async () => {
     const { deps, sendEmail } = subscribeDeps();
-    const res = await handleSubscribe({ email: 'a@b.co', company: 'Acme', turnstileToken: 't' }, deps);
+    const res = await handleSubscribe({ email: 'a@b.co', hpCheck: 'Acme', turnstileToken: 't' }, deps);
     expect(res).toEqual({ status: 200, body: { ok: true } });
     expect(sendEmail).not.toHaveBeenCalled();
   });

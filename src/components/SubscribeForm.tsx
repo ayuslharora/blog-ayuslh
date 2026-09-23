@@ -65,7 +65,7 @@ export default function SubscribeForm() {
       const res = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: form.get('email'), company: form.get('company'), turnstileToken: token }),
+        body: JSON.stringify({ email: form.get('email'), hpCheck: form.get('hpCheck'), turnstileToken: token }),
       });
       if (res.ok) {
         setStatus({ kind: 'sent' });
@@ -119,7 +119,7 @@ export default function SubscribeForm() {
       </div>
       <input
         type="text"
-        name="company"
+        name="hpCheck"
         tabIndex={-1}
         autoComplete="off"
         aria-hidden="true"
