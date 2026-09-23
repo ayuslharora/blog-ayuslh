@@ -8,9 +8,9 @@ describe('getAllPosts', () => {
   it('excludes drafts and sorts by date descending', () => {
     const posts = getAllPosts(FIXTURES);
     expect(posts.map((p) => p.slug)).toEqual([
+      'ch5-with-subtopic',
       'ch4-leading-blank-line',
       'ch1-only-post',
-      'ch5-with-subtopic',
       'ch2-second-post',
       'ch1-first-post',
     ]);
