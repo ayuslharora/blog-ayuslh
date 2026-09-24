@@ -1,0 +1,103 @@
+---
+title: "Ch.50: Bagging vs Random Forest, the Actual Difference"
+description: "The two real differences between bagging and random forest: the base-model restriction to decision trees, and the difference that actually matters, tree-level column sampling in bagging versus node-level column sampling in random forest, shown by inspecting which columns each real trained tree splits on."
+date: "2026-09-24T22:15:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "bagging", "random-forest"]
+subtopic: "Ensemble Learning"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=l93jRojZMqU)
+
+[Ch.48](/machine-learning-algorithms/ch48-random-forest-intuition) already said random forest is bagging with decision trees pinned as the base model, and flagged that `RandomForestClassifier` samples features per split rather than per tree. This post pins down exactly what that means, because "bagging with decision trees as the base model" and "random forest" are not the same algorithm, a distinction that trips people up often enough to be a recurring interview question.
+
+The code below follows the [`bagging_vs_random_forest.ipynb` notebook](https://github.com/campusx-official/100-days-of-machine-learning/blob/master/day65-random-forest/bagging_vs_random_forest.ipynb) from the course's repo.
+
+---
+
+## 1. Difference One: What the Base Model Is Allowed to Be
+
+`BaggingClassifier` takes a `base_estimator` (or `estimator`, depending on scikit-learn version) parameter. It defaults to a decision tree, but it accepts anything: KNN, an SVM, whatever you hand it. Bagging is a general recipe, decision trees are just the most common choice.
+
+`RandomForestClassifier` has no such parameter. There is no way to tell it to use KNN as the base model. The base model is always, unconditionally, a decision tree, that restriction is baked into the class rather than being a default you could override.
+
+So the first, obvious difference: bagging is a technique that works with any base algorithm; random forest is bagging with the base algorithm locked to decision trees.
+
+## 2. The Question That Difference One Doesn't Answer
+
+If you build a `BaggingClassifier` and set its base estimator to a decision tree, have you now built a random forest? No. That's the trap: matching the base model doesn't make the two algorithms identical. There is a second, more specific difference, and it's the one worth actually understanding rather than memorizing as a fact.
+
+## 3. Difference Two: Where Column Sampling Happens
+
+Both bagging and random forest sample rows and columns to build diversity between trees ([Ch.45](/machine-learning-algorithms/ch45-bagging-ensemble-intuition), [Ch.48](/machine-learning-algorithms/ch48-random-forest-intuition)). Row sampling works the same way in both. Column sampling does not, and this is the actual difference between the two algorithms:
+
+- **Bagging**: column sampling happens once **per tree**, before the tree is built. If a tree is told it gets 2 of 5 columns, those 2 columns are fixed for that tree's entire life, every split in it, from the root down to every leaf, can only use those 2 columns.
+- **Random forest**: column sampling happens **per split, inside every tree**. Before each individual node is created, a fresh random subset of columns is drawn just for that node's decision. Different nodes in the same tree can and do end up splitting on different columns.
+
+This is exactly the "one real difference" flagged back in Ch.48: random forest moves feature sampling from once-per-tree down to once-per-split.
+
+## 4. Proving It on Real Trees
+
+`make_classification` builds a 5-column synthetic dataset, and both a `BaggingClassifier` and a `RandomForestClassifier` are told `max_features=2`, capping how many columns each tree is allowed to consider:
+
+```python
+import pandas as pd
+from sklearn.datasets import make_classification
+from sklearn.ensemble import BaggingClassifier, RandomForestClassifier
+from sklearn.tree import plot_tree
+
+X, y = make_classification(n_features=5, n_redundant=0, n_informative=5,
+                            n_clusters_per_class=1, random_state=42)
+df = pd.DataFrame(X, columns=['col1', 'col2', 'col3', 'col4', 'col5'])
+df['target'] = y
+
+bag = BaggingClassifier(max_features=2, random_state=42)
+bag.fit(df.iloc[:, :5], df.iloc[:, -1])
+
+rf = RandomForestClassifier(max_features=2, random_state=42)
+rf.fit(df.iloc[:, :5], df.iloc[:, -1])
+```
+
+Same `max_features=2` setting on both, same dataset. Plotting one tree out of each ensemble and reading off every column that tree actually splits on:
+
+<img src="/images/ch50-bagging-tree.png" alt="A decision tree from a BaggingClassifier with max_features=2, plotted with node labels. Every single split condition in the entire tree references only two columns, col1 and col5, no other column name appears anywhere in the tree" className="w-full h-auto" />
+
+That's tree-level sampling made visible: `col1` and `col5` were picked once, before this tree existed, and every node in it, root to leaves, is built from only those two. Checking the first 5 trees in the bagging ensemble confirms the pattern holds generally, each tree is locked to its own fixed pair for its entire structure:
+
+```
+bag tree 0 subset given: ['col5', 'col1'], features actually split on: ['col1', 'col5']
+bag tree 1 subset given: ['col1', 'col3'], features actually split on: ['col1', 'col3']
+bag tree 2 subset given: ['col3', 'col5'], features actually split on: ['col3', 'col5']
+bag tree 3 subset given: ['col4', 'col5'], features actually split on: ['col4', 'col5']
+bag tree 4 subset given: ['col5', 'col4'], features actually split on: ['col4', 'col5']
+```
+
+Now the same `max_features=2` setting on a random forest tree:
+
+<img src="/images/ch50-randomforest-tree.png" alt="A decision tree from a RandomForestClassifier with max_features=2, plotted with node labels. The split conditions reference four different columns across the tree, col3, col2, col1 and col5, unlike the bagging tree which was limited to only two" className="w-full h-auto" />
+
+Same cap of 2 candidate columns, but that cap applies **per split**, not per tree. This one random forest tree ends up splitting on four different columns (`col1`, `col2`, `col3`, `col5`) across its different nodes, because every node ran its own fresh draw of 2 candidates from the full 5. The first tree drew `col3`/`col2` at the root, then a different pair at the next node down, and so on:
+
+```
+rf tree 0 features split on: ['col1', 'col2', 'col3', 'col5']
+rf tree 1 features split on: ['col1', 'col2', 'col3', 'col4', 'col5']
+rf tree 2 features split on: ['col1', 'col2', 'col3', 'col5']
+rf tree 3 features split on: ['col1', 'col2', 'col5']
+rf tree 4 features split on: ['col1', 'col2', 'col3', 'col5']
+```
+
+Every bagging tree above is capped at exactly 2 unique columns for its whole structure. Every random forest tree spans 3 to 5 columns, because `max_features` there caps only how many columns compete *at each node*, not how many the finished tree ends up touching overall.
+
+## 5. Why This Makes Random Forest Perform Better, Usually
+
+More node-level randomness means less correlation between trees, and less correlation between base models is exactly what bagging's variance reduction depends on ([Ch.45](/machine-learning-algorithms/ch45-bagging-ensemble-intuition), Section 4): the more independent the trees' mistakes are, the more those mistakes cancel out under a vote. Tree-level column sampling gives you diversity between trees (tree A only ever sees columns 1 and 5, tree B only ever sees 4 and 5), but each individual tree is still internally rigid, forced to build its entire structure from a small fixed set. Node-level sampling injects that same randomness far more times, once per node instead of once per tree, which decorrelates the trees further and is the reason random forest tends to beat plain bagging-with-trees on the same data, even though both are, mechanically, "trees plus row and column sampling."
+
+"Tends to" is doing real work in that sentence: it's not guaranteed for every dataset, and trying both is cheap enough that there's no reason to skip the comparison on a real problem.
+
+## 6. What to Take Away
+
+- Difference one: bagging accepts any base algorithm; random forest's base model is unconditionally a decision tree.
+- Difference two, the one that actually distinguishes "bagging with decision trees" from "random forest": bagging samples columns once per tree, fixed for that tree's whole structure; random forest samples columns fresh at every single node, inside every tree.
+- Node-level sampling decorrelates the trees more than tree-level sampling does, which is why random forest usually, not always, outperforms an equivalent bagging-with-trees ensemble.
+
+Next: random forest's actual hyperparameters, `n_estimators`, `max_features`, and the rest, and what each one trades off.
