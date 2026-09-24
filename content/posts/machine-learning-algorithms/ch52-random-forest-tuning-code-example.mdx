@@ -1,0 +1,117 @@
+---
+title: "Ch.52: Tuning Random Forest on a Real Dataset"
+description: "Applying random forest to a heart disease classification problem end to end: out-of-the-box comparison against gradient boosting, SVC, and logistic regression, cross-validation, then GridSearchCV and RandomizedSearchCV to actually search the hyperparameter space instead of nudging one slider at a time."
+date: "2026-09-24T22:45:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "random-forest", "hyperparameter-tuning"]
+subtopic: "Ensemble Learning"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=4Im0CT43QxY)
+
+[Ch.51](/machine-learning-algorithms/ch51-random-forest-hyperparameters) went through random forest's hyperparameters one at a time. This one applies random forest to a real dataset end to end: a quick out-of-the-box comparison against other algorithms, cross-validation, and then two proper ways to search the hyperparameter space instead of hand-nudging one parameter at a time like Ch.51 did.
+
+The code below follows the [`code-example-random-forest.ipynb` notebook](https://github.com/campusx-official/100-days-of-machine-learning/blob/master/day65-random-forest/code-example-random-forest.ipynb) from the course's repo, using its [`heart.csv`](https://github.com/campusx-official/100-days-of-machine-learning/blob/master/day65-random-forest/heart.csv) dataset (303 patients, several clinical measurements, a binary heart-disease label).
+
+---
+
+## 1. Out of the Box, Random Forest Is Already Competitive
+
+Load the data, split it, and fit a plain `RandomForestClassifier` alongside gradient boosting, an SVC, and logistic regression, all with default settings, no tuning:
+
+```python
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+
+df = pd.read_csv('heart.csv')
+X, y = df.iloc[:, 0:-1], df.iloc[:, -1]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+```
+
+<img src="/images/ch52-algorithm-comparison.png" alt="A grouped bar chart comparing accuracy for Random Forest, Gradient Boosting, SVC, and Logistic Regression, each with two bars: a single train/test split and a 10-fold cross-validated score. Random Forest scores about 0.84 on both measures. Gradient Boosting scores lower on the single split (0.77) but close on cross-validation (0.80). SVC is the weakest on both (0.71 and 0.66). Logistic Regression has the highest single-split score (0.89) but drops to about 0.82 under cross-validation, landing close to Random Forest" className="w-full h-auto" />
+
+On a single train/test split, logistic regression edges out random forest here (0.89 vs 0.84), a sign this particular dataset has a fairly linear relationship between features and outcome. But single-split accuracy is noisy, it depends on which 20% happened to land in the test set. Averaging over 10-fold cross-validation instead, logistic regression drops to 0.82 while random forest holds at 0.83, essentially a tie between the two, with gradient boosting close behind and SVC clearly behind both. This is the actual claim worth taking from this section: random forest doesn't need to win outright to be worth reaching for by default, it consistently lands in the top 2-3 algorithms on a tabular problem without any tuning at all, which is not true of most algorithms out of the box.
+
+## 2. A Single Hand-Picked Parameter Already Helps a Little
+
+Before reaching for a systematic search, trying one educated guess shows tuning has room to help: setting `max_samples=0.75` (the sweet spot [Ch.51](/machine-learning-algorithms/ch51-random-forest-hyperparameters) found) nudges the cross-validated score from 0.832 to 0.835, a small but real gain from one parameter. With more parameters to adjust simultaneously, and no way to know in advance which combination of values works best together, guessing one at a time stops being practical. That's the problem the next two tools solve.
+
+## 3. GridSearchCV: Try Every Combination
+
+`GridSearchCV` takes a dictionary of parameter values and trains a model for every possible combination of them, evaluating each with cross-validation:
+
+```python
+from sklearn.model_selection import GridSearchCV
+
+param_grid = {
+    'n_estimators': [20, 60, 100, 120],
+    'max_features': [0.2, 0.6, 1.0],
+    'max_depth': [2, 8, None],
+    'max_samples': [0.5, 0.75, 1.0],
+}
+# 4 x 3 x 3 x 3 = 108 combinations
+
+rf = RandomForestClassifier(random_state=42)
+rf_grid = GridSearchCV(estimator=rf, param_grid=param_grid, cv=5, n_jobs=1)
+rf_grid.fit(X_train, y_train)
+```
+
+4 values times 3 times 3 times 3 is 108 distinct combinations, "grid" because you can picture it as a 4-dimensional table with one random forest trained per cell. At `cv=5`, that's 108 x 5 = 540 individual model fits for one call. Reading off the winner:
+
+```
+best params: {'max_depth': 8, 'max_features': 0.2, 'max_samples': 0.75, 'n_estimators': 20}
+best score: 0.839
+```
+
+`max_features=0.2`, `max_samples=0.75`, and `n_estimators=20` match the values traced by hand in [Ch.51](/machine-learning-algorithms/ch51-random-forest-hyperparameters). `max_depth=8` came out best in this run rather than unlimited depth, a difference worth flagging honestly: the search itself is exhaustive and reproducible given a fixed `random_state`, but the *winning* combination depends on the exact random forest runs and data split, so don't expect to reproduce the video's exact numbers digit for digit, only the same shape of result, a small, real improvement over the untuned default.
+
+## 4. RandomizedSearchCV: Sample Instead of Enumerate
+
+Add a few more parameters to search (`bootstrap`, `min_samples_split`, `min_samples_leaf`) and the grid balloons to 864 combinations. `GridSearchCV` would train all 864 x 5 folds worth of models, exhaustive but slow. `RandomizedSearchCV` instead draws a fixed number of random combinations from the same space and only trains those:
+
+```python
+from sklearn.model_selection import RandomizedSearchCV
+
+param_grid = {
+    'n_estimators': [20, 60, 100, 120],
+    'max_features': [0.2, 0.6, 1.0],
+    'max_depth': [2, 8, None],
+    'max_samples': [0.5, 0.75, 1.0],
+    'bootstrap': [True, False],
+    'min_samples_split': [2, 5],
+    'min_samples_leaf': [1, 2],
+}
+# 4 x 3 x 3 x 3 x 2 x 2 x 2 = 864 combinations
+
+rf_rand = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
+                              n_iter=10, cv=5, n_jobs=1, random_state=42)
+rf_rand.fit(X_train, y_train)
+```
+
+`n_iter=10` samples only 10 of the 864 combinations rather than all of them, 10 x 5 = 50 fits instead of 4,320. The result:
+
+```
+best score: 0.822
+```
+
+Lower than `GridSearchCV`'s 0.839, which is expected: sampling 10 out of 864 combinations can miss the actual best one, and did here. The trade being made is speed for optimality, not speed for nothing.
+
+## 5. When to Use Which
+
+- **Small dataset, few hyperparameters to search**: `GridSearchCV`. It's exhaustive, so it finds the true best combination in the grid you defined, and on a small search space the cost is manageable (540 fits ran quickly here on 242 training rows).
+- **Large dataset, or many hyperparameters (a large combination space)**: `RandomizedSearchCV`. An exhaustive search over thousands of combinations on a large dataset can take an impractical amount of time; sampling a few dozen combinations gets you a near-optimal result in a fraction of the time.
+
+Neither tool is universally better, they trade completeness for speed in opposite directions, and the right choice depends on how big the search space and the dataset both are.
+
+## 6. What to Take Away
+
+- Random forest performs competitively out of the box, without tuning, against algorithms that need more care to get right; on this dataset it tied logistic regression under cross-validation and beat gradient boosting and SVC.
+- Hand-tuning one hyperparameter at a time (Ch.51's approach) can help, but doesn't scale once you have several hyperparameters that interact with each other.
+- `GridSearchCV` searches a hyperparameter grid exhaustively, guaranteed to find the best combination within that grid at the cost of training every combination.
+- `RandomizedSearchCV` samples a fixed number of combinations instead, trading a chance of missing the true optimum for dramatically less compute, the right call on large search spaces or large datasets.
+
+Next: the out-of-bag score, the free validation estimate that comes from the roughly one-third of rows each tree never sees during its own bootstrap sample.
