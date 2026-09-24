@@ -56,7 +56,7 @@ param_grid = {
 # 4 x 3 x 3 x 3 = 108 combinations
 
 rf = RandomForestClassifier(random_state=42)
-rf_grid = GridSearchCV(estimator=rf, param_grid=param_grid, cv=5, n_jobs=1)
+rf_grid = GridSearchCV(estimator=rf, param_grid=param_grid, cv=5, n_jobs=-1)
 rf_grid.fit(X_train, y_train)
 ```
 
@@ -88,7 +88,7 @@ param_grid = {
 # 4 x 3 x 3 x 3 x 2 x 2 x 2 = 864 combinations
 
 rf_rand = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
-                              n_iter=10, cv=5, n_jobs=1, random_state=42)
+                              n_iter=10, cv=5, n_jobs=-1, random_state=42)
 rf_rand.fit(X_train, y_train)
 ```
 
