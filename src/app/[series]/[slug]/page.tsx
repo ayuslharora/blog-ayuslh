@@ -79,6 +79,7 @@ import RegressionTreeExplorer from '../../../components/RegressionTreeExplorer';
 import VotingClassifierExplorer from '../../../components/VotingClassifierExplorer';
 import VotingRegressorExplorer from '../../../components/VotingRegressorExplorer';
 import BaggingIntuitionExplorer from '../../../components/BaggingIntuitionExplorer';
+import BaggingRegressorExplorer from '../../../components/BaggingRegressorExplorer';
 import TableOfContents from '../../../components/TableOfContents';
 import RelatedPosts from '../../../components/RelatedPosts';
 import MdxImage from '../../../components/MdxImage';
@@ -255,6 +256,7 @@ export default async function PostPage({
             VotingClassifierExplorer,
             VotingRegressorExplorer,
             BaggingIntuitionExplorer,
+            BaggingRegressorExplorer,
             Mermaid,
             img: MdxImage,
             MdxImage,

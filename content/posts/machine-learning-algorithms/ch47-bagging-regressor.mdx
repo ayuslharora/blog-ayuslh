@@ -37,11 +37,11 @@ Every knob is identical to `BaggingClassifier`: `max_samples`, `max_features`, `
 
 ## 2. One Overfit Tree, Smoothed
 
-The video demos this on a small interactive web app: a single feature, a noisy curve, and a toggle between a lone decision tree and a bagged ensemble. Reproducing that here with 150 points on a noisy sine-like curve:
+A small interactive app is how this got demoed originally: a single feature, a noisy curve, and sliders for `n_estimators`, `max_samples`, and `bootstrap`, watching a jagged single tree turn into a smooth ensemble curve. Here's a live version of that same idea, on 150 points sampled from a noisy sine-like curve, so you can drag the sliders yourself:
 
-<img src="/images/ch47-single-tree-vs-bagging-curve.png" alt="Two line plots over the same noisy 1-D scatter of 150 points. Left, a single decision tree regressor: train R-squared 1.000, test R-squared 0.607, the fitted curve is a jagged staircase reaching for every individual training point including the outliers. Right, a 50-tree bagging regressor: train R-squared 0.797, test R-squared 0.841, the fitted curve is a single smooth wave following the underlying trend without chasing individual points" className="w-full h-auto" />
+<BaggingRegressorExplorer />
 
-The single tree reaches R²=1.000 on the data it trained on, it touches every point exactly, and its test score (0.607) suffers for it: low bias, high variance. The bagged version never manages a perfect training fit (0.797, because averaging 50 different trees smooths out the noise each one memorised), but that's exactly why its test score is *higher* (0.841): low bias, much lower variance. This is the bias-variance tradeoff from Ch.12, visible on one plot.
+The single tree (left) reaches R²=1.000 on the data it trained on, it touches every point exactly, and its test score suffers for it: low bias, high variance. The bagged ensemble (right) never manages a perfect training fit, averaging many trees smooths out the noise each one individually memorised, but that's exactly why its test score comes out higher: low bias, much lower variance. This is the bias-variance tradeoff from Ch.12, live on one chart. Drag `max_samples` down or flip `bootstrap` to `False` and watch how much of that smoothing survives.
 
 As with the classifier, the base estimator doesn't have to be a decision tree, you can pass an SVR or a linear model, but trees are the default because they're the highest-variance model bagging has the most to smooth out.
 
