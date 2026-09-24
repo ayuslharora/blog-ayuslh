@@ -1,0 +1,114 @@
+---
+title: "Ch.47: The Bagging Regressor in Code"
+description: "Building sklearn's BaggingRegressor: the same idea as the classifier but the aggregation step averages instead of votes, watching a single overfit tree smooth into a bagged curve, and benchmarking it against linear regression, KNN, and a lone decision tree on real housing data, tuned with GridSearchCV."
+date: "2026-09-24T20:42:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "bagging", "random-forest"]
+subtopic: "Ensemble Learning"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=HYVzrETXbkE)
+
+[Ch.46](/machine-learning-algorithms/ch46-bagging-classifier) built `BaggingClassifier`. Regression uses the exact same class, `BaggingRegressor`, with exactly the same hyperparameters. The only thing that changes is the last step: instead of each base model casting a vote and the majority winning, each base model outputs a number and bagging takes the mean.
+
+There is no companion notebook for this video in the course's usual repo, so every number and chart below comes from running scikit-learn fresh.
+
+---
+
+## 1. Same Idea, Different Aggregation
+
+Recall the bagging recipe from Ch.45: draw random subsets of the training rows (with replacement, that's the "bootstrap" in bagging), train one base model per subset, then combine. For classification that combination step is a vote. For regression, since every base model now predicts a number instead of a class, the natural combination is a mean:
+
+```python
+from sklearn.ensemble import BaggingRegressor
+from sklearn.tree import DecisionTreeRegressor
+
+bag = BaggingRegressor(
+    estimator=DecisionTreeRegressor(),
+    n_estimators=50,
+    max_samples=0.25,
+    bootstrap=True,
+    random_state=42,
+    n_jobs=-1,
+)
+```
+
+Every knob is identical to `BaggingClassifier`: `max_samples`, `max_features`, `bootstrap`, `bootstrap_features`, `oob_score`. If you've read Ch.46, you already know this class. Pasting, random subspaces, and random patches are still the same four combinations of `bootstrap` and `bootstrap_features`, just applied to a regressor, and `oob_score=True` still gives you a free validation estimate from the rows each tree never trained on, computed as an R² (`bag.oob_score_`) instead of accuracy.
+
+## 2. One Overfit Tree, Smoothed
+
+The video demos this on a small interactive web app: a single feature, a noisy curve, and a toggle between a lone decision tree and a bagged ensemble. Reproducing that here with 150 points on a noisy sine-like curve:
+
+<img src="/images/ch47-single-tree-vs-bagging-curve.png" alt="Two line plots over the same noisy 1-D scatter of 150 points. Left, a single decision tree regressor: train R-squared 1.000, test R-squared 0.607, the fitted curve is a jagged staircase reaching for every individual training point including the outliers. Right, a 50-tree bagging regressor: train R-squared 0.797, test R-squared 0.841, the fitted curve is a single smooth wave following the underlying trend without chasing individual points" className="w-full h-auto" />
+
+The single tree reaches R²=1.000 on the data it trained on, it touches every point exactly, and its test score (0.607) suffers for it: low bias, high variance. The bagged version never manages a perfect training fit (0.797, because averaging 50 different trees smooths out the noise each one memorised), but that's exactly why its test score is *higher* (0.841): low bias, much lower variance. This is the bias-variance tradeoff from Ch.12, visible on one plot.
+
+As with the classifier, the base estimator doesn't have to be a decision tree, you can pass an SVR or a linear model, but trees are the default because they're the highest-variance model bagging has the most to smooth out.
+
+## 3. Benchmarking on Real Housing Data
+
+The video's second half runs this on a real dataset with `load_boston`, comparing linear regression, KNN, and a decision tree against a bagged ensemble. `load_boston` was removed from scikit-learn in 1.2 over an [ethical issue with one of its engineered features](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_boston.html), so the code below uses scikit-learn's own modern replacement, the [California housing dataset](https://scikit-learn.org/stable/datasets/real_world.html#california-housing-dataset): 20,640 rows, 8 numeric features, predicting median house value per district.
+
+```python
+from sklearn.datasets import fetch_california_housing
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import BaggingRegressor
+
+data = fetch_california_housing()
+X_train, X_test, y_train, y_test = train_test_split(
+    data.data, data.target, test_size=0.2, random_state=42
+)
+
+lr = LinearRegression().fit(X_train, y_train)
+knn = KNeighborsRegressor().fit(X_train, y_train)
+tree = DecisionTreeRegressor(random_state=42).fit(X_train, y_train)
+
+bag = BaggingRegressor(
+    estimator=DecisionTreeRegressor(), n_estimators=100,
+    random_state=42, n_jobs=-1,
+).fit(X_train, y_train)
+```
+
+<img src="/images/ch47-california-housing-comparison.png" alt="Bar chart of test R-squared on California housing for five models. Linear Regression 0.576, KNN 0.146, Decision Tree 0.619, Bagging default 0.804, Bagging tuned 0.806. The first three bars are grey, the last two blue" className="w-full h-auto" />
+
+Linear regression and the lone decision tree land in the same neighbourhood (0.576 and 0.619), unsurprising since a single tree here isn't deep enough relative to the data to overfit as badly as in the toy example above. The real surprise is KNN, which collapses to 0.146. That's not KNN being a bad algorithm, it's KNN on unscaled features: this dataset mixes median income (roughly 0 to 15), room counts (single digits to hundreds), and latitude/longitude (30s to -120s), and distance-based methods are dominated by whichever column happens to have the largest raw numbers. KNN needs its inputs standardized first; none of the other four models here do, which is exactly why the gap is this large.
+
+With zero tuning, `BaggingRegressor`'s default settings already reach 0.804, comfortably ahead of every single model. Its train score is 0.974, still overfitting some, but far less than the lone tree would if grown this deep on the full feature set, and the gap between train and test has shrunk enough that the test number is meaningfully better.
+
+## 4. Tuning It
+
+Same search-don't-guess advice as Ch.46, now with `GridSearchCV`:
+
+```python
+from sklearn.model_selection import GridSearchCV
+
+param_grid = {
+    "n_estimators": [50, 100, 300],
+    "max_samples": [0.5, 1.0],
+    "max_features": [0.5, 1.0],
+    "bootstrap": [True, False],
+    "bootstrap_features": [True, False],
+}
+search = GridSearchCV(
+    BaggingRegressor(estimator=DecisionTreeRegressor(random_state=42), n_jobs=-1),
+    param_grid=param_grid, cv=3, scoring="r2", n_jobs=-1,
+).fit(X_train, y_train)
+
+# best_params_: {'bootstrap': True, 'bootstrap_features': False,
+#                'max_features': 1.0, 'max_samples': 1.0, 'n_estimators': 300}
+# best_score_ (CV): 0.802
+```
+
+The search's own cross-validated score (0.802) lands almost exactly where the untuned default already was (0.804 on the held-out set), and the tuned model's actual test score, 0.806, is barely different. On this particular dataset the default bagging configuration was already close to as good as a grid search over 72 combinations gets you. That's a useful thing to know, not every dataset rewards heavy tuning, but it's also exactly why you run the search rather than assume it up front: the video's own numbers on `load_boston` showed a bigger jump (default test R² 0.81 to a tuned cross-validated score around 0.878), so how much tuning buys you is dataset-dependent, not a fixed rule of thumb.
+
+## 5. What to Take Away
+
+- `BaggingRegressor` is `BaggingClassifier` with a different last step: mean instead of majority vote. Every hyperparameter, every variant (bagging, pasting, random subspaces, random patches), carries over unchanged.
+- A single fully-grown tree can hit a perfect training fit and still lose on test data; bagging trades away some of that training fit for a large gain in test performance, the bias-variance tradeoff made visible.
+- Distance-based models like KNN need scaled features to be evaluated fairly against models like decision trees and bagging that don't care about feature scale.
+- Tune with `GridSearchCV` or `RandomizedSearchCV`, not by hand, but don't assume the search will always move the needle far: sometimes the untuned default is already close to as good as it gets.
+
+Next: Random Forest, bagging-of-trees with feature sampling moved inside each split instead of applied per tree.
