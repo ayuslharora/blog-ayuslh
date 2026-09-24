@@ -1,0 +1,108 @@
+---
+title: "Ch.48: Random Forest, the Name and the Intuition"
+description: "Where 'random forest' gets its name, why it's bagging specialized to decision trees, and a from-scratch demo of the three sampling schemes (row, feature, combined) that make each tree in the forest different, with real trees trained and voted on real data."
+date: "2026-09-24T21:43:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "bagging", "random-forest"]
+subtopic: "Ensemble Learning"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=F9uESCHGjhA)
+
+[Ch.45](/machine-learning-algorithms/ch45-bagging-ensemble-intuition) through [Ch.47](/machine-learning-algorithms/ch47-bagging-regressor) covered bagging in general: bootstrap a subset of rows, train a base model on each subset, aggregate. This post is the first of a few on the specific case that gets used far more than any other bagging variant: **random forest**.
+
+The code below follows the ["random forest learning tool" notebook](https://github.com/campusx-official/100-days-of-machine-learning/blob/master/day65-random-forest/rf_learning_tool.ipynb) from the course's repo, which builds the sampling and voting steps by hand rather than calling `RandomForestClassifier`, precisely so the mechanics are visible before the library hides them. It's a loose recreation of what random forest does internally, not the exact implementation, real random forests handle the feature sampling per split rather than per tree (more on that below), but it's the right level of detail for building intuition.
+
+---
+
+## 1. Why Random Forest Specifically
+
+Three things make it worth learning before most other algorithms:
+
+- It's one of the few algorithms that performs well on almost any tabular problem without much fuss, in the same company as gradient boosting and XGBoost.
+- The same algorithm handles both classification and regression, just by changing the aggregation step.
+- Its original paper noted that it doesn't need much hyperparameter tuning to already perform well out of the box, a rare property for a model this powerful.
+
+## 2. What You Need First
+
+Random forest is a **bagging technique** ([Ch.45](/machine-learning-algorithms/ch45-bagging-ensemble-intuition)) whose base model is always a **decision tree** ([Ch.37](/machine-learning-algorithms/ch37-decision-tree-intuition)). If either idea is unfamiliar, start there, everything here builds directly on top.
+
+## 3. Where the Name Comes From
+
+Two words, two separate reasons:
+
+- **Forest**, because the model is a collection of many decision trees trained together. A group of trees is a forest; that part is not subtle.
+- **Random**, because bagging (bootstrap **agg**regat**ing**) builds each tree's training set by **random** sampling. The randomness in the data selection is what "random" refers to, not anything random about the trees' structure or predictions.
+
+So: random forest is bagging where you've committed to decision trees as the one and only base model, and you're using the word "forest" instead of writing "bagging ensemble of decision trees" every time.
+
+## 4. Building Three Different Trees by Hand
+
+The core question bagging with decision trees needs to answer is: how do you make several decision trees, all trained on the same dataset, actually different from each other? If every tree saw identical data, they'd all come out (nearly) identical, and voting between identical trees buys nothing.
+
+The demo notebook answers this with three sampling functions, applied to a synthetic classification dataset (`make_classification`, 5 features, 100 rows):
+
+```python
+import random
+import numpy as np
+import pandas as pd
+from sklearn.datasets import make_classification
+
+X, y = make_classification(n_features=5, n_redundant=0, n_informative=5,
+                            n_clusters_per_class=1, random_state=42)
+df = pd.DataFrame(X, columns=['col1', 'col2', 'col3', 'col4', 'col5'])
+df['target'] = y
+
+def sample_rows(df, percent):
+    return df.sample(int(percent * df.shape[0]), replace=True)
+
+def sample_features(df, percent):
+    cols = random.sample(df.columns.tolist()[:-1], int(percent * (df.shape[1] - 1)))
+    new_df = df[cols].copy()
+    new_df['target'] = df['target']
+    return new_df
+
+def combined_sampling(df, row_percent, col_percent):
+    new_df = sample_rows(df, row_percent)
+    return sample_features(new_df, col_percent)
+```
+
+### Row sampling
+
+`sample_rows` draws a random subset of rows **with replacement**, the classic bootstrap: a row can be picked more than once, and some rows won't be picked at all. Building three decision trees from three independent 50%-row samples of the same dataset:
+
+<img src="/images/ch48-row-sampling-trees.png" alt="Three decision trees trained on independent 50-row bootstrap samples of the same 5-feature dataset, each with a visibly different structure: different root split features and thresholds, different depths" className="w-full h-auto" />
+
+Same data, same algorithm, three different trees, because each one only saw part of the picture. Handed a query point where the true label is 0, the three trees vote `[1, 0, 0]`, one dissenter, two in agreement, and the majority vote lands on the correct label. That's the entire mechanism: no single tree has to be right, the vote just has to lean the right way more often than not.
+
+Both row sampling and feature sampling can be done **with or without replacement**, the same distinction that separates bagging from pasting in Ch.45's variants table. `sample_rows` above uses `replace=True`, so duplicate rows within a single tree's subset are possible, they just aren't guaranteed on any given draw.
+
+### Feature sampling
+
+`sample_features` does the same thing on columns instead of rows: each tree only gets to see a random subset of the features (here, 2 of the 5), and never sees the rest at all.
+
+<img src="/images/ch48-feature-sampling-trees.png" alt="Three decision trees, each trained on a different random pair of the five features (col1/col5, col1/col3, col2/col3), producing different split structures because each tree cannot see the columns the others were given" className="w-full h-auto" />
+
+This is a different kind of diversity than row sampling: a tree can't overfit to a feature it never saw, and a feature that happens to be misleading in this dataset only misleads the trees that were handed it. All three trees agree on the query point here (`0, 0, 0`), which is fine, agreement isn't a problem, uncorrelated *errors* are what bagging is hunting for, not disagreement for its own sake.
+
+### Combined sampling
+
+`combined_sampling` does both at once, a random subset of rows *and* a random subset of columns per tree, which is the most diversity you can inject this way:
+
+<img src="/images/ch48-combined-sampling-trees.png" alt="Three decision trees, each trained on both a random 50-row subset and a random pair of columns, showing the most structurally different trees of the three demos" className="w-full h-auto" />
+
+Again all three agree on the query point (`0, 0, 0`), but notice how different the trees look from each other compared to the row-sampling-only trees above: combining both sources of randomness is the most aggressive way to decorrelate the trees, at the cost of giving each individual tree the least information.
+
+## 5. From Manual Voting to `RandomForestClassifier`
+
+Everything above, sample rows and/or columns, train a tree on each subset, predict with all of them, take the majority, is bagging exactly as described in Ch.45. `RandomForestClassifier` automates this with one specific choice: it always does row sampling (bootstrap) at the tree level, but instead of choosing a fixed feature subset once per tree the way `sample_features` does above, it samples a fresh random subset of features **at every single split, inside every tree**. That's the one real difference between "bagging with decision trees" and "random forest," and it's small enough that the intuition built here carries over directly; the next post covers what that extra bit of randomness actually buys you over plain bagging.
+
+For regression, nothing about the sampling changes, only the aggregation step at the end: instead of a majority vote, you average the trees' predicted numbers, exactly as `BaggingRegressor` did in [Ch.47](/machine-learning-algorithms/ch47-bagging-regressor).
+
+## 6. What to Take Away
+
+- Random forest = bagging, with the base model pinned to decision trees. The name comes from "forest" (many trees) plus "random" (the bootstrap sampling that builds each tree's training set).
+- Diversity between trees can come from row sampling, feature sampling, or both together; each tree sees a genuinely different slice of the data, so their mistakes are largely uncorrelated and cancel out under a vote (or an average, for regression).
+- What `RandomForestClassifier` adds on top of generic bagging-with-trees is moving the feature sampling from once-per-tree to once-per-split, inside every tree.
+
+Next: what random forest actually buys you over a single decision tree, and over plain bagging.
