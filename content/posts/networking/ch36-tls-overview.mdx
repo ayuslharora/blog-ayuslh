@@ -1,0 +1,80 @@
+---
+title: "Ch.36: TLS, an Overview"
+description: "TLS is the security layer that turns HTTP into HTTPS. This chapter covers its three goals (confidentiality, integrity, authentication), the two encryption families it combines (symmetric for speed, asymmetric for safely exchanging the symmetric key), and where it sits: a separate bolt-on layer for TCP-based HTTP, but built directly into QUIC for HTTP/3."
+date: "2026-09-24T18:20:00+05:30"
+tags: ["networking", "security", "tls", "encryption", "https", "http", "quic", "symmetric-encryption", "asymmetric-encryption"]
+subtopic: "TLS"
+draft: false
+source:
+  title: "41 TLS overview"
+  channel: "Chai aur Code"
+  url: "https://www.youtube.com/watch?v=iM8Dx61uNRc"
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=iM8Dx61uNRc)
+
+Every chapter so far has assumed the network is just slow or lossy. It also isn't private: anything sent as plain [TCP](/networking/ch15-transmission-control-protocol-tcp) or [UDP](/networking/ch13-user-datagram-protocol-udp) payload can be read, and tampered with, by anyone sitting on the path between client and server. **TLS** (Transport Layer Security) is the layer that fixes that. This chapter is the overview: what problems TLS solves and the two encryption techniques it's built from. The handshake itself, and protocols like RSA and Diffie-Hellman, get their own chapters later.
+
+---
+
+## What TLS is for
+
+TLS sits between the application layer and the transport layer, roughly OSI layer 6 (presentation), wrapping whatever the application sends before it hits TCP or UDP. It has three goals:
+
+- **Confidentiality.** An attacker on the network path can still capture the bytes going by, but the bytes are encrypted, so capturing them doesn't tell the attacker what's actually being said.
+- **Integrity.** If an attacker modifies the data in transit, the destination can detect that the data was tampered with, rather than silently accepting a corrupted or altered message as if it came unchanged from the source.
+- **Authentication.** The client needs to know the server it's talking to is really who it claims to be, not an impostor. TLS does this with a **signed certificate**, issued by a certificate authority, that the server presents during the handshake. Certificates and certificate authorities get their own dedicated chapter.
+
+HTTPS is just this applied to HTTP: **HTTPS = HTTP + TLS**. Plain HTTP is a valid protocol on its own, it just sends everything as plaintext, so anyone on the path reads it as easily as the destination does. Add a TLS layer underneath and the same HTTP request/response gets encrypted before it goes on the wire.
+
+---
+
+## Two kinds of encryption, two different jobs
+
+TLS doesn't use one encryption technique, it uses two, for two different problems.
+
+### Symmetric encryption: fast, but you need the key first
+
+In symmetric encryption, the client and server both hold the **same secret key**. The client encrypts plaintext with that key, sends the ciphertext, and the server decrypts it with the same key. An attacker who intercepts the ciphertext can't make sense of it without the key.
+
+Symmetric algorithms use comparatively simple operations (XOR-style bit manipulation is the canonical example), which makes them cheap to compute and fast to run. That's the appeal.
+
+The catch: both sides need the *same* key before any of this works, and the only channel available to share it is the same untrusted network the attacker is watching. Send the secret key in the clear and the attacker just captures it along with everything else, at which point the encryption is worthless. Securely getting a shared secret onto both sides without ever exposing it in transit is the actual hard problem, and symmetric encryption alone can't solve it.
+
+### Asymmetric encryption: solves the key-sharing problem, at a cost
+
+Asymmetric encryption uses **two different keys**: a public key and a private key. Data encrypted with one key can only be decrypted with the other. In TLS's use of it, the server generates a public/private key pair and sends the public key to the client (how, in detail, is a later chapter). The client uses that public key to encrypt data; only the server's private key can decrypt it. The public key is, by design, useless for decryption, so it doesn't matter that it traveled over the open network in plain view.
+
+That property is exactly what solves the symmetric-key problem: the client can now encrypt a freshly generated symmetric key with the server's public key and send it over, and only the server's private key can recover it. An eavesdropper sees the encrypted key pass by and can't do anything with it.
+
+The tradeoff is cost. Asymmetric algorithms (RSA and Diffie-Hellman are the two named here, each gets its own chapter) are computationally heavier than symmetric ones. So TLS doesn't use asymmetric encryption for the whole conversation, it uses it once, briefly, to get a symmetric key safely onto both sides. After that, everything switches to the cheap symmetric algorithm.
+
+---
+
+## How they combine: the TLS handshake, at a glance
+
+Putting the two together: a TCP connection is opened first, and only after that does the **TLS handshake** run on top of it. The handshake uses asymmetric encryption to let the client and server agree on a shared symmetric key without ever exposing that key on the wire. Once the handshake completes, both sides hold the same symmetric key and switch to symmetric encryption for the actual application data, HTTP requests and responses included.
+
+```
+TCP handshake        (open the connection)
+TLS handshake         (asymmetric encryption -> agree on a shared symmetric key)
+Application data      (symmetric encryption, using that shared key)
+```
+
+The full mechanics of that handshake, exactly which messages carry what, are the subject of the next TLS chapter.
+
+---
+
+## Where TLS lives in HTTP/2 vs HTTP/3
+
+This connects back to [QUIC](/networking/ch34-quic-an-overview): under HTTP/1.1 and HTTP/2, TLS is a separate layer bolted onto TCP, TCP carries the bytes, TLS encrypts them, and the two together produce HTTPS. QUIC, underneath HTTP/3, was designed after encryption became a baseline expectation, so it builds TLS 1.3 directly into the protocol instead of requiring it as an add-on. Either way, the same handshake ideas from this chapter, symmetric encryption for speed, asymmetric encryption to bootstrap the shared key, are what's running.
+
+---
+
+## Summary
+
+* **TLS provides confidentiality, integrity, and authentication** over an otherwise untrusted network. HTTPS is HTTP with a TLS layer underneath it.
+* **Symmetric encryption** uses one shared key for both encryption and decryption. It's fast and cheap, but both sides need the same key first, and sharing it over the open network is the problem.
+* **Asymmetric encryption** uses a public/private key pair: encrypt with one, decrypt only with the other. It's computationally expensive, so TLS uses it just once, to safely exchange a symmetric key, then switches to symmetric encryption for the actual data.
+* **The TLS handshake** runs after the TCP handshake and is where this key exchange happens; it's covered in detail in the next chapter.
+* **QUIC bakes TLS 1.3 in** rather than layering it on top the way TCP-based HTTP does, but the same two encryption techniques are doing the work either way.
