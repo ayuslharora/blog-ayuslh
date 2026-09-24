@@ -1,0 +1,135 @@
+---
+title: "Ch.35: How HTTP/3 Uses QUIC Streams to Kill Head-of-Line Blocking"
+description: "HTTP/3 moves the stream ID out of the application layer and into QUIC itself. A worked packet-by-packet example shows why that fixes TCP-level head-of-line blocking: independent QUIC frames are tagged with a stream ID and a fin flag, so a lost packet only stalls the request whose data it was carrying, and everything else keeps flowing regardless of arrival order."
+date: "2026-09-24T17:39:29+05:30"
+tags: ["networking", "http", "http3", "quic", "transport-layer", "protocols", "head-of-line-blocking", "streams"]
+subtopic: "HTTP"
+draft: false
+source:
+  title: "40 HTTP3 how it uses quic in depth"
+  channel: "Chai aur Code"
+  url: "https://www.youtube.com/watch?v=CI7Dx-m1eQ4"
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=CI7Dx-m1eQ4)
+
+[Ch.33](/networking/ch33-http-2-head-of-line-blocking) showed why HTTP/2 still stalls: TCP has no idea which segment belongs to which stream, so one lost segment freezes every stream on the connection. [Ch.34](/networking/ch34-quic-an-overview) introduced the replacement transport, QUIC, and why it hides inside UDP, ships in user space, and folds the handshake down to one round trip. This chapter is the payoff: exactly how HTTP/3 rides on top of QUIC's streams, and a full worked example of a packet going missing to show why the rest of the connection does not care.
+
+---
+
+## HTTP/3 is HTTP semantics over QUIC
+
+HTTP/3 is not a new application protocol. It is the same HTTP you already know, methods, paths, headers, a body, running over a different transport. Everything about *what* an HTTP request means is unchanged. What changes is *how* it gets carried.
+
+```
+HTTP/1.1, HTTP/2  ->  HTTP semantics over TCP
+HTTP/3            ->  HTTP semantics over QUIC
+```
+
+That single swap (TCP for QUIC) is also why HTTP/3 looks slightly different at the framing level, even though it behaves like HTTP/2 to anyone writing application code.
+
+---
+
+## The stream ID moves down a layer
+
+[HTTP/2 invented the stream ID](/networking/ch29-http-2-multiplexing) to multiplex many requests over one connection. Every HTTP/2 frame carries a stream ID in its own header, and that ID is an HTTP/2 concept: TCP underneath never sees it, TCP just sees bytes.
+
+HTTP/3 does not have a stream ID in its own frames. That is not a missing feature, it is a deliberate move: the concept of a stream got pushed down into the transport layer, because [QUIC already has streams natively](/networking/ch34-quic-an-overview). A QUIC connection can carry many independent QUIC streams, each with its own stream ID, and each behaving like an isolated virtual connection.
+
+```
+HTTP/2:  stream ID lives in the HTTP/2 frame header   (application layer)
+HTTP/3:  stream ID lives in the QUIC frame header      (transport layer)
+```
+
+HTTP/3 still has its own frames though: a HEADERS frame and a DATA frame, direct analogs of HTTP/2's, just without a stream ID field, because QUIC supplies that instead. Compression works the same way HPACK did for HTTP/2, except HTTP/3 uses **QPACK**, an HPACK-like scheme adapted so that header compression state does not itself depend on strict in-order delivery. If you followed [Ch.32 on HPACK](/networking/ch32-hpack-header-compression), QPACK keeps the static and dynamic table idea; the differences exist purely to accommodate QUIC's out-of-order delivery.
+
+This one relocation is the entire mechanism behind fixing transport-level head-of-line blocking. Everything else in this chapter is working out its consequences.
+
+---
+
+## Two kinds of frames: don't mix them up
+
+There are two separate concepts here that share the word "frame," and it is easy to conflate them:
+
+- **HTTP/3 frames** carry application data: a HEADERS frame, a DATA frame. This is what your request or response actually is.
+- **QUIC frames** are the transport-layer unit inside a QUIC packet. A QUIC **stream frame** is the one that carries payload (in this case, an HTTP/3 frame). QUIC also has a **crypto frame** for the TLS handshake data and an **acknowledgment frame** for acking received packets, among others.
+
+The data unit hierarchy from the wire up:
+
+```
+UDP datagram
+  QUIC packet          (~ TCP's segment: numbered, this is QUIC's unit of loss/retransmission)
+    QUIC frame(s)       (stream / crypto / ack / ...)
+      QUIC stream frame carries -> HTTP/3 frame (HEADERS / DATA)
+```
+
+A QUIC packet is roughly the QUIC analog of a TCP segment: it is what gets a packet number and what gets retransmitted if lost. But unlike a TCP segment, which is just a slice of one continuous byte stream, a single QUIC packet can carry **multiple QUIC frames from multiple different streams** bundled together. That bundling is what makes the worked example below interesting.
+
+Every QUIC stream frame carries a **fin** flag alongside its stream ID. `fin=0` means more data for this stream is still coming; `fin=1` means this is the last frame for this stream, so QUIC can treat that stream's request or response as complete once that frame arrives. It is the QUIC-level equivalent of the `END_STREAM` flag HTTP/2 frames carried.
+
+One thing worth being precise about: QUIC is a **general-purpose transport-layer protocol**, not something built specifically for HTTP/3. It is easy to assume QUIC and HTTP/3 are the same thing, but other protocols can run over QUIC too, DNS-over-QUIC is a real example. HTTP/3 is one application built on top of QUIC, the same way HTTP/1.1 and HTTP/2 are applications built on top of TCP.
+
+---
+
+## Worked example: three requests, three packets, one loss
+
+Take three independent HTTP/3 requests going out on the same QUIC connection:
+
+| Stream | Request | Frames needed |
+|---|---|---|
+| stream 2 | `POST /signup` | HEADERS + DATA |
+| stream 4 | `POST /orders` | HEADERS + DATA |
+| stream 6 | `GET /index.html` | HEADERS only |
+
+QUIC is free to pack these frames into packets however it likes, and it does not have to keep one request's frames together or send them in any particular order relative to other streams. Say it lays them out like this:
+
+- **QUIC packet 1** carries three QUIC frames: stream 2's HEADERS frame, stream 2's DATA frame (`fin=1`, the signup request is now complete), and stream 4's HEADERS frame (`fin=0`, more is coming for this stream).
+- **QUIC packet 2** carries stream 4's DATA frame (`fin=1`), the rest of the orders request.
+- **QUIC packet 3** carries stream 6's HEADERS frame (`fin=1`, a GET has no body so headers alone finish it).
+
+All three packets go into UDP datagrams and travel independently over IP, in whatever order the network delivers them, same as any other IP packets. Now suppose **packet 2 is lost**, but packets 1 and 3 both arrive.
+
+Walk through what the receiver does:
+
+- **Packet 1 arrives.** Stream 2 now has both its HEADERS and its `fin=1` DATA frame. QUIC hands the completed `POST /signup` request up to HTTP/3 immediately. Stream 4 also got a HEADERS frame here, but it is `fin=0`, so QUIC knows this stream is not done and holds it, waiting for more.
+- **Packet 3 arrives**, even though it was sent after packet 2, because packets don't have to arrive in send order. It carries stream 6's HEADERS with `fin=1`. QUIC checks: does stream 6 depend on stream 4 in any way? No, they are separate streams with separate IDs. QUIC delivers `GET /index.html` to the application right away.
+- **Packet 2 never shows up.** Stream 4 is still missing its DATA frame, so its `fin` is still unset. QUIC keeps `POST /orders` waiting until packet 2 is retransmitted and finally arrives.
+
+The result: two of three requests complete without any delay at all, and only the one request whose data was actually inside the lost packet waits. Compare that to [what TCP would do with the equivalent HTTP/2 setup](/networking/ch33-http-2-head-of-line-blocking): TCP has no stream concept, so a lost segment blocks every byte behind it in sequence order, regardless of which request those bytes belonged to. QUIC's per-frame stream ID is what breaks that dependency.
+
+<QuicFramingExplorer />
+
+---
+
+## The pattern across three generations of HTTP
+
+Each generation of head-of-line blocking got solved the same way: by adding a **custom identifier** at whichever layer had the ordering problem.
+
+```
+HTTP/1.1: no identifier at all
+            -> order of arrival is the only way to match request to response
+            -> one slow request blocks everything queued after it
+
+HTTP/2:   stream ID added at the application layer
+            -> responses can return in any order
+            -> but TCP underneath still only understands one ordered byte run,
+               so a lost segment blocks every stream anyway
+
+HTTP/3:   stream ID added at the transport layer (inside QUIC)
+            -> the layer that actually does loss recovery and retransmission
+               now knows which bytes belong to which logical request
+            -> a lost packet only blocks the stream it was carrying
+```
+
+HTTP/2's mistake, if you can call it that, was solving the identifier problem one layer too high. It fixed ordering at the application layer while the transport layer underneath still had none. HTTP/3 does not repeat that: it puts the identifier at the same layer that does the retransmitting, so the layer that decides "hold this back" is the same layer that knows what can safely be let through.
+
+---
+
+## Summary
+
+* **HTTP/3 is HTTP semantics over QUIC.** Same methods, paths, headers, and body as HTTP/1.1 and HTTP/2; only the transport underneath changes.
+* **The stream ID moved from the application layer to the transport layer.** HTTP/3 frames (HEADERS, DATA) no longer carry a stream ID themselves, because QUIC's own frames do. Header compression is QPACK, HPACK's counterpart adapted for QUIC's out-of-order delivery.
+* **QUIC frames and HTTP/3 frames are different things.** A QUIC stream frame is the transport-layer wrapper (with a stream ID and a `fin` flag) that carries an HTTP/3 frame as its payload. QUIC also has crypto frames and acknowledgment frames for its own bookkeeping.
+* **A QUIC packet can bundle frames from multiple streams**, and packets can arrive out of send order without breaking anything, because every frame is self-describing.
+* **The worked example:** three requests across three QUIC packets, one packet lost. The `fin` flag tells QUIC exactly which streams are complete and which are still waiting. Two of the three requests complete immediately; only the one whose data was actually lost stalls, and only until that one packet is retransmitted.
+* **The recurring fix across HTTP's history:** every generation of head-of-line blocking got solved by adding a custom identifier at the layer where the ordering problem actually lived. HTTP/2 added it one layer too high; HTTP/3 added it at the transport layer itself, which is why it finally sticks.

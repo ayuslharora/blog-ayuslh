@@ -25,6 +25,7 @@ import Http2FrameHeaderTable from '../../../components/Http2FrameHeaderTable';
 import HpackEncoderExplorer from '../../../components/HpackEncoderExplorer';
 import Http2HolBlockingExplorer from '../../../components/Http2HolBlockingExplorer';
 import QuicHandshakeExplorer from '../../../components/QuicHandshakeExplorer';
+import QuicFramingExplorer from '../../../components/QuicFramingExplorer';
 import MtuMssDiagram from '../../../components/MtuMssDiagram';
 import RequestFlowDiagram from '../../../components/RequestFlowDiagram';
 import DatabaseArchitectureDiagram from '../../../components/DatabaseArchitectureDiagram';
@@ -198,6 +199,7 @@ export default async function PostPage({
             HpackEncoderExplorer,
             Http2HolBlockingExplorer,
             QuicHandshakeExplorer,
+            QuicFramingExplorer,
             MtuMssDiagram,
             RequestFlowDiagram,
             DatabaseArchitectureDiagram,
