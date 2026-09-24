@@ -41,6 +41,8 @@ import WebDataCdnCacheTierDesignDiagram from '../../../components/WebDataCdnCach
 import StatefulArchitectureDiagram from '../../../components/StatefulArchitectureDiagram';
 import StatelessArchitectureDiagram from '../../../components/StatelessArchitectureDiagram';
 import WebDataStatelessTierDesignDiagram from '../../../components/WebDataStatelessTierDesignDiagram';
+import SymmetricEncryptionDiagram from '../../../components/SymmetricEncryptionDiagram';
+import AsymmetricEncryptionDiagram from '../../../components/AsymmetricEncryptionDiagram';
 import MnistPca3d from '../../../components/MnistPca3d';
 import LinRegCostSurface from '../../../components/LinRegCostSurface';
 import GradientDescentAnimation from '../../../components/GradientDescentAnimation';
@@ -215,6 +217,8 @@ export default async function PostPage({
             StatefulArchitectureDiagram,
             StatelessArchitectureDiagram,
             WebDataStatelessTierDesignDiagram,
+            SymmetricEncryptionDiagram,
+            AsymmetricEncryptionDiagram,
             MnistPca3d,
             LinRegCostSurface,
             GradientDescentAnimation,

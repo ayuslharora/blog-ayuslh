@@ -41,6 +41,8 @@ Symmetric algorithms use comparatively simple operations (XOR-style bit manipula
 
 The catch: both sides need the *same* key before any of this works, and the only channel available to share it is the same untrusted network the attacker is watching. Send the secret key in the clear and the attacker just captures it along with everything else, at which point the encryption is worthless. Securely getting a shared secret onto both sides without ever exposing it in transit is the actual hard problem, and symmetric encryption alone can't solve it.
 
+<SymmetricEncryptionDiagram />
+
 ### Asymmetric encryption: solves the key-sharing problem, at a cost
 
 Asymmetric encryption uses **two different keys**: a public key and a private key. Data encrypted with one key can only be decrypted with the other. In TLS's use of it, the server generates a public/private key pair and sends the public key to the client (how, in detail, is a later chapter). The client uses that public key to encrypt data; only the server's private key can decrypt it. The public key is, by design, useless for decryption, so it doesn't matter that it traveled over the open network in plain view.
@@ -48,6 +50,8 @@ Asymmetric encryption uses **two different keys**: a public key and a private ke
 That property is exactly what solves the symmetric-key problem: the client can now encrypt a freshly generated symmetric key with the server's public key and send it over, and only the server's private key can recover it. An eavesdropper sees the encrypted key pass by and can't do anything with it.
 
 The tradeoff is cost. Asymmetric algorithms (RSA and Diffie-Hellman are the two named here, each gets its own chapter) are computationally heavier than symmetric ones. So TLS doesn't use asymmetric encryption for the whole conversation, it uses it once, briefly, to get a symmetric key safely onto both sides. After that, everything switches to the cheap symmetric algorithm.
+
+<AsymmetricEncryptionDiagram />
 
 ---
 

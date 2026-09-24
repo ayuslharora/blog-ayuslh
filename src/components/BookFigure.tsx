@@ -255,6 +255,60 @@ export function CloudIcon({ x, y, label = "CDN" }: { x: number; y: number; label
   );
 }
 
+export function EnvelopeIcon({
+  x,
+  y,
+  w = 46,
+  h = 30,
+  color = "var(--text-primary)",
+}: {
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+  color?: string;
+}) {
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} rx={2} fill="none" stroke={color} strokeWidth={1.6} />
+      <path
+        d={`M${x},${y} L${x + w / 2},${y + h / 2} L${x + w},${y}`}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.6}
+      />
+    </g>
+  );
+}
+
+// A small key icon, positioned by its bow (ring) center, pointing down-right by default.
+export function KeyIcon({
+  cx,
+  cy,
+  angle = 40,
+  color = "#eab308",
+}: {
+  cx: number;
+  cy: number;
+  angle?: number;
+  color?: string;
+}) {
+  return (
+    <g
+      transform={`translate(${cx},${cy}) rotate(${angle})`}
+      stroke={color}
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+    >
+      <circle cx={0} cy={0} r={6} />
+      <line x1={6} y1={0} x2={26} y2={0} />
+      <line x1={19} y1={0} x2={19} y2={7} />
+      <line x1={24} y1={0} x2={24} y2={5} />
+    </g>
+  );
+}
+
 export function CircledNumber({ cx, cy, n }: { cx: number; cy: number; n: number }) {
   return (
     <g>
