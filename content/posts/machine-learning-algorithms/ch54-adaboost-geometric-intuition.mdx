@@ -1,0 +1,157 @@
+---
+title: "Ch.54: AdaBoost, Geometric Intuition"
+description: "The first boosting algorithm: what a weak learner and a decision stump are, why AdaBoost uses +1/-1 labels instead of 0/1, and how stage-wise up-sampling and a weighted vote of stumps combine into one strong classifier, worked end to end on a real toy dataset."
+date: "2026-09-25T20:15:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "boosting", "adaboost", "decision-trees"]
+subtopic: "Ensemble Learning"
+draft: false
+broadcast: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=sFKnP0iP0K0)
+
+[Bagging and random forest](/machine-learning-algorithms/ch45-bagging-ensemble-intuition) train every base model independently and let them vote as equals. **Boosting** is the other big branch of [ensemble learning](/machine-learning-algorithms/ch41-ensemble-learning-introduction): models are trained one after another, each one specifically told which points the previous one got wrong, and the final prediction weighs each model's opinion by how good it actually was. **AdaBoost** (Adaptive Boosting) is the first and oldest boosting algorithm, and everything later boosting methods (gradient boosting, XGBoost) build on shows up here first in its simplest form.
+
+This post covers the geometric intuition only: what problem AdaBoost is solving and how the pieces fit together. The exact weight-update math gets its own follow-up post; for now the goal is to be able to look at a plot and know why AdaBoost draws the boundary it draws.
+
+## 1. Two Building Blocks First
+
+**Weak learner.** A weak learner is a model whose accuracy is only just above random guessing, about 50% for a binary problem, the same as calling a coin flip. That sounds useless on its own, but boosting's whole premise is that combining many weak learners, each one nudged to focus on the previous one's mistakes, produces one strong learner with accuracy in the 90s. A single weak learner is nearly worthless; a sequence of them, weighted by how well each one did, is not.
+
+**Decision stump.** AdaBoost can technically use any weak learner, but in practice it almost always uses **decision stumps**: a decision tree with `max_depth=1`, meaning exactly one split. A stump can only ever draw one line parallel to one axis, so on its own it's a bad classifier by construction, which is exactly the "weak learner" property AdaBoost wants. Stumps are the default choice for two reasons: they're cheap to fit (there's no series-of-trees runtime blowup), and they're easy to interpret, a single split tells you plainly which feature and which threshold it used.
+
+## 2. Why Labels Are +1/-1, Not 0/1
+
+Most binary classifiers in scikit-learn use 0 and 1 for the two classes. AdaBoost's math instead uses **+1 and -1**. The reason becomes concrete once you see the final prediction rule (Section 5): each stump's vote gets multiplied by a weight and summed, and taking the `sign()` of that sum is what turns the combined score back into a class. That trick only works cleanly with +1/-1 labels, a correct +1 vote and a correct -1 vote both push the sum in the right direction; with 0/1 labels a "wrong" vote of 0 wouldn't subtract anything, it would just fail to add.
+
+## 3. Stage-Wise Additive Modeling
+
+You'll often see AdaBoost described as a **stage-wise additive model**. That's just two words for the training loop:
+
+- **Additive**: the final model is a weighted sum of several weak learners, not one model replacing another.
+- **Stage-wise**: those weak learners are added one at a time, in stages, each new one built on top of what the previous stages got wrong, never revisited or retrained afterward.
+
+That's the whole shape of the algorithm. The rest of this post is one worked pass through it.
+
+## 4. Walking Through It on a Real Dataset
+
+The code below follows [`adaboost_demo.ipynb`](https://github.com/campusx-official/100-days-of-machine-learning/blob/main/day66-adaboost/adaboost_demo.ipynb) from the course's repo, which builds AdaBoost from scratch on a small hand-built toy set (its column names are generic `X1`/`X2`, but the shape is the same CGPA/IQ/placement story used in earlier posts, two features and a placed/not-placed label):
+
+```python
+import pandas as pd
+import numpy as np
+from sklearn.tree import DecisionTreeClassifier
+
+df = pd.DataFrame()
+df['X1'] = [1, 2, 3, 4, 5, 6, 6, 7, 9, 9]
+df['X2'] = [5, 3, 6, 8, 1, 9, 5, 8, 9, 2]
+df['label'] = [1, 1, 0, 1, 0, 1, 0, 1, 0, 0]
+
+df['weights'] = 1 / df.shape[0]   # every row starts equally important
+```
+
+<img src="/images/ch54-toy-dataset.png" alt="Scatter plot of 10 points on X1/X2 axes, 6 blue circles labeled placed (1) and 4 red X markers labeled not placed (0), scattered without a clean linear separation" className="w-full h-auto" />
+
+Every row starts at weight `1/10`, nobody gets extra attention yet.
+
+**Stage 1.** Fit one decision stump on the full, equally-weighted dataset:
+
+```python
+dt1 = DecisionTreeClassifier(max_depth=1)
+X, y = df.iloc[:, 0:2].values, df.iloc[:, 2].values
+dt1.fit(X, y)
+df['y_pred'] = dt1.predict(X)
+```
+
+<img src="/images/ch54-stage1-stump.png" alt="Decision region plot for the first stump, a single horizontal split around X2=3, orange region above the line, blue region below, with several misclassified points visible on the wrong side of the split" className="w-full h-auto" />
+
+This particular stump picked the single split that reduces entropy the most across the whole dataset, here a horizontal cut. It gets 3 of the 10 points wrong, a 0.3 error rate, expected from a model that can only draw one straight line.
+
+**Compute the stump's own weight (alpha).** Every stump gets a weight, `alpha`, that says how much say it gets in the final vote:
+
+$$
+\alpha = \frac{1}{2}\ln\left(\frac{1 - \text{error}}{\text{error}}\right)
+$$
+
+```python
+def calculate_model_weight(error):
+    return 0.5 * np.log((1 - error) / error)
+
+alpha1 = calculate_model_weight(0.3)   # ≈ 0.424
+```
+
+A lower error gives a higher alpha; a stump that's right almost all the time gets a loud vote, one barely better than a coin flip gets a quiet one. (Deriving *why* this specific formula is optimal is a later post's job; for now, treat it as the notebook's stated rule.)
+
+**Up-sample the mistakes.** This is boosting's signature move. Every row's weight gets nudged, correct predictions get pushed down (`weight * exp(-alpha)`), mistakes get pushed up (`weight * exp(alpha)`), then the whole column is renormalized to sum to 1. Those normalized weights become cumulative probability ranges, and a fresh dataset of the same size is drawn by sampling against those ranges, so points stage 1 got wrong are simply more likely to be picked again, some more than once:
+
+```python
+def update_row_weights(row, alpha):
+    if row['label'] == row['y_pred']:
+        return row['weights'] * np.exp(-alpha)
+    return row['weights'] * np.exp(alpha)
+
+df['updated_weights'] = df.apply(lambda r: update_row_weights(r, alpha1), axis=1)
+df['nomalized_weights'] = df['updated_weights'] / df['updated_weights'].sum()
+```
+
+No row is ever deleted from the original data, this step only builds the *next stage's training set*, by resampling with the misclassified rows now more likely to be drawn.
+
+**Stage 2.** Fit a new stump, this time on the up-sampled data:
+
+<img src="/images/ch54-stage2-stump.png" alt="Decision region plot for the second stump on the resampled dataset, a horizontal split further up around X2=8, orange region above, blue below" className="w-full h-auto" />
+
+Because the resampled set over-represents stage 1's mistakes, this stump draws its split in a different place, one that fixes some of what stage 1 missed while (inevitably, since it's still just one line) getting some other points wrong instead. Error here comes out to 0.2, alpha2 is computed the same way, and the weights are updated and resampled again exactly as before.
+
+**Stage 3.** One more round on data resampled from stage 2's mistakes:
+
+<img src="/images/ch54-stage3-stump.png" alt="Decision region plot for the third stump, another single split, orange region below the line, blue above" className="w-full h-auto" />
+
+Three stumps now exist, each trained on a dataset that was reweighted to emphasize the previous stump's errors, and each carrying its own alpha based on how well it did.
+
+## 5. Combining the Stumps Into One Prediction
+
+The final AdaBoost model isn't any single stump, it's a weighted vote of all of them:
+
+$$
+H(x) = \text{sign}\left(\alpha_1 h_1(x) + \alpha_2 h_2(x) + \alpha_3 h_3(x)\right)
+$$
+
+Each $h_i(x)$ is a stump's prediction, converted to +1/-1, multiplied by that stump's own alpha, and summed; the sign of the total gives the final class. This is exactly why the +1/-1 convention from Section 2 matters, a confident, correct stump pulls the sum firmly toward its side, a low-alpha stump barely moves it.
+
+```python
+def to_pm1(pred):
+    return np.where(pred == 1, 1, -1)
+
+def ensemble_predict(points):
+    total = (alpha1 * to_pm1(dt1.predict(points))
+             + alpha2 * to_pm1(dt2.predict(points))
+             + alpha3 * to_pm1(dt3.predict(points)))
+    return np.sign(total)
+```
+
+Laying the three single-line splits on top of each other produces a boundary none of them could draw alone:
+
+<img src="/images/ch54-combined-boundary.png" alt="Scatter plot with the three stumps' decisions combined into horizontal stripes, blue bands and red bands stacked vertically, original data points overlaid, most blue placed points falling in blue bands and most red not-placed points falling in red bands but a few points still on the wrong side" className="w-full h-auto" />
+
+Not a perfect fit, three stumps trained on only 10 points still get a few points wrong, but a clearly better fit than any single stump managed on its own. Add more stumps and the boundary keeps refining.
+
+**A concrete prediction.** For a new point at `(4, 2)`, each stump votes, each vote is weighted by its own alpha, and the sign of the sum is the answer:
+
+```python
+query = np.array([[4, 2]])
+p1, p2, p3 = dt1.predict(query)[0], dt2.predict(query)[0], dt3.predict(query)[0]
+score = alpha1 * to_pm1(p1) + alpha2 * to_pm1(p2) + alpha3 * to_pm1(p3)
+np.sign(score)   # -1 → predicted "not placed"
+```
+
+That's AdaBoost end to end for a fixed number of stages: fit a stump, weigh it by how well it did, up-sample its mistakes for the next stump, repeat, then combine every stump's weighted vote.
+
+## 6. What to Take Away
+
+- A weak learner is only just better than a coin flip; AdaBoost's default weak learner is a decision stump, a depth-1 tree that can only draw one axis-aligned split.
+- Boosting is *stage-wise* (models are added one at a time) and *additive* (the final prediction is their weighted sum), the opposite of bagging's equal-vote "democracy."
+- +1/-1 labels aren't cosmetic, they're what makes `sign(weighted sum)` work as the combination rule.
+- Each stage does two things: compute that stump's alpha from its error rate, then up-sample the data so the next stump sees more of what this one got wrong.
+- None of this requires the exact weight-update derivation to make sense geometrically, that's the next post's job.
+
+Next: the actual math behind AdaBoost's weight update and why that specific alpha formula is the right one.
