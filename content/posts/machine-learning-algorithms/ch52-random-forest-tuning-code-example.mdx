@@ -107,11 +107,39 @@ Lower than `GridSearchCV`'s 0.839, which is expected: sampling 10 out of 864 com
 
 Neither tool is universally better, they trade completeness for speed in opposite directions, and the right choice depends on how big the search space and the dataset both are.
 
-## 6. What to Take Away
+## 6. A Free Validation Set: the OOB Score
+
+Every tree in a random forest is trained on a bootstrap sample, rows drawn **with replacement** from the training set ([Ch.45](/machine-learning-algorithms/ch45-bagging-ensemble-intuition), [Ch.48](/machine-learning-algorithms/ch48-random-forest-intuition)). Because the draw is with replacement, some rows get picked more than once for a given tree, and, just as importantly, some rows never get picked at all for that tree. Mathematically, roughly 37% of the training rows are left out of any single tree's bootstrap sample, the **out-of-bag (OOB) samples** for that tree.
+
+Those rows were never seen by that particular tree, but they're still real labeled data. `RandomForestClassifier(oob_score=True)` uses them as a built-in validation set: for each row, it predicts using only the trees that never saw that row during training, then compares those predictions against the true labels. That gives you a validation estimate without setting aside a separate validation split at all, the "free" part.
+
+```python
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+rf = RandomForestClassifier(oob_score=True, random_state=42)
+rf.fit(X_train, y_train)
+print(rf.oob_score_)
+
+y_pred = rf.predict(X_test)
+print(accuracy_score(y_test, y_pred))
+```
+
+On the same heart disease dataset used above:
+
+```
+oob_score_: 0.822
+test accuracy: 0.836
+```
+
+The OOB score (0.822) lands close to the real held-out test accuracy (0.836), close enough to trust as a rough estimate of how the model generalizes, without touching the test set at all. It's not a replacement for a proper train/test split or cross-validation when you need a precise number, but it's a useful free sanity check, especially on small datasets like this one where every row held back for a separate validation set is a row the model doesn't get to train on.
+
+## 7. What to Take Away
 
 - Random forest performs competitively out of the box, without tuning, against algorithms that need more care to get right; on this dataset it tied logistic regression under cross-validation and beat gradient boosting and SVC.
 - Hand-tuning one hyperparameter at a time (Ch.51's approach) can help, but doesn't scale once you have several hyperparameters that interact with each other.
 - `GridSearchCV` searches a hyperparameter grid exhaustively, guaranteed to find the best combination within that grid at the cost of training every combination.
 - `RandomizedSearchCV` samples a fixed number of combinations instead, trading a chance of missing the true optimum for dramatically less compute, the right call on large search spaces or large datasets.
+- Bootstrap sampling leaves roughly 37% of each tree's training rows unseen by that tree; `oob_score=True` uses those leftover rows as a free, built-in validation estimate.
 
-Next: the out-of-bag score, the free validation estimate that comes from the roughly one-third of rows each tree never sees during its own bootstrap sample.
+Next: how random forest calculates feature importance, and how it's calculated for a single decision tree in the first place.
