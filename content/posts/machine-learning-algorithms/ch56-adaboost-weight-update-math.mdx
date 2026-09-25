@@ -1,0 +1,152 @@
+---
+title: "Ch.56: AdaBoost, the α and Weight-Update Math"
+description: "The actual formulas behind AdaBoost's stage-wise loop: why α equals 0.5*ln((1-error)/error), how misclassified rows get boosted and correct ones shrunk, and how cumulative-weight up-sampling builds the next stage's training set, worked through with the real source notebook's numbers."
+date: "2026-09-25T23:15:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "boosting", "adaboost", "decision-trees"]
+subtopic: "Ensemble Learning"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=RT0t9a3Xnfw)
+
+The [previous post](/machine-learning-algorithms/ch54-adaboost-geometric-intuition) covered AdaBoost's geometric picture: fit a decision stump, up-weight its mistakes, fit the next stump, repeat, then combine every stump's vote weighted by how good it was. That post left two things unexplained on purpose: how much say (α) each stump gets, and exactly how the up-sampling happens. Both come down to two formulas. This post derives them and then runs them on a real, small dataset so every number below is something you can recompute yourself.
+
+## 1. Where We Left Off
+
+Every row starts with an equal weight, $\frac{1}{n}$ for $n$ rows. Stage 1 trains a decision stump on the full, equally-weighted data. It gets some rows wrong, since a stump can only draw one axis-aligned split. Two things need to happen next: figure out how much this stump's opinion should count in the final vote (its α), and push its mistakes into the next stage's training data (up-sampling). This post is entirely about those two steps.
+
+## 2. Error Isn't Just "How Many Rows Are Wrong"
+
+Once a stump is fit, AdaBoost's error for that stage is **the sum of the weights of the rows it misclassified**, not a plain misclassification count. Early on, when every row has equal weight, this is basically the same as a normal error rate. But once weights start diverging in later stages, weight-sum error correctly gives heavily-weighted mistakes more influence than lightly-weighted ones, which is the whole point of carrying weights forward at all.
+
+## 3. Deriving α: Why 0.5 * ln((1-error)/error)
+
+α is how much a stump's vote counts in the final weighted sum. The video builds the formula from a simple thought experiment instead of just stating it: imagine three models.
+
+- **Model A** is always right. Error rate 0.
+- **Model B** is always wrong. Error rate 1 (100%).
+- **Model C** is right exactly half the time. Error rate 0.5.
+
+Which is most reliable? Model A, obviously, it should get the loudest vote. The more interesting question is between B and C. C looks better on paper (50% right beats 0% right), but B is actually more useful than it seems: a friend who is wrong every single time is just as informative as a friend who is right every single time, you just do the opposite of whatever they say. Flip B's answers and it becomes Model A. C, on the other hand, is a coin flip: agreeing with it or doing the opposite are equally useless, so C deserves **zero** weight in the vote, not positive and not negative.
+
+That gives three anchor points for the α-vs-error curve:
+
+- error near 0 → α should be a large **positive** number
+- error = 0.5 → α should be **0**
+- error near 1 → α should be a large **negative** number (so its vote gets inverted, same logic as Model B)
+
+$$
+\alpha = \frac{1}{2}\ln\left(\frac{1-\text{error}}{\text{error}}\right)
+$$
+
+is exactly the function that produces that shape. Plotting it against the three actual error rates that come up later in this post (0.3, 0.1, 0.7) makes the shape concrete:
+
+<img src="/images/ch56-alpha-vs-error.png" alt="Line chart of alpha as a function of error rate, alpha equals 0.5 times natural log of (1 minus error) over error. The curve starts near positive 2.3 at error close to 0, crosses through alpha=0 exactly at error=0.5, and drops toward negative 2.3 as error approaches 1. Three red points are marked on the curve at error=0.3 (alpha about 0.42), error=0.1 (alpha about 1.10), and error=0.7 (alpha about -0.42)" className="w-full h-auto" />
+
+Note the third point: an error rate *above* 0.5 gives a **negative** α. That's not a bug, it's the Model B logic firing correctly: a stump that's wrong more often than not still carries information, just inverted.
+
+## 4. A Real Stage 1, Worked End to End
+
+To make every number checkable, this uses the exact toy dataset and code from the [source notebook](https://github.com/campusx-official/100-days-of-machine-learning/blob/main/day66-adaboost/adaboost_demo.ipynb): 10 rows, two features, a 0/1 label.
+
+```python
+import pandas as pd
+import numpy as np
+from sklearn.tree import DecisionTreeClassifier
+
+df = pd.DataFrame()
+df['X1'] = [1, 2, 3, 4, 5, 6, 6, 7, 9, 9]
+df['X2'] = [5, 3, 6, 8, 1, 9, 5, 8, 9, 2]
+df['label'] = [1, 1, 0, 1, 0, 1, 0, 1, 0, 0]
+df['weights'] = 1 / df.shape[0]  # 0.1 for every row
+
+dt1 = DecisionTreeClassifier(max_depth=1)
+X, y = df.iloc[:, 0:2].values, df.iloc[:, 2].values
+dt1.fit(X, y)
+df['y_pred'] = dt1.predict(X)
+```
+
+This stump gets 3 of the 10 rows wrong. Since every row still has equal weight 0.1, the error is $3 \times 0.1 = 0.3$:
+
+```python
+def calculate_model_weight(error):
+    return 0.5 * np.log((1 - error) / error)
+
+alpha1 = calculate_model_weight(0.3)  # 0.4236
+```
+
+## 5. Updating the Weights
+
+Now push this stage's mistakes forward. Every row's weight gets multiplied by $e^{\alpha}$ if it was misclassified (boost it) or $e^{-\alpha}$ if it was correct (shrink it):
+
+```python
+def update_row_weights(row, alpha):
+    if row['label'] == row['y_pred']:
+        return row['weights'] * np.exp(-alpha)
+    else:
+        return row['weights'] * np.exp(alpha)
+
+df['updated_weights'] = df.apply(lambda r: update_row_weights(r, alpha1), axis=1)
+df['normalized_weights'] = df['updated_weights'] / df['updated_weights'].sum()
+```
+
+With $\alpha_1 = 0.4236$: a correctly classified row goes from 0.1 to $0.1 \times e^{-0.4236} \approx 0.0655$, a misclassified row goes from 0.1 to $0.1 \times e^{0.4236} \approx 0.1528$. The updated weights don't sum to 1 anymore (they sum to about 0.9165 here), so the last step is dividing every weight by that sum to renormalize:
+
+<img src="/images/ch56-stage1-weights.png" alt="Grouped bar chart of 10 rows, showing initial weight (grey, all 0.1) next to the normalized weight after stage 1 (green for the 7 correctly classified rows, shrunk to about 0.071 each, red for the 3 misclassified rows, boosted to about 0.167 each)" className="w-full h-auto" />
+
+The 3 misclassified rows (red) went from 10% of the total weight each to about 16.7% each; the 7 correct ones (green) shrank to about 7.1% each. That's the entire "pay more attention to mistakes" mechanism: a plain multiply-and-renormalize, nothing fancier.
+
+## 6. Up-Sampling: Turning Weights Into a New Dataset
+
+A decision tree doesn't take a "weight" column as input, so AdaBoost can't just hand `dt2` the reweighted table directly. Instead it builds a **new physical dataset** where heavily-weighted rows appear more than once, using weighted resampling:
+
+1. Take the cumulative sum of the normalized weights, this gives every row a `[lower, upper)` slice of the 0-to-1 range, sized proportional to its weight.
+2. Draw a uniform random number between 0 and 1.
+3. Whichever row's slice the number lands in gets picked.
+4. Repeat $n$ times to build a new dataset the same size as the original.
+
+```python
+df['cumsum_upper'] = np.cumsum(df['normalized_weights'])
+df['cumsum_lower'] = df['cumsum_upper'] - df['normalized_weights']
+
+def create_new_dataset(df):
+    indices = []
+    for i in range(df.shape[0]):
+        a = np.random.random()
+        for index, row in df.iterrows():
+            if row['cumsum_upper'] > a > row['cumsum_lower']:
+                indices.append(index)
+    return indices
+```
+
+A row with a bigger slice (a misclassified row, after step 5) is proportionally more likely to get hit by a random draw, so it's more likely to show up multiple times, or at all, in the new dataset. Running this once (seeded, for reproducibility) on the stage-1 weights above:
+
+<img src="/images/ch56-upsampling-draw.png" alt="Bar chart of how many times each of the 10 original rows got picked in one random up-sampling draw. Rows 3, 5, and 7 (the misclassified rows from stage 1, colored red) were picked 1, 3, and 2 times respectively, for 6 of the 10 total draws. The correctly classified rows (green) account for the remaining 4 draws, split across rows 1, 4, and 9; rows 0, 2, 6, and 8 were not picked at all in this draw" className="w-full h-auto" />
+
+Worth being honest about what this chart actually shows: it's one random draw of 10 samples, not a guarantee. The 3 misclassified rows hold about 50% of the total weight after normalization ($3 \times 0.1667$), and in this particular draw they did end up with 6 of the 10 picks, close to that share, but a different random seed could easily land at 5 or 7. With only 10 rows the sampling noise is real; the *expected* frequency is what tracks the weight, not any single draw. Stage 2's stump then gets trained on this resampled dataset, using the plain, unweighted `DecisionTreeClassifier` again, since the reweighting has already been baked into which rows appear and how often.
+
+## 7. Repeat, Then Combine
+
+Stage 2 trains a fresh stump on the up-sampled data, gets its own error and its own α ($\alpha_2 \approx 1.0986$, from an error of 0.1 in the source notebook), and up-samples its own mistakes for stage 3. Stage 3's stump lands at an error of 0.7, above the 0.5 line from Section 3, so its α comes out **negative**: $\alpha_3 \approx -0.4236$. That's the Model B logic from the derivation showing up in a real run, not a hypothetical: a stump that's more often wrong than right is treated as anti-correlated with the truth, and its vote gets subtracted rather than added.
+
+The notebook's own prediction check makes the payoff concrete. For a query point $(X1, X2) = (1, 5)$, all three stumps predict class 1:
+
+$$
+\alpha_1(1) + \alpha_2(1) + \alpha_3(1) = 0.4236 + 1.0986 - 0.4236 \approx 1.0986 \quad \Rightarrow \quad \text{sign}(1.0986) = +1
+$$
+
+For $(9, 9)$, stump 1 predicts class 1 but stumps 2 and 3 predict class 0 (read as -1 in the vote):
+
+$$
+\alpha_1(1) + \alpha_2(-1) + \alpha_3(-1) = 0.4236 - 1.0986 + 0.4236 \approx -0.2514 \quad \Rightarrow \quad \text{sign}(-0.2514) = -1
+$$
+
+In the second case, stump 3's negative α combined with its "wrong-looking" -1 vote actually contributes *positively* toward the final +1... except here the final answer is -1, so it's stump 2's large $\alpha_2 = 1.0986$ that dominates. Either way, the sign of the weighted sum, not a majority vote, is what AdaBoost outputs, exactly the formula from the [previous post](/machine-learning-algorithms/ch54-adaboost-geometric-intuition).
+
+## 8. What to Take Away
+
+- Error at each stage is the **sum of the weights** of the misclassified rows, not a raw count, which is what makes later stages responsive to earlier reweighting.
+- $\alpha = \frac{1}{2}\ln\left(\frac{1-\text{error}}{\text{error}}\right)$ falls out of a simple requirement: error near 0 → high positive α, error = 0.5 → zero α, error near 1 → large negative α (invert a consistently-wrong model rather than ignore it).
+- Weight update is a plain multiply: $\times e^{\alpha}$ for misclassified rows, $\times e^{-\alpha}$ for correct ones, then renormalize so weights sum back to 1.
+- Up-sampling turns weights into an actual resampled dataset via cumulative-range random draws, since a decision tree can't consume a weight column directly. It's probabilistic, not deterministic, so any single draw can look noisier than the underlying weights suggest, especially on small data.
+- An error rate above 0.5 is not a broken stump, it produces a negative α, which flips that stump's vote in the final sum instead of discarding it.
