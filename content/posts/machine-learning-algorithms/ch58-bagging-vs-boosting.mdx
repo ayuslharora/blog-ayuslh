@@ -1,0 +1,46 @@
+---
+title: "Ch.58: Bagging vs Boosting, the Interview Answer"
+description: "The three axes interviewers actually ask about: what kind of base model each family reaches for and why, parallel vs sequential training, and equal-vote democracy vs weighted votes, tying together everything already covered separately in the bagging and AdaBoost posts."
+date: "2026-09-26T20:50:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "bagging", "boosting", "adaboost"]
+subtopic: "Ensemble Learning"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=7M5oWXCpDEw)
+
+Bagging and boosting are both covered in this series already, [bagging](/machine-learning-algorithms/ch45-bagging-ensemble-intuition) and [random forest](/machine-learning-algorithms/ch48-random-forest-intuition) on one side, [AdaBoost](/machine-learning-algorithms/ch54-adaboost-geometric-intuition) on the other, but they were never placed next to each other directly. This is a short, deliberately interview-shaped post: the three specific axes people get asked to contrast, with a plain answer for each.
+
+## 1. What Kind of Base Model Each One Reaches For
+
+Every model has a bias/variance trade-off: push one down and the other tends to rise. Bagging and boosting fix opposite halves of that trade-off, and they pick their base models accordingly.
+
+**Bagging picks a low-bias, high-variance model.** A fully-grown, unpruned decision tree is the standard example, it fits its training data almost perfectly (low bias), but change the training rows slightly and its shape changes a lot (high variance). Bagging's whole mechanism, train many copies on random bootstrap samples and average the votes, exists specifically to cancel out that variance. Averaging noisy-but-accurate models tames the noise without hurting the accuracy, which is exactly why bagging wants a base model that's already accurate and only needs its instability fixed.
+
+**Boosting picks a high-bias, low-variance model.** A decision stump, a tree with max depth 1, is the standard example here: stable (low variance, since there's barely anything to overfit with just one split) but a poor fit on its own (high bias, since one split can't capture much). Boosting's mechanism, train stumps in sequence and have each one correct the last one's mistakes, exists specifically to grind down that bias over successive stages. Feeding it an already-low-bias model would waste the sequential correction; boosting needs a base learner with headroom to improve.
+
+The base model choice isn't a stylistic preference, it follows directly from which half of the bias/variance trade-off each family's training mechanism is built to fix.
+
+## 2. Parallel vs Sequential Training
+
+**Bagging trains in parallel.** Each base model gets its own random bootstrap sample of the data and trains completely independently of every other base model, there's no communication between them during training. You could train all of bagging's base models on separate machines at the same time and get the identical result.
+
+**Boosting trains sequentially.** Model 1 trains first, and its mistakes get passed forward, up-weighted or up-sampled, so model 2 sees a training set that emphasizes exactly what model 1 got wrong, as covered in detail in the [AdaBoost weight-update post](/machine-learning-algorithms/ch56-adaboost-weight-update-math). Model 2 then makes its own mistakes, which get passed to model 3, and so on. Model 3 can't start until model 2 finishes, since model 2's mistakes are model 3's training signal. This is inherently a chain, not a batch.
+
+## 3. Weightage of the Base Learners
+
+**Bagging is a democracy.** Every base model gets an equal vote at prediction time, majority vote for classification, plain average for regression, regardless of how well any individual model happened to do. No model's opinion counts more than another's.
+
+**Boosting weighs its base learners.** Each stage gets its own α, how much that specific stump's vote counts in the final sum, computed from how accurate that stage actually was (the exact formula and derivation are in the [α post](/machine-learning-algorithms/ch56-adaboost-weight-update-math)). A stage that made almost no mistakes gets a large α and dominates the final vote; a stage that was barely better than a coin flip gets an α close to zero and barely counts. This is why boosting's final prediction is a *weighted* sum passed through a sign function, not a plain majority vote, as worked through in the [code walkthrough](/machine-learning-algorithms/ch57-adaboost-from-scratch-in-code).
+
+## 4. The Three Points, Side by Side
+
+| | Bagging | Boosting |
+|---|---|---|
+| Base model | low bias, high variance (e.g. fully-grown tree) | high bias, low variance (e.g. decision stump) |
+| Training | parallel, independent bootstrap samples | sequential, each stage sees the last stage's mistakes |
+| Base-learner weight | equal (democracy) | unequal (α per stage, better stages count more) |
+
+## 5. Why This Question Comes Up So Often
+
+All three axes trace back to the same root idea: bagging assumes its base models are already decent and uses averaging to cancel their instability, while boosting assumes its base models are individually weak and uses a weighted, sequential chain to accumulate their strengths. Once that root idea is clear, all three answers (which model, which training style, which voting scheme) follow from it rather than needing to be memorized separately, which is probably why it's a favorite interview question: it's really testing whether you understand *why* each family is built the way it is, not just what the words "bagging" and "boosting" mean.
