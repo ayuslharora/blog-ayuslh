@@ -45,7 +45,7 @@ The tricky part is what comes next. In regression, a leaf's own averaged output 
 Each leaf therefore needs its own conversion formula, one that takes that leaf's residuals (still in probability space) and outputs a single log-odds value, exactly as the source video writes it on the whiteboard:
 
 $$
-\gamma_{j} = \left[\frac{\sum \text{Residual}}{\sum \left[\text{PreviousProb} * (1 - \text{PreviousProb})\right]}\right]
+\gamma = \left[\frac{\sum \text{Residual}}{\sum \left[\text{PreviousProb} * (1 - \text{PreviousProb})\right]}\right]
 $$
 
 Read it as: sum up the residuals that landed in this leaf (the numerator), and divide by a measure of how uncertain the previous stage's predictions were for those same rows (the denominator, biggest when PreviousProb is near 0.5, smallest when PreviousProb is confidently near 0 or 1). This formula falls out of a Newton step on the log-loss function; the full derivation is deferred to a dedicated math post, same as the regression case's mean and residual formulas were derived in a follow-up rather than the first intuition post.
