@@ -42,13 +42,13 @@ Same as regression: fit a shallow regression tree (a weak learner, kept small on
 
 The tricky part is what comes next. In regression, a leaf's own averaged output was directly usable, add it straight to the running prediction. Here it isn't, because the tree was fit on residuals that are differences of *probabilities*, and the running total is being kept in *log-odds*. Mixing the two would be mixing units, so every leaf's probability-space residual has to be **converted back into a log-odds contribution** before it can be added to $F$.
 
-Each leaf therefore needs its own conversion formula, one that takes that leaf's residuals (still in probability space) and outputs a single log-odds value:
+Each leaf therefore needs its own conversion formula, one that takes that leaf's residuals (still in probability space) and outputs a single log-odds value, exactly as the source video writes it on the whiteboard:
 
 $$
-\gamma_{j} = \frac{\sum_{i \in \text{leaf } j} (y_i - p_i)}{\sum_{i \in \text{leaf } j} p_i(1 - p_i)}
+\gamma_{j} = \left[\frac{\sum \text{Residual}}{\sum \left[\text{PreviousProb} * (1 - \text{PreviousProb})\right]}\right]
 $$
 
-Read it as: sum up the residuals that landed in this leaf (the numerator), and divide by a measure of how uncertain the previous stage's predictions were for those same rows (the denominator, biggest when $p_i$ is near 0.5, smallest when $p_i$ is confidently near 0 or 1). This formula falls out of a Newton step on the log-loss function; the full derivation is deferred to a dedicated math post, same as the regression case's mean and residual formulas were derived in a follow-up rather than the first intuition post.
+Read it as: sum up the residuals that landed in this leaf (the numerator), and divide by a measure of how uncertain the previous stage's predictions were for those same rows (the denominator, biggest when PreviousProb is near 0.5, smallest when PreviousProb is confidently near 0 or 1). This formula falls out of a Newton step on the log-loss function; the full derivation is deferred to a dedicated math post, same as the regression case's mean and residual formulas were derived in a follow-up rather than the first intuition post.
 
 Working it for the placement example: one leaf catches 2 rows whose previous probability was 0.625 and whose residuals were both $-0.625$ (both actually unplaced students the baseline was over-confident about):
 
