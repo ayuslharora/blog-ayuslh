@@ -1,6 +1,6 @@
 ---
 title: "Ch.61: Gradient Boosting for Classification, the Intuition"
-description: "The same four-step gradient boosting recipe from the regression posts, now run with log loss instead of squared error: why the starting model becomes log-odds instead of a mean, why the pseudo-residual is still actual-minus-predicted (just on probabilities), and why each leaf needs its own gamma formula to convert a residual back into a log-odds contribution, worked through a small placement dataset and a real decision-boundary simulation."
+description: "The same four-step gradient boosting recipe from the regression posts, now run with log loss instead of squared error: why the starting model becomes log-odds instead of a mean, why the pseudo-residual is still actual-minus-predicted (just on probabilities), and why each leaf needs its own formula to convert a residual back into a log-odds value, worked through a small placement dataset and a real decision-boundary simulation."
 date: "2026-09-28T14:20:00+05:30"
 tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "boosting", "gradient-boosting", "decision-trees"]
 subtopic: "Ensemble Learning"
@@ -42,10 +42,10 @@ Same as regression: fit a shallow regression tree (a weak learner, kept small on
 
 The tricky part is what comes next. In regression, a leaf's own averaged output was directly usable, add it straight to the running prediction. Here it isn't, because the tree was fit on residuals that are differences of *probabilities*, and the running total is being kept in *log-odds*. Mixing the two would be mixing units, so every leaf's probability-space residual has to be **converted back into a log-odds contribution** before it can be added to $F$.
 
-Each leaf therefore needs its own conversion formula, one that takes that leaf's residuals (still in probability space) and outputs a single log-odds value, exactly as the source video writes it on the whiteboard:
+Each leaf therefore needs its own conversion formula, one that takes that leaf's residuals (still in probability space) and outputs a single log-odds value:
 
 $$
-\gamma = \left[\frac{\sum \text{Residual}}{\sum \left[\text{PreviousProb} * (1 - \text{PreviousProb})\right]}\right]
+\text{Log-Odds Value} = \left[\frac{\sum \text{Residual}}{\sum \left[\text{PreviousProb} * (1 - \text{PreviousProb})\right]}\right]
 $$
 
 Read it as: sum up the residuals that landed in this leaf (the numerator), and divide by a measure of how uncertain the previous stage's predictions were for those same rows (the denominator, biggest when PreviousProb is near 0.5, smallest when PreviousProb is confidently near 0 or 1). This formula falls out of a Newton step on the log-loss function; the full derivation is deferred to a dedicated math post, same as the regression case's mean and residual formulas were derived in a follow-up rather than the first intuition post.
@@ -53,7 +53,7 @@ Read it as: sum up the residuals that landed in this leaf (the numerator), and d
 Working it for the placement example: one leaf catches 2 rows whose previous probability was 0.625 and whose residuals were both $-0.625$ (both actually unplaced students the baseline was over-confident about):
 
 $$
-\gamma = \frac{-0.625 + -0.625}{0.625(0.375) + 0.625(0.375)} = \frac{-1.25}{0.46875} \approx -2.66
+\text{Log-Odds Value} = \frac{-0.625 + -0.625}{0.625(0.375) + 0.625(0.375)} = \frac{-1.25}{0.46875} \approx -2.66
 $$
 
 Repeating this per leaf across the tree gives three leaf values in this example: $-2.66$, $0.18$, and $1.6$, each one a log-odds *contribution*, not a probability.
@@ -72,7 +72,7 @@ $$
 F_1 = 0.51 + 1.6 = 2.11 \implies p \approx 0.89
 $$
 
-Both track the training labels well (the first student's residual pushed hard toward 0, the second's toward 1), and this back-and-forth, add in log-odds space, convert to probability to compute the next stage's residuals, repeats every stage. Stage 2 fits a new tree to the *new* residuals ($y_i$ minus the updated probabilities), computes new per-leaf $\gamma$ values the same way, and adds them (again in log-odds) to get $F_2$. Exactly as in the regression case, a **learning rate** (typically 0.1) scales each tree's contribution before it's added, so that no single stage causes an outsized jump in the running prediction.
+Both track the training labels well (the first student's residual pushed hard toward 0, the second's toward 1), and this back-and-forth, add in log-odds space, convert to probability to compute the next stage's residuals, repeats every stage. Stage 2 fits a new tree to the *new* residuals ($y_i$ minus the updated probabilities), computes a new log-odds value per leaf the same way, and adds them (again in log-odds) to get $F_2$. Exactly as in the regression case, a **learning rate** (typically 0.1) scales each tree's contribution before it's added, so that no single stage causes an outsized jump in the running prediction.
 
 ## 5. A Full Prediction, End to End
 
@@ -86,7 +86,7 @@ $0.35$ is below the 0.5 threshold, so the model predicts "not placed", the same 
 
 ## 6. Seeing the Decision Boundary Sharpen, Stage by Stage
 
-The worked example above is deliberately tiny to keep the arithmetic checkable by hand. To see the *shape* of what's happening, here's the same procedure (log-odds baseline, log-loss pseudo-residuals, a shallow tree per stage, the leaf-gamma formula from Section 3) run on a real, non-linearly-separable two-class dataset (`sklearn.datasets.make_moons`). Following the same trick the source video uses, the two input features ($X_1$, $X_2$) sit on the two horizontal axes, and the **class itself becomes the third axis**: every training point is plotted at $z=0$ (red) or $z=1$ (blue), and the model's predicted probability is drawn as a surface across the same three axes, so "the model is right" literally means "the surface passes through the points". Drag the slider below to step through the stages yourself:
+The worked example above is deliberately tiny to keep the arithmetic checkable by hand. To see the *shape* of what's happening, here's the same procedure (log-odds baseline, log-loss pseudo-residuals, a shallow tree per stage, the leaf log-odds-value formula from Section 3) run on a real, non-linearly-separable two-class dataset (`sklearn.datasets.make_moons`). The two input features ($X_1$, $X_2$) sit on the two horizontal axes, and the **class itself becomes the third axis**: every training point is plotted at $z=0$ (red) or $z=1$ (blue), and the model's predicted probability is drawn as a surface across the same three axes, so "the model is right" literally means "the surface passes through the points". Drag the slider below to step through the stages yourself:
 
 <GbClassificationSurface3d />
 
@@ -96,9 +96,9 @@ Stage 0 is a single flat plane, exactly as Section 1 predicted: a constant log-o
 
 Every stage after the baseline repeats the same back-and-forth between log-odds and probability. Written as a chain:
 
-> **log-odds ($F$) → sigmoid → probability ($p$) → $y - p$ → pseudo-residual → fit regression tree → per-leaf $\gamma$ → $F \mathrel{+}= \eta \cdot \gamma$ → back to log-odds → repeat**
+> **log-odds ($F$) → sigmoid → probability ($p$) → $y - p$ → pseudo-residual → fit regression tree → per-leaf log-odds value → $F \mathrel{+}= \eta \cdot \text{log-odds value}$ → back to log-odds → repeat**
 
-Two conversions happen every single stage: log-odds becomes a probability (to compute the residual), and a tree's residual-fitted output becomes a log-odds contribution (via the leaf $\gamma$ formula, to update $F$). Losing track of which quantity is in which space is the easiest way to get lost in this algorithm; this chain is the whole loop in one place.
+Two conversions happen every single stage: log-odds becomes a probability (to compute the residual), and a tree's residual-fitted output becomes a log-odds value (via the leaf formula from Section 3, to update $F$). Losing track of which quantity is in which space is the easiest way to get lost in this algorithm; this chain is the whole loop in one place.
 
 ## 8. What to Take Away
 
