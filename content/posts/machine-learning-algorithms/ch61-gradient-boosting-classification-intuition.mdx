@@ -1,0 +1,98 @@
+---
+title: "Ch.61: Gradient Boosting for Classification, the Intuition"
+description: "The same four-step gradient boosting recipe from the regression posts, now run with log loss instead of squared error: why the starting model becomes log-odds instead of a mean, why the pseudo-residual is still actual-minus-predicted (just on probabilities), and why each leaf needs its own gamma formula to convert a residual back into a log-odds contribution, worked through a small placement dataset and a real decision-boundary simulation."
+date: "2026-09-28T14:20:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "boosting", "gradient-boosting", "decision-trees"]
+subtopic: "Ensemble Learning"
+draft: false
+broadcast: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=4p5EQtyxSyI)
+
+The [regression posts](/machine-learning-algorithms/ch59-gradient-boosting-regression-intuition) on gradient boosting built up a specific four-step recipe: start with a simple baseline, compute a pseudo-residual, fit a tree to that residual, and update. The genuinely good news is that **classification uses the exact same recipe**, no new algorithm to learn. The only thing that changes is the loss function, squared error for regression, log loss for classification, and that one change ripples through every step: the baseline becomes log-odds instead of a mean, and every tree's leaf needs its own small formula to convert a residual back into something that can be added to a log-odds running total. This post works through why, step by step, on a small worked example, then shows what it looks like geometrically on a real dataset.
+
+## 1. Why the Baseline Can't Just Be a Mean Anymore
+
+In regression, stage 1 was the mean of the target column, straightforward, since salaries are numbers you can average. Classification labels are 0s and 1s, averaging them technically gives you a proportion, but that's not a quantity you can keep adding tree outputs to and expect sensible results (it would drift outside the sensible range as soon as you started adding and subtracting from it).
+
+The fix is to work in **log-odds** space instead. For a small placement dataset (CGPA and IQ predicting whether a student gets placed) with 5 placed students and 3 not placed, the initial model is:
+
+$$
+F_0 = \ln\left(\frac{\text{count of 1s}}{\text{count of 0s}}\right) = \ln\left(\frac{5}{3}\right) \approx 0.51
+$$
+
+That's the starting prediction for every row, regardless of CGPA or IQ, expressed as a log-odds value. To interpret it as something meaningful (a probability), convert with the sigmoid:
+
+$$
+p = \frac{1}{1 + e^{-F_0}} = \frac{1}{1 + e^{-0.51}} \approx 0.62
+$$
+
+Every student starts out predicted "62% likely to be placed", which, with a 0.5 threshold, means the baseline model just predicts "placed" for everyone. Crude, but it's a sensible starting point: the training data is majority-placed (5 of 8), so guessing "placed" for everyone is the best a single constant can do, exactly analogous to how the regression baseline's mean was the best single constant for that problem.
+
+## 2. The Pseudo-Residual Is Still Actual Minus Predicted
+
+Here's the part that doesn't change: the pseudo-residual is still $y_i - \hat{y}_i$, actual minus predicted. What's different is that $\hat{y}_i$ is now a **probability** (0.62 above), not a log-odds value, since you can't meaningfully subtract a 0-or-1 label from a log-odds number. So residuals here are literally "actual label minus predicted probability", giving numbers between -1 and 1 rather than the arbitrary-scale residuals from the regression case.
+
+## 3. Fitting a Tree to the Residual, Then the Hard Part
+
+Same as regression: fit a shallow regression tree (a weak learner, kept small on purpose, capped at a handful of leaves) with the original features as input and the residuals as the target. The tricky part is what comes next. In regression, a leaf's own averaged output was directly usable, add it straight to the running prediction. Here it isn't, because the tree was fit on residuals that are differences of *probabilities*, and the running total is being kept in *log-odds*. Mixing the two would be mixing units.
+
+Each leaf therefore needs its own conversion formula:
+
+$$
+\gamma_{j} = \frac{\sum_{i \in \text{leaf } j} (y_i - p_i)}{\sum_{i \in \text{leaf } j} p_i(1 - p_i)}
+$$
+
+Read it as: sum up the residuals that landed in this leaf (the numerator), and divide by a measure of how uncertain the previous stage's predictions were for those same rows (the denominator, biggest when $p_i$ is near 0.5, smallest when $p_i$ is confidently near 0 or 1). This formula falls out of a Newton step on the log-loss function; the full derivation is deferred to a dedicated math post, same as the regression case's mean and residual formulas were derived in a follow-up rather than the first intuition post.
+
+Working it for the placement example: one leaf catches 2 rows whose previous probability was 0.625 and whose residuals were both $-0.625$ (both actually unplaced students the baseline was over-confident about):
+
+$$
+\gamma = \frac{-0.625 + -0.625}{0.625(0.375) + 0.625(0.375)} = \frac{-1.25}{0.46875} \approx -2.66
+$$
+
+Repeating this per leaf across the tree gives three leaf values in this example: $-2.66$, $0.18$, and $1.6$, each one a log-odds *contribution*, not a probability.
+
+## 4. Combining Stages: Back and Forth Between Log-Odds and Probability
+
+The running model's prediction for any row is $F_0$ plus whichever leaf value that row's features route it to. For a student landing in the $-2.66$ leaf:
+
+$$
+F_1 = 0.51 + (-2.66) = -2.15 \implies p = \frac{1}{1+e^{2.15}} \approx 0.10
+$$
+
+For a student landing in the $1.6$ leaf:
+
+$$
+F_1 = 0.51 + 1.6 = 2.11 \implies p \approx 0.89
+$$
+
+Both track the training labels well (the first student's residual pushed hard toward 0, the second's toward 1), and this back-and-forth, add in log-odds space, convert to probability to compute the next stage's residuals, repeats every stage. Stage 2 fits a new tree to the *new* residuals ($y_i$ minus the updated probabilities), computes new per-leaf $\gamma$ values the same way, and adds them (again in log-odds) to get $F_2$. Exactly as in the regression case, a **learning rate** (typically 0.1) scales each tree's contribution before it's added, so that no single stage causes an outsized jump in the running prediction.
+
+## 5. A Full Prediction, End to End
+
+For a new student with CGPA 7.2 and IQ 100, prediction means routing them through every tree and summing log-odds contributions. Say tree 1 (the $F_0$ baseline) contributes $0.51$, the first decision tree routes this student to a leaf worth $-2.66$, and the second decision tree routes them to a leaf worth $1.56$:
+
+$$
+F = 0.51 - 2.66 + 1.56 = -0.59 \implies p = \frac{1}{1+e^{0.59}} \approx 0.35
+$$
+
+$0.35$ is below the 0.5 threshold, so the model predicts "not placed", the same mechanical last step as regression (sum every stage's contribution, only here a sigmoid stands between the sum and the final answer, instead of the sum being the final answer directly).
+
+## 6. Seeing the Decision Boundary Sharpen, Stage by Stage
+
+The worked example above is deliberately tiny to keep the arithmetic checkable by hand. To see the *shape* of what's happening, here's the same procedure (log-odds baseline, log-loss pseudo-residuals, a shallow tree per stage, the leaf-gamma formula from Section 3) run on a real, non-linearly-separable two-class dataset (`sklearn.datasets.make_moons`), plotting the predicted probability surface after increasing numbers of trees:
+
+<img src="/images/ch61-gb-classification-stages.png" alt="Five panels showing a two-moons dataset (blue and red points forming interleaved crescent shapes) with the predicted probability surface as background color. Stage 0 (log-odds baseline) is a single flat color across the whole plot, since the baseline predicts the same probability everywhere. After 1 tree, the surface splits into two rectangular regions along one axis. After 2 trees, a second split appears. After 4 trees, the regions start curving around the crescents. After 15 trees, the boundary closely traces the two interleaved moon shapes, correctly separating almost all points." className="w-full h-auto" />
+
+Stage 0 is a single flat color, exactly as Section 1 predicted: a constant log-odds baseline has nothing to do with any individual row's features, so its probability surface is uniform. Each added tree carves the plane into more regions, since a shallow tree's leaves are literally axis-aligned rectangles, and by 15 trees those rectangles have tiled together into something that closely traces the two interleaved crescents, training accuracy in this run reaches 98%. This is the exact same mechanism as the toy 8-row example, applied enough times that the resulting boundary stops looking like a handful of rectangles and starts looking like a smooth curve.
+
+## 7. What to Take Away
+
+- Classification gradient boosting is the *same* four-step recipe as regression (baseline, pseudo-residual, fit a tree, update), only the loss function changes, from squared error to log loss.
+- The baseline becomes log-odds ($\ln(\text{count}_1/\text{count}_0)$) instead of a mean, since labels can't be meaningfully averaged and then added to.
+- The pseudo-residual stays actual-minus-predicted, just computed on *probabilities* rather than raw values, since log-odds and 0/1 labels can't be subtracted directly.
+- Each tree's leaves need their own conversion formula ($\sum \text{residual} / \sum p(1-p)$) to turn a probability-space residual back into a log-odds-space contribution, unlike regression where a leaf's raw averaged output was already usable.
+- Every stage still alternates between log-odds (for adding contributions together) and probability (for computing the next residual), converting back and forth with the sigmoid and its inverse.
+- A learning rate still scales every stage's contribution, for the same overfitting-control reason as in regression.
