@@ -35,7 +35,7 @@ export default function GbClassificationSurface3d() {
 
   useEffect(() => {
     if (!isDesktop) return;
-    fetch('/data/ch61-gb-classification-surface.json')
+    fetch('/data/ch60-gb-classification-surface.json')
       .then((res) => res.json())
       .then(setData);
   }, [isDesktop]);

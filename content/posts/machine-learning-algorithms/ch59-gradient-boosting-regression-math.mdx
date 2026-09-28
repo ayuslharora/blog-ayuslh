@@ -1,5 +1,5 @@
 ---
-title: "Ch.60: Gradient Boosting Regression, the Actual Math"
+title: "Ch.59: Gradient Boosting Regression, the Actual Math"
 description: "Deriving, not just asserting, why gradient boosting's first model is the mean, why the pseudo-residual works out to actual-minus-predicted, and why a fitted regression tree's own leaf values already are the formula's optimal output, all via one differentiation applied three times to squared-error loss, worked through on a real 3-row profit dataset."
 date: "2026-09-28T00:55:00+05:30"
 tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "boosting", "gradient-boosting", "decision-trees"]
@@ -10,13 +10,13 @@ broadcast: false
 
 *Inspired by:* [YouTube](https://www.youtube.com/watch?v=nMNiTZm-qY0)
 
-The [previous post](/machine-learning-algorithms/ch59-gradient-boosting-regression-intuition) covered gradient boosting's regression procedure but deferred every "why": why the first model is the mean, why the target that gets passed forward is called a *pseudo*-residual instead of a plain residual, and why a fitted tree's leaf values line up so neatly with what the algorithm needs. All three turn out to be the same differentiation, applied three times to the same loss function. This post works through it, following [Friedman's original gradient boosting algorithm](https://en.wikipedia.org/wiki/Gradient_boosting), and checks every number against a real, tiny dataset along the way.
+The [previous post](/machine-learning-algorithms/ch58-gradient-boosting-regression-intuition) covered gradient boosting's regression procedure but deferred every "why": why the first model is the mean, why the target that gets passed forward is called a *pseudo*-residual instead of a plain residual, and why a fitted tree's leaf values line up so neatly with what the algorithm needs. All three turn out to be the same differentiation, applied three times to the same loss function. This post works through it, following [Friedman's original gradient boosting algorithm](https://en.wikipedia.org/wiki/Gradient_boosting), and checks every number against a real, tiny dataset along the way.
 
 ## 1. Additive Modeling: Why Add Small Functions at All
 
 Machine learning, stripped down, is finding a function $f$ that maps inputs to an output: $y = f(x)$. Sometimes that function is simple enough for one model, a straight line, a polynomial. But some relationships are genuinely composite, built out of several simpler functions added together. A toy example: $f(x) = x + \sin(x)$ is not something a single straight line or a single low-degree polynomial captures well, but it's exactly the sum of two functions that are individually easy to reason about.
 
-<img src="/images/ch60-additive-modeling-example.png" alt="Line chart showing three curves over x from -10 to 10: a dashed grey straight line y=x, a dashed orange oscillating curve y=sin(x), and a solid blue curve y=x+sin(x) that follows the straight line's overall upward trend while wobbling around it in a wave pattern matching sin(x)." className="w-full h-auto" />
+<img src="/images/ch59-additive-modeling-example.png" alt="Line chart showing three curves over x from -10 to 10: a dashed grey straight line y=x, a dashed orange oscillating curve y=sin(x), and a solid blue curve y=x+sin(x) that follows the straight line's overall upward trend while wobbling around it in a wave pattern matching sin(x)." className="w-full h-auto" />
 
 The blue curve is genuinely hard to describe as "one simple shape", it's not a line, not a low-degree polynomial, but it's exactly the straight line plus the sine wave, two shapes that are each trivial on their own. That's the whole idea additive modeling borrows: instead of hunting for one function that matches the blue curve directly, build it by adding simple pieces one at a time.
 
@@ -24,7 +24,7 @@ The blue curve is genuinely hard to describe as "one simple shape", it's not a l
 
 There's a cautionary reason to prefer "add several simple pieces" over "keep reaching for one increasingly complex function", and it has a name: **Runge's phenomenon**. If you try to fit a single polynomial through a set of evenly spaced points on a smooth curve, the intuitive expectation is that a higher-degree polynomial, with more terms to work with, should track the curve more closely. In practice it doesn't: past a certain degree, the polynomial starts oscillating wildly near the edges of the interval, and the fitting error near those edges actually gets worse as more terms are added, not better.
 
-<img src="/images/ch60-runge-phenomenon.png" alt="Line chart on x from -1 to 1 showing the true function 1/(1+25x²) as a black curve peaking at 1 near x=0 and flattening near the edges. A degree-5 polynomial fit (green) stays close everywhere but underfits the peak. A degree-9 fit (orange) tracks the peak better but wobbles noticeably near the edges. A degree-14 fit (red) fits the middle almost exactly but oscillates wildly near both edges, swinging from about -0.7 to above 1.5, far outside the true function's range." className="w-full h-auto" />
+<img src="/images/ch59-runge-phenomenon.png" alt="Line chart on x from -1 to 1 showing the true function 1/(1+25x²) as a black curve peaking at 1 near x=0 and flattening near the edges. A degree-5 polynomial fit (green) stays close everywhere but underfits the peak. A degree-9 fit (orange) tracks the peak better but wobbles noticeably near the edges. A degree-14 fit (red) fits the middle almost exactly but oscillates wildly near both edges, swinging from about -0.7 to above 1.5, far outside the true function's range." className="w-full h-auto" />
 
 The degree-14 fit matches the true curve almost exactly through the middle, yet near $x = \pm 1$ it swings from roughly $-0.7$ up past $1.5$, wildly overshooting a function that never leaves $[0, 1]$. Adding more polynomial terms didn't buy a better fit everywhere, it bought a worse one at the edges. It's a concrete demonstration that "more complex" and "better fit" aren't the same thing for a single function, which is exactly the failure mode additive modeling sidesteps: instead of cranking up the complexity of one function until it breaks, keep every individual piece small and well-behaved, and let the sum of many simple pieces do the work a single complicated one can't do reliably.
 

@@ -1,5 +1,5 @@
 ---
-title: "Ch.59: Gradient Boosting, the Regression Intuition"
+title: "Ch.58: Gradient Boosting, the Regression Intuition"
 description: "How gradient boosting builds a regressor stage by stage: why the first model is just the mean, why every later stage is trained to predict the previous stage's leftover error instead of the target itself, and why a shared learning rate across every stage is what keeps the whole thing from memorizing the training data."
 date: "2026-09-26T21:20:00+05:30"
 tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "boosting", "gradient-boosting", "decision-trees"]
@@ -59,7 +59,7 @@ That's the whole training loop: fit a tree on the current residual, take a small
 
 The toy dataset above is small enough to overfit almost immediately, which makes the mechanism clear but doesn't show the gradual convergence very well. For that, here's the same procedure on a synthetic 100-row dataset from the [source notebook](https://github.com/campusx-official/100-days-of-machine-learning/blob/main/gradient-boosting/gradient_boost_step_by_step.ipynb) ($y = 3x^2$ plus noise, a curve no single stump could fit well), run with `learning_rate = 1` (matching the notebook) and `max_leaf_nodes = 8` per tree:
 
-<img src="/images/ch59-gb-stages.png" alt="Four scatter plots of the same 100-point noisy quadratic dataset (X from -0.5 to 0.5, y a U-shaped curve). Stage 1 shows a flat red line at the mean, y approximately 0.27, fitting nothing. Stage 2 shows a red step function loosely tracing the U-shape after one tree is added. Stage 3 tracks the curve more closely with finer steps. Stage 6 (after 5 trees total) hugs the U-shape closely, including a small sharp upward spike near X=0.1 where one tree overfit a single noisy point." className="w-full h-auto" />
+<img src="/images/ch58-gb-stages.png" alt="Four scatter plots of the same 100-point noisy quadratic dataset (X from -0.5 to 0.5, y a U-shaped curve). Stage 1 shows a flat red line at the mean, y approximately 0.27, fitting nothing. Stage 2 shows a red step function loosely tracing the U-shape after one tree is added. Stage 3 tracks the curve more closely with finer steps. Stage 6 (after 5 trees total) hugs the U-shape closely, including a small sharp upward spike near X=0.1 where one tree overfit a single noisy point." className="w-full h-auto" />
 
 Each added tree tightens the fit around the true curve. Worth being honest about the last panel: that sharp spike near $X=0.1$ isn't a bug in the code, it's a real tree deciding a single noisy point deserved its own leaf, an early sign of exactly the overfitting Section 3 warned about, showing up on real (if small) data instead of just the toy example.
 
@@ -67,7 +67,7 @@ Each added tree tightens the fit around the true curve. Worth being honest about
 
 Section 4 argued for a smaller learning rate in the abstract; here's what it costs concretely. Running the same 100-row dataset for the same 5 added trees, once with `learning_rate = 1` and once with `learning_rate = 0.1`:
 
-<img src="/images/ch59-learning-rate-comparison.png" alt="Two scatter plots side by side of the same quadratic dataset with 5 trees added. Left, learning rate 1, the red fitted curve hugs the U-shape tightly, training residual sum of squares 0.079, including the same overfitting spike near X=0.1. Right, learning rate 0.1, the red fitted curve is much flatter and further from the U-shape, training residual sum of squares 2.122, clearly underfit after only 5 stages." className="w-full h-auto" />
+<img src="/images/ch58-learning-rate-comparison.png" alt="Two scatter plots side by side of the same quadratic dataset with 5 trees added. Left, learning rate 1, the red fitted curve hugs the U-shape tightly, training residual sum of squares 0.079, including the same overfitting spike near X=0.1. Right, learning rate 0.1, the red fitted curve is much flatter and further from the U-shape, training residual sum of squares 2.122, clearly underfit after only 5 stages." className="w-full h-auto" />
 
 At `learning_rate = 1`, 5 trees are already enough to hug the training data tightly, overfitting spike included. At `learning_rate = 0.1`, those same 5 trees have only taken small steps and are still visibly underfit, training error over 25 times higher. Neither is "correct" in isolation, a small learning rate needs many more stages to reach the same fit a large one reaches quickly, which is exactly the trade-off the video points at: smaller steps in the right direction, more of them, rather than one big step that overshoots into memorization.
 

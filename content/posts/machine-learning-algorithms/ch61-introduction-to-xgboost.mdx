@@ -1,5 +1,5 @@
 ---
-title: "Ch.62: Introduction to XGBoost, Why It Took Over"
+title: "Ch.61: Introduction to XGBoost, Why It Took Over"
 description: "XGBoost is not an algorithm, it's a library built on top of gradient boosting: what specifically made gradient boosting the right base to extend rather than AdaBoost or another algorithm, and a tour of the flexibility, speed, and performance engineering that turned it into the library every Kaggle winner reaches for."
 date: "2026-09-28T20:50:00+05:30"
 tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "boosting", "gradient-boosting", "xgboost"]
@@ -7,7 +7,7 @@ subtopic: "Ensemble Learning"
 draft: false
 ---
 
-The [previous posts](/machine-learning-algorithms/ch61-gradient-boosting-classification-intuition) worked through gradient boosting's actual mechanics, baseline, pseudo-residual, fit a tree, update, for both regression and classification. XGBoost is what happens when that same algorithm gets a decade of engineering thrown at it. This post is a tour of what XGBoost actually is, why gradient boosting specifically was the algorithm worth building it on top of, and the concrete flexibility/speed/performance decisions that turned "gradient boosting" into "the library every Kaggle winner reaches for."
+The [previous posts](/machine-learning-algorithms/ch60-gradient-boosting-classification-intuition) worked through gradient boosting's actual mechanics, baseline, pseudo-residual, fit a tree, update, for both regression and classification. XGBoost is what happens when that same algorithm gets a decade of engineering thrown at it. This post is a tour of what XGBoost actually is, why gradient boosting specifically was the algorithm worth building it on top of, and the concrete flexibility/speed/performance decisions that turned "gradient boosting" into "the library every Kaggle winner reaches for."
 
 ## 1. XGBoost Is Not an Algorithm
 

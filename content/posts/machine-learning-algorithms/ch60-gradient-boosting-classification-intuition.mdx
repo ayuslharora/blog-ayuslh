@@ -1,5 +1,5 @@
 ---
-title: "Ch.61: Gradient Boosting for Classification, the Intuition"
+title: "Ch.60: Gradient Boosting for Classification, the Intuition"
 description: "The same four-step gradient boosting recipe from the regression posts, now run with log loss instead of squared error: why the starting model becomes log-odds instead of a mean, why the pseudo-residual is still actual-minus-predicted (just on probabilities), and why each leaf needs its own formula to convert a residual back into a log-odds value, worked through a small placement dataset and a real decision-boundary simulation."
 date: "2026-09-28T14:20:00+05:30"
 tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "boosting", "gradient-boosting", "decision-trees"]
@@ -10,7 +10,7 @@ broadcast: false
 
 *Inspired by:* [YouTube](https://www.youtube.com/watch?v=4p5EQtyxSyI)
 
-The [regression posts](/machine-learning-algorithms/ch59-gradient-boosting-regression-intuition) on gradient boosting built up a specific four-step recipe: start with a simple baseline, compute a pseudo-residual, fit a tree to that residual, and update. The genuinely good news is that **classification uses the exact same recipe**, no new algorithm to learn. The only thing that changes is the loss function, squared error for regression, log loss for classification, and that one change ripples through every step: the baseline becomes log-odds instead of a mean, and every tree's leaf needs its own small formula to convert a residual back into something that can be added to a log-odds running total. This post works through why, step by step, on a small worked example, then shows what it looks like geometrically on a real dataset.
+The [regression posts](/machine-learning-algorithms/ch58-gradient-boosting-regression-intuition) on gradient boosting built up a specific four-step recipe: start with a simple baseline, compute a pseudo-residual, fit a tree to that residual, and update. The genuinely good news is that **classification uses the exact same recipe**, no new algorithm to learn. The only thing that changes is the loss function, squared error for regression, log loss for classification, and that one change ripples through every step: the baseline becomes log-odds instead of a mean, and every tree's leaf needs its own small formula to convert a residual back into something that can be added to a log-odds running total. This post works through why, step by step, on a small worked example, then shows what it looks like geometrically on a real dataset.
 
 ## 1. Why the Baseline Can't Just Be a Mean Anymore
 
