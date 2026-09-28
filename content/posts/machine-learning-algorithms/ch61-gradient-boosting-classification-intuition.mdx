@@ -40,9 +40,9 @@ Same as regression: fit a shallow regression tree (a weak learner, kept small on
 
 > Worth pausing on that word "regression": even though this whole post is about a **classification** problem, the tree fit at every stage is a **regression tree**, not a classification tree. The reason is simple once you look at what it's actually being trained on: the target column at this step is a pseudo-residual, a continuous number like $-0.625$ or $0.375$, not a class label. A classification tree expects to predict discrete classes; a regression tree predicts numbers, which is exactly what's needed here. This holds at every stage, no matter how many trees get added, gradient boosting for classification is built entirely out of regression trees.
 
-The tricky part is what comes next. In regression, a leaf's own averaged output was directly usable, add it straight to the running prediction. Here it isn't, because the tree was fit on residuals that are differences of *probabilities*, and the running total is being kept in *log-odds*. Mixing the two would be mixing units.
+The tricky part is what comes next. In regression, a leaf's own averaged output was directly usable, add it straight to the running prediction. Here it isn't, because the tree was fit on residuals that are differences of *probabilities*, and the running total is being kept in *log-odds*. Mixing the two would be mixing units, so every leaf's probability-space residual has to be **converted back into a log-odds contribution** before it can be added to $F$.
 
-Each leaf therefore needs its own conversion formula:
+Each leaf therefore needs its own conversion formula, one that takes that leaf's residuals (still in probability space) and outputs a single log-odds value:
 
 $$
 \gamma_{j} = \frac{\sum_{i \in \text{leaf } j} (y_i - p_i)}{\sum_{i \in \text{leaf } j} p_i(1 - p_i)}
