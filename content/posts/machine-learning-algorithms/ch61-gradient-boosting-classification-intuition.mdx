@@ -36,7 +36,11 @@ Here's the part that doesn't change: the pseudo-residual is still $y_i - \hat{y}
 
 ## 3. Fitting a Tree to the Residual, Then the Hard Part
 
-Same as regression: fit a shallow regression tree (a weak learner, kept small on purpose, capped at a handful of leaves) with the original features as input and the residuals as the target. The tricky part is what comes next. In regression, a leaf's own averaged output was directly usable, add it straight to the running prediction. Here it isn't, because the tree was fit on residuals that are differences of *probabilities*, and the running total is being kept in *log-odds*. Mixing the two would be mixing units.
+Same as regression: fit a shallow regression tree (a weak learner, kept small on purpose, capped at a handful of leaves) with the original features as input and the residuals as the target.
+
+> Worth pausing on that word "regression": even though this whole post is about a **classification** problem, the tree fit at every stage is a **regression tree**, not a classification tree. The reason is simple once you look at what it's actually being trained on: the target column at this step is a pseudo-residual, a continuous number like $-0.625$ or $0.375$, not a class label. A classification tree expects to predict discrete classes; a regression tree predicts numbers, which is exactly what's needed here. This holds at every stage, no matter how many trees get added, gradient boosting for classification is built entirely out of regression trees.
+
+The tricky part is what comes next. In regression, a leaf's own averaged output was directly usable, add it straight to the running prediction. Here it isn't, because the tree was fit on residuals that are differences of *probabilities*, and the running total is being kept in *log-odds*. Mixing the two would be mixing units.
 
 Each leaf therefore needs its own conversion formula:
 
