@@ -10,7 +10,7 @@ broadcast: false
 
 *Inspired by:* [YouTube](https://www.youtube.com/watch?v=nMNiTZm-qY0)
 
-The [previous post](/machine-learning-algorithms/ch59-gradient-boosting-regression-intuition) covered gradient boosting's regression procedure but deferred every "why": why the first model is the mean, why the target that gets passed forward is called a *pseudo*-residual instead of a plain residual, and why a fitted tree's leaf values line up so neatly with what the algorithm needs. All three turn out to be the same differentiation, applied three times to the same loss function. This post works through it, following [Friedman's original gradient boosting algorithm](https://en.wikipedia.org/wiki/Gradient_boosting) the way the source video presents it, and checks every number against a real, tiny dataset along the way.
+The [previous post](/machine-learning-algorithms/ch59-gradient-boosting-regression-intuition) covered gradient boosting's regression procedure but deferred every "why": why the first model is the mean, why the target that gets passed forward is called a *pseudo*-residual instead of a plain residual, and why a fitted tree's leaf values line up so neatly with what the algorithm needs. All three turn out to be the same differentiation, applied three times to the same loss function. This post works through it, following [Friedman's original gradient boosting algorithm](https://en.wikipedia.org/wiki/Gradient_boosting), and checks every number against a real, tiny dataset along the way.
 
 ## 1. Additive Modeling: Why Add Small Functions at All
 
@@ -58,7 +58,7 @@ $$
 F_0(x) = \frac{192 + 144 + 91}{3} = \frac{427}{3} \approx 142.33
 $$
 
-(worth flagging: if you round that to a flat 142 before carrying it forward, as is easy to do by hand, every downstream number below drifts slightly, the source video does exactly this and its leaf outputs end up about 0.3 off from what a decision tree would compute precisely. Carrying the full $142.33$ avoids that drift.)
+(worth flagging: if you round that to a flat 142 before carrying it forward, as is easy to do by hand, every downstream number below drifts slightly, leaf outputs end up about 0.3 off from what a decision tree would compute precisely. Carrying the full $142.33$ avoids that drift.)
 
 This result is specific to squared-error loss. A different differentiable loss function would produce a different formula in place of "take the mean", the *shape* of the algorithm (differentiate, set to zero, solve for $\gamma$) stays the same regardless of which loss is plugged in.
 
