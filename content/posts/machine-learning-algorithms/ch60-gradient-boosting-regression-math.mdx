@@ -16,6 +16,10 @@ The [previous post](/machine-learning-algorithms/ch59-gradient-boosting-regressi
 
 Machine learning, stripped down, is finding a function $f$ that maps inputs to an output: $y = f(x)$. Sometimes that function is simple enough for one model, a straight line, a polynomial. But some relationships are genuinely composite, built out of several simpler functions added together. A toy example: $f(x) = x + \sin(x)$ is not something a single straight line or a single low-degree polynomial captures well, but it's exactly the sum of two functions that are individually easy to reason about.
 
+<img src="/images/ch60-additive-modeling-example.png" alt="Line chart showing three curves over x from -10 to 10: a dashed grey straight line y=x, a dashed orange oscillating curve y=sin(x), and a solid blue curve y=x+sin(x) that follows the straight line's overall upward trend while wobbling around it in a wave pattern matching sin(x)." className="w-full h-auto" />
+
+The blue curve is genuinely hard to describe as "one simple shape", it's not a line, not a low-degree polynomial, but it's exactly the straight line plus the sine wave, two shapes that are each trivial on their own. That's the whole idea additive modeling borrows: instead of hunting for one function that matches the blue curve directly, build it by adding simple pieces one at a time.
+
 **Additive modeling** is the strategy of not trying to find the whole composite function in one shot, and instead building it up piece by piece: fit a small function, see what's left unexplained, fit another small function to explain more of that, and so on. Every boosting algorithm, AdaBoost included, is a specific recipe for doing this. Gradient boosting's version, for regression, is what this post derives.
 
 ## 2. What Goes In: Data and a Differentiable Loss
