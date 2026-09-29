@@ -36,12 +36,12 @@ $$
 
 Every student gets predicted 7.375 regardless of CGPA, and the pseudo-residual for each row is actual minus predicted:
 
-| CGPA | Package | Residual |
-|------|---------|----------|
-| 6.7  | 4.5     | -2.875   |
-| 9.0  | 11.0    | 3.625    |
-| 7.5  | 6.0     | -1.375   |
-| 5.0  | 8.0     | 0.625    |
+| CGPA | Package | $F_0$ prediction | Residual |
+|------|---------|-------------------|----------|
+| 6.7  | 4.5     | 7.375             | -2.875   |
+| 9.0  | 11.0    | 7.375             | 3.625    |
+| 7.5  | 6.0     | 7.375             | -1.375   |
+| 5.0  | 8.0     | 7.375             | 0.625    |
 
 Worth noticing before moving on: these four residuals sum to exactly zero. That's not a coincidence specific to this dataset, subtracting the mean from every value always produces residuals that sum to zero, it's a direct consequence of what a mean is. This fact becomes useful in the next section.
 
@@ -70,6 +70,10 @@ Splitting works exactly like a vanilla decision tree's threshold search: sort th
 $$
 \text{sorted CGPA: } 5.0, \ 6.7, \ 7.5, \ 9.0 \implies \text{candidates: } 5.85, \ 7.1, \ 8.25
 $$
+
+Each candidate carves the four residuals into a different left/right pair:
+
+<img src="/images/ch62-split-candidates.png" alt="Three number-line diagrams, one per candidate threshold (5.85, 7.1, 8.25). Each plots the four CGPA points with their residuals labeled, colored blue if left of the dashed threshold line and red if right, with the resulting left and right residual sets written below. Candidate 8.25 is marked as the best gain, isolating residual 3.625 alone on the right" className="w-full h-auto" />
 
 For each candidate, compute the similarity score of the left group (SSL) and right group (SSR), then the **gain** from splitting:
 
