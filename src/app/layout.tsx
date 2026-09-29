@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Inter } from 'next/font/google';
 import 'katex/dist/katex.min.css';
 import './globals.css';
@@ -48,23 +49,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en-IN" suppressHydrationWarning>
       <head>
-        {/* Plain synchronous script (not next/script), placed first in <head>:
-            must run before any stylesheet/font finishes loading, or a dark-mode
-            browser can flash light on a slow/cold load. */}
-        <script
+        {/* next/script with strategy="beforeInteractive": Next.js injects this
+            directly into the initial HTML and runs it before hydration, so a
+            dark-mode browser never flashes light on a slow/cold load. A plain
+            <script> tag here triggers a React 19 client-render warning since
+            React never executes script tags it renders itself. */}
+        <Script
           id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: themeInitScript }}
         />
       </head>
       <body className={`${inter.className} min-h-screen flex flex-col antialiased overflow-x-hidden`}>
-        <script
+        <Script
           id="jsonld-website"
           type="application/ld+json"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildWebsiteJsonLd()) }}
         />
-        <script
+        <Script
           id="jsonld-person"
           type="application/ld+json"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildPersonJsonLd()) }}
         />
         <NavBar categories={categories} />

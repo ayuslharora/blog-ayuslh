@@ -77,22 +77,22 @@ $$
 \text{Gain} = \text{SSL} + \text{SSR} - \text{Similarity}_{\text{parent}}
 $$
 
-| Split (CGPA <) | Left residuals | Right residuals | SSL | SSR | Gain |
+| Split (CGPA below) | Left residuals | Right residuals | SSL | SSR | Gain |
 |---|---|---|---|---|---|
-| 5.85 | {0.625} | {-2.875, 3.625, -1.375} | 0.391 | 0.130 | 0.521 |
-| 7.1  | {-2.875, 0.625} | {3.625, -1.375} | 2.531 | 2.531 | 5.063 |
-| 8.25 | {-2.875, -1.375, 0.625} | {3.625} | 4.380 | 13.141 | **17.521** |
+| 5.85 | `{0.625}` | `{-2.875, 3.625, -1.375}` | 0.391 | 0.130 | 0.521 |
+| 7.1  | `{-2.875, 0.625}` | `{3.625, -1.375}` | 2.531 | 2.531 | 5.063 |
+| 8.25 | `{-2.875, -1.375, 0.625}` | `{3.625}` | 4.380 | 13.141 | **17.521** |
 
-Since $\text{Similarity}_{\text{parent}} = 0$ (Section 3), gain here is just SSL + SSR, nothing to subtract. The split at **CGPA < 8.25** wins by a wide margin, mostly because it isolates the single largest residual (3.625, the CGPA = 9.0 row) into its own leaf, and an unshared residual squared over $n=1$ produces a large similarity score.
+Since $\text{Similarity}_{\text{parent}} = 0$ (Section 3), gain here is just SSL + SSR, nothing to subtract. The split at **CGPA below 8.25** wins by a wide margin, mostly because it isolates the single largest residual (3.625, the CGPA = 9.0 row) into its own leaf, and an unshared residual squared over $n=1$ produces a large similarity score.
 
 ## 5. Growing a Second Level
 
 The right side of that split (CGPA $\geq$ 8.25, just the one row with residual 3.625) has nothing left to split. The left side has three rows and two remaining candidate thresholds, 5.85 and 7.1:
 
-| Split (CGPA <) | Left residuals | Right residuals | SSL | SSR | Gain |
+| Split (CGPA below) | Left residuals | Right residuals | SSL | SSR | Gain |
 |---|---|---|---|---|---|
-| 5.85 | {0.625} | {-2.875, -1.375} | 0.391 | 9.031 | **5.042** |
-| 7.1  | {-2.875, 0.625} | {-1.375} | 2.531 | 1.891 | 0.042 |
+| 5.85 | `{0.625}` | `{-2.875, -1.375}` | 0.391 | 9.031 | **5.042** |
+| 7.1  | `{-2.875, 0.625}` | `{-1.375}` | 2.531 | 1.891 | 0.042 |
 
 5.85 wins clearly, again because it isolates a lone residual (0.625, the CGPA = 5.0 row) into its own single-row leaf. The finished tree, capped at depth 2 (XGBoost's own default is depth 6, but a 4-row toy dataset has no business growing that deep):
 
@@ -116,9 +116,9 @@ With $\lambda = 0$, this is just the average of the residuals in that leaf, same
 
 | Leaf | Residuals | Output |
 |------|-----------|--------|
-| CGPA $\geq$ 8.25 | {3.625} | 3.625 |
-| $5.85 \leq$ CGPA $< 8.25$ | {-2.875, -1.375} | -2.125 |
-| CGPA $< 5.85$ | {0.625} | 0.625 |
+| CGPA $\geq$ 8.25 | `{3.625}` | 3.625 |
+| $5.85 \leq \text{CGPA} < 8.25$ | `{-2.875, -1.375}` | -2.125 |
+| CGPA $< 5.85$ | `{0.625}` | 0.625 |
 
 ## 7. Assembling the Stage 1 Combined Model
 
