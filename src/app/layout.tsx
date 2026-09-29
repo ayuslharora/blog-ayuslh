@@ -48,15 +48,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en-IN" suppressHydrationWarning>
-      <head>
-        {/* next/script with strategy="beforeInteractive": Next.js injects this
-            directly into the initial HTML and runs it before hydration, so a
-            dark-mode browser never flashes light on a slow/cold load. A plain
-            <script> tag here triggers a React 19 client-render warning since
-            React never executes script tags it renders itself. */}
-        <Script
+      <head suppressHydrationWarning>
+        {/* Plain synchronous script (not next/script), placed first in <head>:
+            must run before any stylesheet/font finishes loading, or a dark-mode
+            browser can flash light on a slow/cold load. next/script's
+            strategy="beforeInteractive" looks like the "correct" fix but is NOT
+            equivalent: the App Router queues it into a self.__next_s array that
+            Next's client runtime only drains once its own JS chunks load, so on
+            a slow connection the page can paint light before it ever runs.
+            suppressHydrationWarning on <head> silences the React 19
+            client-render warning this raw <script> would otherwise log. */}
+        <script
           id="theme-init"
-          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: themeInitScript }}
         />
       </head>
