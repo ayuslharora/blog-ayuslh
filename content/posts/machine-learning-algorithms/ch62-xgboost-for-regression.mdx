@@ -132,18 +132,16 @@ $$
 F_1(x) = F_0 + \eta \cdot \text{tree}_1(x)
 $$
 
-| CGPA | $F_0$ | Leaf output | $F_1$ | Package | New residual |
-|------|-------|-------------|-------|---------|--------------|
-| 6.7  | 7.375 | -2.125 | $7.375 + 0.3(-2.125) = 6.7375$ | 4.5  | -2.2375 |
-| 9.0  | 7.375 | 3.625  | $7.375 + 0.3(3.625) = 8.4625$  | 11.0 | 2.5375  |
-| 7.5  | 7.375 | -2.125 | $7.375 + 0.3(-2.125) = 6.7375$ | 6.0  | -0.7375 |
-| 5.0  | 7.375 | 0.625  | $7.375 + 0.3(0.625) = 7.5625$  | 8.0  | 0.4375  |
+| CGPA | Package (actual) | $F_0$ (baseline pred.) | Old residual (Section 2) | Leaf output | $F_1 = F_0 + \eta \cdot \text{output}$ | New residual |
+|------|-------------------|------------------------|---------------------------|-------------|-----------------------------------------|--------------|
+| 6.7  | 4.5  | 7.375 | -2.875 | -2.125 | $7.375 + 0.3(-2.125) = 6.7375$ | -2.2375 |
+| 9.0  | 11.0 | 7.375 | 3.625  | 3.625  | $7.375 + 0.3(3.625) = 8.4625$  | 2.5375  |
+| 7.5  | 6.0  | 7.375 | -1.375 | -2.125 | $7.375 + 0.3(-2.125) = 6.7375$ | -0.7375 |
+| 5.0  | 8.0  | 7.375 | 0.625  | 0.625  | $7.375 + 0.3(0.625) = 7.5625$  | 0.4375  |
 
 Compare the new residuals against Section 2's originals, every single one shrank toward zero (-2.875 → -2.2375, 3.625 → 2.5375, -1.375 → -0.7375, 0.625 → 0.4375). That's the whole point of a boosting stage: nudge every prediction a bit closer to correct, then repeat with a second tree fit on these smaller residuals, and a third, and so on.
 
-## 8. Checking This Against a Real XGBRegressor
-
-Hand arithmetic across three sections is exactly the kind of thing worth double-checking against real code rather than trusting by eye. Replicating the exact-greedy split search above in plain Python and comparing it to a real `XGBRegressor` fit with matching hyperparameters:
+Hand arithmetic across four sections is exactly the kind of thing worth double-checking against real code rather than trusting by eye. Replicating the exact-greedy split search above in plain Python and comparing it to a real `XGBRegressor` fit with matching hyperparameters:
 
 ```python
 from xgboost import XGBRegressor
@@ -165,11 +163,21 @@ print(model.predict(cgpa))
 [6.7375 8.4625 6.7375 7.5625]
 ```
 
-That matches Section 7's hand-derived $F_1$ predictions exactly, confirming the similarity-score/gain/leaf-output formulas above are the actual mechanism, not just an approximation of one.
+That matches the table's hand-derived $F_1$ predictions exactly, confirming the similarity-score/gain/leaf-output formulas above are the actual mechanism, not just an approximation of one.
 
-## 9. A Note on How Splits Get Searched
+## 8. A Note on How Splits Get Searched
 
 The threshold search in Section 4 and Section 5, sort the feature, try the midpoint of every consecutive pair, is called the **exact greedy algorithm**, and it's what XGBoost's original paper describes as the default approach: accurate, since it genuinely checks every possible split, but expensive on a feature with millions of distinct values, since every one of those becomes a candidate. For large datasets, XGBoost falls back to an **approximate algorithm** instead, which buckets candidate splits rather than trying every single value, similar in spirit to the quantile-based binning covered in the flexibility/speed overview. That approximate method deserves its own dedicated treatment rather than a mention here.
+
+## 9. Multiple Features and Categorical Splits
+
+The toy dataset above has exactly one feature. A real placement dataset would have several, CGPA alongside 12th-grade marks, internship count, and so on, and it's worth working out how the split search changes once there's more than one column, and once a column isn't numeric.
+
+**More than one numeric feature.** The search doesn't change in kind, only in scope. This is the same extension covered for [vanilla regression trees](/machine-learning-algorithms/ch40-decision-tree-regression): the exact-greedy sweep from Section 4, sort the feature, test every midpoint, runs independently on *every* numeric column. Each feature comes back with its own best candidate threshold and the gain that threshold achieves. Whichever feature's best gain is highest wins the node, and its threshold becomes the split condition. A tree built on CGPA and 12th-grade marks might split on CGPA at the root and 12th-grade marks two levels down, or never touch 12th-grade marks at all if CGPA keeps winning the gain comparison at every node it's tried against.
+
+**A binary categorical feature.** With only two categories (say, an internship column coded 0/1), there's exactly one possible way to divide the rows, left gets one category, right gets the other. No sweep is needed: compute the gain for that single split and treat it exactly like any other feature's best candidate in the comparison above.
+
+**A multi-class categorical feature.** With $k$ categories and no natural ordering to sort by, the midpoint-sweep search doesn't directly apply, there's no "midpoint" between, say, a Computer Science and a Mechanical degree branch. Trying every possible way to divide $k$ unordered categories into two groups is exponential ($2^{k-1} - 1$ candidate splits), too expensive to brute-force once $k$ grows past a handful. The way around it, used by XGBoost's native categorical support and by LightGBM: sort the categories by their mean target value (or mean residual, in a boosting context) within that node, then run the *exact same* midpoint sweep from Section 4 over that sorted order, as if the categories were now a numeric feature. This is provably optimal for a single split, a result that goes back to Fisher's work on partitioning categorical predictors, and it turns an exponential search into a linear one. The more common approach in practice, and the only one older XGBoost versions support without `enable_categorical=True`, is simpler still: one-hot encode the column into $k$ binary features upfront and let each one compete in the ordinary numeric split search above.
 
 ## 10. What to Take Away
 
@@ -179,3 +187,4 @@ The threshold search in Section 4 and Section 5, sort the feature, try the midpo
 - Residuals from a mean baseline always sum to zero, which is why a stage-1 tree's root similarity score is always zero, and gain reduces to just SSL + SSR for that first tree.
 - The default learning rate is $0.3$ and the default max tree depth is $6$, though a small toy dataset has no reason to use either default at full strength.
 - This exact-greedy split search (try every possible threshold) is one of two split-finding strategies XGBoost supports, the other, an approximate quantile-based method for large datasets, is a topic on its own.
+- With multiple features, every feature runs its own gain-maximizing search independently and the best gain across all of them wins the node; categorical features join that same search either by one-hot encoding or by sorting categories on mean target value first.
