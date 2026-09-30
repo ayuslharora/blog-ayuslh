@@ -16,7 +16,20 @@ The [regression posts](/machine-learning-algorithms/ch58-gradient-boosting-regre
 
 In regression, stage 1 was the mean of the target column, straightforward, since salaries are numbers you can average. Classification labels are 0s and 1s, averaging them technically gives you a proportion, but that's not a quantity you can keep adding tree outputs to and expect sensible results (it would drift outside the sensible range as soon as you started adding and subtracting from it).
 
-The fix is to work in **log-odds** space instead. For a small placement dataset (CGPA and IQ predicting whether a student gets placed) with 5 placed students and 3 not placed, the initial model is:
+The fix is to work in **log-odds** space instead. For a small placement dataset (CGPA and IQ predicting whether a student gets placed) with 5 placed students and 3 not placed:
+
+| CGPA | IQ | Placed |
+|------|-----|--------|
+| 6.82 | 118 | 0 |
+| 6.36 | 125 | 1 |
+| 5.39 | 99  | 1 |
+| 5.50 | 106 | 1 |
+| 6.39 | 148 | 0 |
+| 9.13 | 148 | 1 |
+| 7.17 | 147 | 1 |
+| 7.72 | 72  | 0 |
+
+The initial model is:
 
 $$
 F_0 = \ln\left(\frac{\text{count of 1s}}{\text{count of 0s}}\right) = \ln\left(\frac{5}{3}\right) \approx 0.51
@@ -50,13 +63,26 @@ $$
 
 Read it as: sum up the residuals that landed in this leaf (the numerator), and divide by a measure of how uncertain the previous stage's predictions were for those same rows (the denominator, biggest when PreviousProb is near 0.5, smallest when PreviousProb is confidently near 0 or 1). This formula falls out of a Newton step on the log-loss function; the full derivation is deferred to a dedicated math post, same as the regression case's mean and residual formulas were derived in a follow-up rather than the first intuition post.
 
-Working it for the placement example: one leaf catches 2 rows whose previous probability was 0.625 and whose residuals were both $-0.625$ (both actually unplaced students the baseline was over-confident about):
+For the placement dataset, tree 1 (capped at 3 leaves) splits first on CGPA (< 6.37), then, on the branch that fails that test, on IQ (< 132). Every row shares the same previous probability, the baseline's 0.625, so the residual is fixed entirely by the label: $+0.375$ if placed, $-0.625$ if not. Here's where every row lands:
+
+| CGPA | IQ | Placed | Previous prob. | Residual | Routes to |
+|------|-----|--------|-----------------|----------|-----------|
+| 6.36 | 125 | 1 | 0.625 | 0.375 | CGPA < 6.37 → Leaf A |
+| 5.39 | 99  | 1 | 0.625 | 0.375 | CGPA < 6.37 → Leaf A |
+| 5.50 | 106 | 1 | 0.625 | 0.375 | CGPA < 6.37 → Leaf A |
+| 6.82 | 118 | 0 | 0.625 | -0.625 | CGPA ≥ 6.37, IQ < 132 → Leaf B |
+| 7.72 | 72  | 0 | 0.625 | -0.625 | CGPA ≥ 6.37, IQ < 132 → Leaf B |
+| 6.39 | 148 | 0 | 0.625 | -0.625 | CGPA ≥ 6.37, IQ ≥ 132 → Leaf C |
+| 9.13 | 148 | 1 | 0.625 | 0.375 | CGPA ≥ 6.37, IQ ≥ 132 → Leaf C |
+| 7.17 | 147 | 1 | 0.625 | 0.375 | CGPA ≥ 6.37, IQ ≥ 132 → Leaf C |
+
+Working it for Leaf B, the 2 rows whose previous probability was 0.625 and whose residuals were both $-0.625$ (both actually unplaced students the baseline was over-confident about):
 
 $$
 \text{Log-Odds Value} = \frac{-0.625 + -0.625}{0.625(0.375) + 0.625(0.375)} = \frac{-1.25}{0.46875} \approx -2.66
 $$
 
-Repeating this per leaf across the tree gives three leaf values in this example: $-2.66$, $0.18$, and $1.6$, each one a log-odds *contribution*, not a probability.
+Repeating this per leaf across the tree gives three leaf values: Leaf A (3 rows, all $+0.375$) comes out to $1.6$, Leaf B (above) is $-2.66$, and Leaf C (one $-0.625$ mixed with two $+0.375$s) comes out to $0.18$, each one a log-odds *contribution*, not a probability.
 
 ## 4. Combining Stages: Back and Forth Between Log-Odds and Probability
 
