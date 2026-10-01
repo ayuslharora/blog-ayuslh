@@ -1,0 +1,103 @@
+---
+title: "Ch.65: Stacking and Blending, Learning How to Combine Models"
+description: "Voting combines base models with a fixed rule, mean or majority vote. Stacking replaces that rule with a trained meta-model instead, which immediately creates an overfitting trap, and two different fixes for it, a single holdout split (blending) and K-fold cross-validation (stacking proper), worked through with diagrams and a real scikit-learn StackingClassifier on the heart disease dataset."
+date: "2026-10-01T23:30:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "stacking", "blending"]
+subtopic: "Ensemble Learning"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=O-aDHBGMqXA)
+
+## 1. From a Fixed Combination Rule to a Learned One
+
+[Voting ensembles](/machine-learning-algorithms/ch42-voting-ensemble-intuition) train several different algorithms on the same data and combine their outputs with a fixed rule: average the predictions for regression, take the majority vote for classification. A linear regressor, a random forest, and a gradient boosting model might predict 3.5, 4.1, and 2.7 LPA for the same student, and voting just averages those three numbers to 3.43.
+
+Stacking keeps the first half of that idea, train several different base models, and changes the second half. Instead of a fixed averaging rule, it trains a separate machine learning model, the **meta-model**, to learn how to combine the base models' outputs. The base models' predictions become the meta-model's input features, and the original target stays the target.
+
+## 2. Building the Stacking Dataset, By Hand
+
+Take the same CGPA/IQ/package dataset used throughout this series, and the same three base models as above: a linear regressor, a decision tree, and a KNN regressor. Stacking's training recipe:
+
+1. **Train the base models.** Fit all three on the full dataset, same as any other model.
+2. **Collect their predictions as a new dataset.** For every student, run all three trained models and record their outputs as three new columns. A student with CGPA 7, IQ 75, and an actual package of 3.5 might get predictions of 3.7, 4.1, and 2.5 from the three base models, so this student's row in the new dataset becomes `[3.7, 4.1, 2.5]` as input, with the target still 3.5.
+3. **Train the meta-model on that new dataset.** A random forest regressor, say, now trains on these three prediction columns instead of CGPA and IQ.
+
+At inference time, a new query point goes through all three base models first, their three outputs become the meta-model's input, and the meta-model's output is the final prediction. Two differences from bagging and boosting are worth naming directly: the base models don't have to be the same type of algorithm, where bagging and boosting both reuse one algorithm throughout, and the combination step is a trained model rather than an average, a majority vote, or a weighted sum.
+
+## 3. The Overfitting Trap in the Naive Version
+
+The recipe above has a serious flaw. Step 2 generates predictions by running the base models on the *same data they were just trained on*. Any model that's prone to overfitting, a sufficiently deep decision tree, for instance, will produce predictions on its own training data that are better than it would ever achieve on new data; the model has partly memorized the answers. The meta-model then trains on these overly optimistic predictions, inherits that overfitting, and the whole stack generalizes worse than the base models would on their own.
+
+The fix is to never let a base model produce a prediction on a row it was trained on. There are two ways to enforce that, and they go by different names depending on which one is used.
+
+## 4. Blending: Fixing It With a Single Holdout Split
+
+Split the training data into two pieces, $D_{train}$ (used to actually build things) and $D_{test}$ (held back for final evaluation, same as always). Then split $D_{train}$ itself a second time, into a **train** subset and a **holdout** subset, commonly 80/20:
+
+<BlendingDiagram />
+
+The base models only ever see the train subset during fitting. Once trained, they predict on the holdout subset, rows they've never touched, and those predictions, together with the holdout rows' actual target values, become the meta-model's training data. Since the base models never trained on the rows they're predicting here, there's no memorization to inherit. This holdout-based version of the recipe is specifically called **blending**.
+
+## 5. Stacking Proper: Fixing It With K-Fold Cross-Validation
+
+Blending works, but it only uses one slice of the data (the holdout split) to build the meta-model's training set, throwing away the rest. **K-fold cross-validation** fixes the same overfitting problem without wasting as much data, and this version is what "stacking" refers to specifically once the blending/stacking distinction is being made carefully (plenty of people use "stacking" loosely for both, but the distinction can come up in interviews).
+
+<StackingDiagram />
+
+Split $D_{train}$ into $K$ folds (commonly 5 or 10; the diagram above uses 4 for a readable example). For each base model, run $K$ rounds of training: in round $k$, train on every fold except fold $k$, then predict on fold $k$ alone, a fold the model hasn't seen this round. After all $K$ rounds, every single row in $D_{train}$ has exactly one out-of-fold prediction from that base model, and no row was ever predicted by a model that trained on it. Repeating this for every base model produces a complete table of out-of-fold predictions covering all of $D_{train}$, which becomes the meta-model's training data.
+
+There's a subtlety easy to miss here: this K-fold process produces a *trained meta-model*, but it leaves behind $K$ separately-trained copies of each base model (one per fold), none of which saw the full training set. None of those get used for inference. Instead, each base model gets **retrained from scratch on the entirety of $D_{train}$**, with the K-fold splits forgotten entirely. The final system pairs these fully-retrained base models with the meta-model trained on the out-of-fold predictions, so the meta-model gets trained first and the base models used at inference time get finalized second, a reversed order from what the setup might suggest.
+
+## 6. Multi-Layer Architectures
+
+Nothing restricts stacking to one layer of base models feeding one meta-model directly. A second layer of models can sit between the base models and the final meta-model, each layer's outputs becoming the next layer's inputs.
+
+Building this with blending's holdout approach means $D_{train}$ needs splitting into as many pieces as there are layers: a first chunk trains layer 1's models, a second chunk (which layer 1 hasn't seen) gets predicted on by layer 1 to produce layer 2's training data, a third chunk (which neither layer has seen) gets predicted on by layer 2 to produce the final meta-model's training data, and so on. Three layers means three-way splitting $D_{train}$ into progressively smaller holdout chunks. Multi-layer architectures like this show up frequently in Kaggle-winning solutions, sometimes with dozens of models in the first layer narrowing down through several layers to one final predictor, though working out the K-fold equivalent of this multi-layer holdout scheme (rather than progressively splitting the data, running nested K-fold CV at each layer) is a worthwhile exercise in its own right.
+
+## 7. In Code: scikit-learn's StackingClassifier
+
+scikit-learn's `StackingClassifier` (and its regression counterpart, `StackingRegressor`) implements the K-fold version from Section 5 directly: pass a list of base estimators, a `final_estimator`, and a `cv` value for $K$. On the UCI heart disease dataset (binary target: heart disease present or not):
+
+```python
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, StackingClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+
+df = pd.read_csv("heart.csv")
+X = df.drop(columns=["target"])
+y = df["target"]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=8)
+
+estimators = [
+    ("rf", RandomForestClassifier(n_estimators=10, random_state=42)),
+    ("knn", KNeighborsClassifier(n_neighbors=10)),
+    ("gbdt", GradientBoostingClassifier()),
+]
+
+clf = StackingClassifier(estimators=estimators, final_estimator=LogisticRegression(), cv=10)
+clf.fit(X_train, y_train)
+
+y_pred = clf.predict(X_test)
+print(accuracy_score(y_test, y_pred))
+```
+
+```
+0.8688524590163934
+```
+
+A few parameters worth knowing about beyond what's used here: `stack_method` controls what a classifier's base estimators hand to the meta-model, raw class predictions, predicted probabilities, or decision function scores, with `"auto"` picking whichever each estimator supports; and `passthrough=True` appends the original input features alongside the base models' predictions when training the meta-model, rather than training it on the base models' outputs alone. This example leaves both at their defaults. `StackingClassifier` and `StackingRegressor` need scikit-learn 0.22 or newer; neither exists in earlier releases.
+
+## 8. What to Take Away
+
+- Stacking extends voting's idea, train multiple base models and combine them, but replaces the fixed combination rule (mean, majority vote) with a trained meta-model whose input features are the base models' own predictions.
+- Two differences separate stacking from bagging and boosting: base models can be different algorithm types, and the combination step is a trained model rather than an averaging or voting rule.
+- Generating the meta-model's training data by predicting on the same rows the base models trained on causes overfitting, especially with high-variance base models; the meta-model inherits whatever memorization the base models did.
+- **Blending** fixes this with a single holdout split: base models train on one subset, predict only on a holdout subset they never trained on, and those holdout predictions train the meta-model.
+- **Stacking** (used precisely) fixes the same problem with K-fold cross-validation instead, producing out-of-fold predictions for every row in the training set rather than only a holdout slice, which wastes less data but needs the base models retrained on the full training set afterward, separately from the K-fold copies used to build the meta-model's training data.
+- Multi-layer stacking generalizes the same idea across several layers of models, at the cost of needing progressively more holdout data to feed each additional layer cleanly.
+- `sklearn.ensemble.StackingClassifier`/`StackingRegressor` implement the K-fold version: `estimators` for the base models, `final_estimator` for the meta-model, `cv` for $K$, plus `stack_method` and `passthrough` for finer control.
