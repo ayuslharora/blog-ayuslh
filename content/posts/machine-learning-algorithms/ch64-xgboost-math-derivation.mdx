@@ -1,0 +1,243 @@
+---
+title: "Ch.64: Deriving XGBoost's Formulas From Scratch"
+description: "The similarity score and leaf output formulas used in the regression and classification walkthroughs were handed over without proof. This post derives both, plus the split gain formula, from XGBoost's actual objective function using a second-order Taylor expansion, the same route the original paper takes, verified with sympy along the way."
+date: "2026-10-01T23:10:00+05:30"
+tags: ["machine-learning", "machine-learning-algorithms", "ensemble-learning", "boosting", "gradient-boosting", "xgboost", "decision-trees", "calculus"]
+subtopic: "Ensemble Learning"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=0Eo-_5bfers)
+
+The [regression](/machine-learning-algorithms/ch62-xgboost-for-regression) and [classification](/machine-learning-algorithms/ch63-xgboost-for-classification) walkthroughs used two formulas without justifying either: the similarity score, $(\sum \text{residuals})^2 / (n + \lambda)$ for regression and $(\sum \text{residuals})^2 / (\sum p(1-p) + \lambda)$ for classification, and the matching leaf output formula, the same numerator without the square. Both were presented as "this is what you compute," with a promise to come back to where they came from. This post is that derivation, starting from [XGBoost's actual objective function](https://arxiv.org/abs/1603.02754) and ending at the exact formulas used in both earlier posts.
+
+## 1. The Objective Function, Built Up Stage by Stage
+
+[Gradient boosting's additive structure](/machine-learning-algorithms/ch58-gradient-boosting-regression-intuition) means a model after $t$ stages is a sum of functions, $\hat y_i = \sum_{k=1}^{t} f_k(x_i)$, where each $f_k$ is one fitted tree (or, for $f_1$, a constant baseline). Every one of those trees makes some amount of error, and the quantity you want to minimize at any stage combines that error with a penalty on model complexity:
+
+$$
+\text{Obj}^{(t)} = \underbrace{\sum_{i=1}^{n} L(y_i, \hat y_i^{(t)})}_{\text{loss}} + \underbrace{\sum_{k=1}^{t} \Omega(f_k)}_{\text{regularization}}
+$$
+
+The regularization term $\Omega(f)$ only applies to decision trees, not to a constant baseline, since a flat number has no leaves to penalize. For the single-tree case this is:
+
+$$
+\Omega(f) = \gamma T + \frac{1}{2} \lambda \sum_{j=1}^{T} w_j^2
+$$
+
+$T$ is the number of leaves in that tree, $w_j$ is leaf $j$'s output value (its "weight"), and $\gamma$, $\lambda$ are two separate regularization knobs: $\gamma$ penalizes having too many leaves, $\lambda$ penalizes leaves with large output magnitudes. This is the piece [the XGBoost overview](/machine-learning-algorithms/ch61-introduction-to-xgboost#61-a-regularization-term-baked-into-the-loss) referred to as "a regularization term baked directly into the loss."
+
+At stage $t$, every tree before the current one is already fixed, so $\hat y_i^{(t)} = \hat y_i^{(t-1)} + f_t(x_i)$ splits the objective into "everything already accounted for" and "the one new tree":
+
+$$
+\text{Obj}^{(t)} = \sum_{i=1}^{n} L\!\left(y_i, \hat y_i^{(t-1)} + f_t(x_i)\right) + \Omega(f_t)
+$$
+
+The goal at every stage is the same: find the $f_t$ (equivalently, the leaf weights of the $t$-th tree) that minimizes this expression. That makes it an optimization problem, the same flavor as fitting $m$ and $b$ in linear regression by minimizing mean squared error, just with a far less convenient function to minimize.
+
+## 2. Why This Can't Be Differentiated Directly
+
+Ordinary optimization differentiates the objective with respect to the parameter being solved for, sets that derivative to zero, and solves. In linear regression, the loss as a function of $m$ and $b$ traces out a smooth parabola, differentiable everywhere, which is exactly what makes that route work.
+
+$f_t(x_i)$ here is a decision tree, and a decision tree's output is piecewise constant: the same output for every row that lands in a given leaf, then a sudden jump for rows in the next leaf over. Fitting the same two curves, a line and a shallow tree, to one dataset makes the shape difference concrete:
+
+<img src="/images/ch64-tree-vs-linear.png" alt="Two scatter plots of CGPA against package with a fitted prediction curve overlaid. The left plot shows a straight diagonal line from linear regression. The right plot shows a staircase of flat horizontal segments with sudden jumps between them, from a depth-2 decision tree fit on the same points." className="w-full h-auto" />
+
+A straight line is differentiable at every point. The staircase is not, at each jump the slope is undefined, there's no single tangent line to speak of. Since $\hat y_i^{(t)}$ is built out of $f_t(x_i)$, plotting the objective function against $f_t(x_i)$ inherits that same jaggedness instead of a clean parabola. Partial differentiation with respect to $f_t(x_i)$ breaks down at exactly the points where it would be needed.
+
+## 3. Taylor Series: Smoothing a Function Into a Polynomial
+
+The fix is to approximate the non-differentiable objective with something that is differentiable, close enough to be useful, close enough to be trustworthy. The **Taylor series** is the standard tool for exactly this: given a complicated function $f(x)$ and a nearby point $a$, it builds a polynomial approximation out of $f$'s derivatives at $a$:
+
+$$
+f(x) \approx f(a) + \frac{f'(a)}{1!}(x-a) + \frac{f''(a)}{2!}(x-a)^2 + \frac{f'''(a)}{3!}(x-a)^3 + \cdots
+$$
+
+Each additional term tightens the approximation around $a$. Expanding $e^x$ around $a=0$ term by term:
+
+$$
+e^x \approx \underbrace{1}_{f(a)} + \underbrace{x}_{\frac{f'(a)}{1!}(x-a)} + \underbrace{\frac{x^2}{2}}_{\frac{f''(a)}{2!}(x-a)^2} + \underbrace{\frac{x^3}{6}}_{\frac{f'''(a)}{3!}(x-a)^3}
+$$
+
+<img src="/images/ch64-taylor-series-ex.png" alt="A line chart comparing e^x against its Taylor series approximations using 1, 2, and 3 terms, expanded around x=0. The true e^x curve is a solid black exponential. Each approximation curve hugs it more closely near x=0 and over a wider range as more terms are added, with the 3-term approximation visibly closest across the plotted range." className="w-full h-auto" />
+
+With one term the fit only holds very close to $a=0$; with three terms it tracks the true curve over a visibly wider range. That's the general trade: more terms buys more accuracy, farther from $a$. XGBoost's objective function stops at two terms, a second-order (quadratic) approximation, which turns out to be exactly enough.
+
+## 4. Applying the Taylor Expansion to the Objective
+
+Treat $L(y_i, \hat y_i^{(t-1)} + f_t(x_i))$ as the function being approximated, with $x = \hat y_i^{(t-1)} + f_t(x_i)$ and the expansion point $a = \hat y_i^{(t-1)}$, the prediction already locked in before this tree gets added. $x - a$ is then just $f_t(x_i)$, so the second-order expansion is:
+
+$$
+L\!\left(y_i, \hat y_i^{(t-1)} + f_t(x_i)\right) \approx L\!\left(y_i, \hat y_i^{(t-1)}\right) + g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2
+$$
+
+where $g_i$ and $h_i$ are the first and second derivatives of the loss with respect to the previous prediction, evaluated at $\hat y_i^{(t-1)}$:
+
+$$
+g_i = \frac{\partial L(y_i, \hat y_i^{(t-1)})}{\partial \hat y_i^{(t-1)}}, \qquad h_i = \frac{\partial^2 L(y_i, \hat y_i^{(t-1)})}{\partial (\hat y_i^{(t-1)})^2}
+$$
+
+$g_i$ is called the **gradient**, $h_i$ the **Hessian** (the standard name for a second derivative in optimization). Substituting this approximation into the objective:
+
+$$
+\text{Obj}^{(t)} \approx \sum_{i=1}^{n} \left[ L\!\left(y_i, \hat y_i^{(t-1)}\right) + g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2 \right] + \Omega(f_t)
+$$
+
+The next move is to notice that $L(y_i, \hat y_i^{(t-1)})$ doesn't involve $f_t(x_i)$ at all, it's a fixed number by the time this tree is being fit. Since the entire point is to differentiate with respect to $f_t(x_i)$ and that term vanishes under differentiation anyway, it can be dropped without changing the answer:
+
+$$
+\text{Obj}^{(t)} \approx \sum_{i=1}^{n} \left[ g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2 \right] + \Omega(f_t)
+$$
+
+Checking this against the paper confirms it line for line: a gradient term, a Hessian term, and the regularization term, nothing else.
+
+## 5. From Rows to Leaves
+
+$\Omega(f_t)$ is still sitting unexpanded. Writing it out:
+
+$$
+\text{Obj}^{(t)} \approx \sum_{i=1}^{n} \left[ g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2 \right] + \gamma T + \frac{1}{2}\lambda \sum_{j=1}^{T} w_j^2
+$$
+
+There are now two different summations, one over rows ($i = 1$ to $n$), one over leaves ($j = 1$ to $T$), and they need to become one. The bridge is that $f_t(x_i)$, the tree's output for row $i$, is just the output of whichever leaf row $i$ lands in. If $I_j$ denotes the set of row indices that fall into leaf $j$, then summing over all rows one at a time is equivalent to grouping rows by leaf first and summing within each group:
+
+$$
+\sum_{i=1}^{n} \big[\cdots\big] = \sum_{j=1}^{T} \sum_{i \in I_j} \big[\cdots\big]
+$$
+
+Reusing [the regression walkthrough's finished tree](/machine-learning-algorithms/ch62-xgboost-for-regression#5-growing-a-second-level) makes this concrete. That tree has three leaves: $I_1 = \{\text{CGPA} \geq 8.25\}$ (row with CGPA 9.0), $I_2 = \{5.85 \leq \text{CGPA} < 8.25\}$ (rows with CGPA 6.7 and 7.5), $I_3 = \{\text{CGPA} < 5.85\}$ (row with CGPA 5.0). Summing $g_i f_t(x_i)$ over all four rows directly, or summing it leaf by leaf and then adding the three leaf totals together, reach the identical number, the rows are just visited in a different order.
+
+Within a single leaf $j$, every row shares the same tree output, $f_t(x_i) = w_j$ for every $i \in I_j$, by definition of what a leaf is. That lets $w_j$ be pulled out of the inner sum entirely:
+
+$$
+\text{Obj}^{(t)} \approx \sum_{j=1}^{T} \left[ \left(\sum_{i \in I_j} g_i\right) w_j + \frac{1}{2}\left(\sum_{i \in I_j} h_i + \lambda\right) w_j^2 \right] + \gamma T
+$$
+
+This used the fact that the $\lambda \sum w_j^2 / 2$ term already sums over $j$, so its $j$-th piece, $\frac{1}{2}\lambda w_j^2$, folds directly into the $j$-th leaf's bracket. Writing $G_j = \sum_{i \in I_j} g_i$ and $H_j = \sum_{i \in I_j} h_i$ for brevity:
+
+$$
+\text{Obj}^{(t)} \approx \sum_{j=1}^{T} \left[ G_j w_j + \frac{1}{2}(H_j + \lambda) w_j^2 \right] + \gamma T
+$$
+
+Every term here is a function of a single leaf's weight $w_j$, nothing couples one leaf's weight to another's. That's what makes the next step possible.
+
+## 6. Solving for the Optimal Leaf Weight
+
+Each leaf's contribution, $G_j w_j + \frac{1}{2}(H_j + \lambda) w_j^2$, is a plain quadratic in $w_j$, exactly the shape a parabola takes, so it can be minimized the ordinary way: differentiate with respect to $w_j$, set to zero, solve.
+
+$$
+\frac{\partial}{\partial w_j}\left[G_j w_j + \frac{1}{2}(H_j+\lambda)w_j^2\right] = G_j + (H_j + \lambda)w_j = 0
+$$
+
+$$
+\boxed{w_j^* = -\frac{G_j}{H_j + \lambda}}
+$$
+
+This is the general leaf weight formula, valid for any differentiable loss function, with the specific loss only entering through $G_j$ and $H_j$. To check it reproduces the regression and classification formulas used earlier, it just needs $g_i$ and $h_i$ for each loss:
+
+**Regression**, squared error $L(y, \hat y) = \frac{1}{2}(y-\hat y)^2$:
+
+$$
+g_i = \frac{\partial L}{\partial \hat y} = \hat y_i^{(t-1)} - y_i = -\text{residual}_i, \qquad h_i = \frac{\partial^2 L}{\partial \hat y^2} = 1
+$$
+
+**Classification**, log loss with $\hat y$ in log-odds space and $p_i = \text{sigmoid}(\hat y_i^{(t-1)})$ (the same conversion used in [gradient boosting for classification](/machine-learning-algorithms/ch60-gradient-boosting-classification-intuition)):
+
+$$
+g_i = p_i - y_i = -\text{residual}_i, \qquad h_i = p_i(1 - p_i)
+$$
+
+Both of these are checkable with symbolic differentiation rather than by hand:
+
+```python
+import sympy as sp
+
+y, yhat, z = sp.symbols('y yhat z')
+
+# regression: L = 1/2 (y - yhat)^2
+L_reg = sp.Rational(1, 2) * (y - yhat)**2
+print("g_reg:", sp.diff(L_reg, yhat))        # yhat - y
+print("h_reg:", sp.diff(L_reg, yhat, 2))     # 1
+
+# classification: L = log loss, z is log-odds, p = sigmoid(z)
+p = 1 / (1 + sp.exp(-z))
+L_cls = -(y * sp.log(p) + (1 - y) * sp.log(1 - p))
+g_cls = sp.simplify(sp.diff(L_cls, z))
+h_cls = sp.simplify(sp.diff(L_cls, z, 2))
+print("g_cls:", g_cls)
+print("h_cls:", h_cls)
+```
+
+```
+g_reg: -y + yhat
+h_reg: 1
+g_cls: (-y + (1 - y)*exp(z))/(exp(z) + 1)
+h_cls: exp(z)/(exp(2*z) + 2*exp(z) + 1)
+```
+
+`h_cls` simplifies to $p(1-p)$ (since $e^z/(1+e^z)^2 = p(1-p)$ once $p = e^z/(1+e^z)$), and `g_cls` simplifies to $p - y$ by the same substitution, confirming both by hand matches what sympy returns.
+
+Plugging these into $w_j^* = -G_j/(H_j+\lambda)$:
+
+$$
+w_j^{*,\text{reg}} = -\frac{\sum_{i \in I_j}(\hat y_i^{(t-1)} - y_i)}{\sum_{i \in I_j} 1 + \lambda} = \frac{\sum_{i \in I_j} \text{residual}_i}{n_j + \lambda}
+$$
+
+$$
+w_j^{*,\text{cls}} = -\frac{\sum_{i \in I_j}(p_i - y_i)}{\sum_{i \in I_j} p_i(1-p_i) + \lambda} = \frac{\sum_{i \in I_j} \text{residual}_i}{\sum_{i \in I_j} p_i(1-p_i) + \lambda}
+$$
+
+Both are exactly the leaf output formulas used without proof in the regression and classification posts. The "sum of residuals" in both earlier posts was always $-G_j$, and the "$n$" or "$\sum p(1-p)$" in the denominator was always $H_j$.
+
+## 7. The Minimum Loss, and Where the Similarity Score Comes From
+
+$w_j^*$ is the weight that minimizes each leaf's contribution to the objective, but it doesn't yet say what that minimum value *is*. Substituting $w_j^*$ back into $G_j w_j + \frac{1}{2}(H_j+\lambda)w_j^2$:
+
+$$
+G_j \left(-\frac{G_j}{H_j+\lambda}\right) + \frac{1}{2}(H_j+\lambda)\left(\frac{G_j}{H_j+\lambda}\right)^2 = -\frac{G_j^2}{H_j+\lambda} + \frac{1}{2}\frac{G_j^2}{H_j+\lambda} = -\frac{1}{2}\frac{G_j^2}{H_j+\lambda}
+$$
+
+Summed across all $T$ leaves, the minimum achievable objective for a given tree structure is:
+
+$$
+\text{Obj}^{*} = -\frac{1}{2}\sum_{j=1}^{T} \frac{G_j^2}{H_j + \lambda} + \gamma T
+$$
+
+The paper calls this a structure score, a single number that says how good a candidate tree shape is, lower is better since it's a loss. Flip the sign and drop the constant $-\frac{1}{2}$ and $\gamma T$ (neither affects which of several candidate splits scores *highest*, since a positive constant multiplier and an additive term that's identical across candidates can't change which one wins), and what's left is:
+
+$$
+\text{Similarity} = \sum_{j=1}^{T} \frac{G_j^2}{H_j+\lambda}
+$$
+
+For a single leaf (T=1), this is $(\sum g_i)^2 / (\sum h_i + \lambda)$. Substituting $g_i = -\text{residual}_i$ for regression gives $(\sum \text{residual}_i)^2/(n+\lambda)$, exactly [the regression similarity score](/machine-learning-algorithms/ch62-xgboost-for-regression#3-the-similarity-score). Substituting the classification $g_i, h_i$ gives $(\sum \text{residual}_i)^2/(\sum p(1-p)+\lambda)$, exactly [the classification version](/machine-learning-algorithms/ch63-xgboost-for-classification#4-the-classification-similarity-score). Both formulas trace back to the same two-line substitution, the only thing that ever changes between regression and classification is what loss function $g_i$ and $h_i$ come from.
+
+## 8. From Similarity Score to Split Gain
+
+A split takes one leaf (the parent) and replaces it with two (left and right child). Using $\text{Obj}^*$ from Section 7, the loss *before* splitting (one leaf, $T=1$) is:
+
+$$
+\text{Obj}^*_{\text{parent}} = -\frac{1}{2}\frac{G_P^2}{H_P+\lambda} + \gamma
+$$
+
+and the loss *after* splitting (two leaves, $T=2$) is:
+
+$$
+\text{Obj}^*_{\text{children}} = -\frac{1}{2}\left[\frac{G_L^2}{H_L+\lambda} + \frac{G_R^2}{H_R+\lambda}\right] + 2\gamma
+$$
+
+A split is worth making exactly when it reduces the loss, so the quantity that matters is $\text{Obj}^*_{\text{parent}} - \text{Obj}^*_{\text{children}}$:
+
+$$
+\text{Gain} = \frac{1}{2}\left[\frac{G_L^2}{H_L+\lambda} + \frac{G_R^2}{H_R+\lambda} - \frac{G_P^2}{H_P+\lambda}\right] - \gamma
+$$
+
+This is exactly the split criterion the regression and classification posts used, $\text{SSL} + \text{SSR} - \text{Similarity}_{\text{parent}}$, with two differences made explicit here: an overall factor of $\frac{1}{2}$, which doesn't change which candidate split wins since every candidate gets scaled the same way, and a $-\gamma$ term, set to zero in both earlier posts' worked examples. That $-\gamma$ is not cosmetic in general: it's [the same $\gamma$ hyperparameter](/machine-learning-algorithms/ch61-introduction-to-xgboost#64-tree-pruning) that sets a minimum required gain before a split is allowed to happen at all. A candidate split whose raw $\frac{1}{2}[\text{SSL}+\text{SSR}-\text{SS}_P]$ doesn't clear $\gamma$ gets rejected outright, regardless of how it compares to other candidates, which is the exact mechanism behind XGBoost's pruning behavior.
+
+## 9. What to Take Away
+
+- XGBoost's objective at stage $t$ is loss on the current prediction plus a regularization term on the newest tree, $\gamma T + \frac12 \lambda \sum w_j^2$, that penalizes both leaf count and leaf weight magnitude.
+- That objective is non-differentiable in closed form with respect to the new tree, because a tree's output is piecewise constant, so a second-order Taylor expansion (around the previous stage's prediction) replaces it with a differentiable quadratic approximation.
+- The expansion introduces $g_i$ (gradient, first derivative of the loss) and $h_i$ (Hessian, second derivative), the only place the specific loss function enters the rest of the derivation.
+- Regrouping the per-row sum into a per-leaf sum, using $f_t(x_i) = w_j$ for every row in leaf $j$, turns the objective into an independent quadratic for each leaf's weight.
+- Minimizing each leaf's quadratic gives $w_j^* = -G_j/(H_j+\lambda)$, which reduces to $\sum\text{residual}/(n+\lambda)$ for squared error and $\sum\text{residual}/(\sum p(1-p)+\lambda)$ for log loss, exactly the leaf output formulas used without derivation in the regression and classification posts.
+- Plugging $w_j^*$ back into the objective gives a structure score for the whole tree; comparing a parent leaf's score against its two children's scores (after a split) produces the gain formula, $\frac12[\text{SSL}+\text{SSR}-\text{SS}_P] - \gamma$, the earlier posts' simplified $\text{SSL}+\text{SSR}-\text{SS}_P$ with the constant factor and the $\gamma$ pruning threshold made explicit.
