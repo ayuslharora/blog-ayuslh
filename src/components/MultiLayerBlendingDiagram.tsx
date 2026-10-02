@@ -81,8 +81,13 @@ export default function MultiLayerBlendingDiagram() {
         Layer 2
       </text>
       <text x={META_X + META_W / 2} y={35} fontSize={13} fontWeight={700} fill="var(--text-primary)" textAnchor="middle">
-        Layer 3
+        Meta-model
       </text>
+
+      {/* row background bands, so each chunk's full pipeline reads as one group */}
+      <rect x={10} y={ROW_Y[0] - 14} width={1180} height={BOX_H + 28} rx={8} fill="var(--text-primary)" opacity={0.035} />
+      <rect x={10} y={ROW_Y[1] - 14} width={1180} height={BOX_H + 28} rx={8} fill="var(--text-primary)" opacity={0.06} />
+      <rect x={10} y={ROW_Y[2] - 14} width={1180} height={BOX_H + 28} rx={8} fill="var(--text-primary)" opacity={0.035} />
 
       {/* D_train split three ways */}
       <LabeledBox x={20} y={mid(1) - 30} w={90} h={60} lines={["D_train"]} />
@@ -104,6 +109,9 @@ export default function MultiLayerBlendingDiagram() {
         textPos={{ x: (CHUNK_X + CHUNK_W + L1_X) / 2, y: mid(0) - 8 }}
       />
       <LabeledBox x={L1_X} y={ROW_Y[0]} w={MODEL_W} h={BOX_H} lines={LAYER1} bold />
+      <text x={L1_X + MODEL_W + 16} y={mid(0) + 4} fontSize={12} fontStyle="italic" fill="var(--text-secondary)">
+        row stops here: chunk 1 only ever trains Layer 1, nothing predicts on it
+      </text>
 
       {/* ---- row 2: chunk 2 flows through layer 1, trains layer 2 ---- */}
       <PlainArrow
