@@ -9,6 +9,7 @@ const FRAME_MS = 120;
 const SIZE = 480;
 
 const CLUSTER_COLORS = ['#e03131', '#1864ab', '#2f9e44', '#f08c00', '#ae3ec9', '#0c8599', '#e8590c'];
+const BORDER_COLORS = ['#ffa8a8', '#a5d8ff', '#b2f2bb', '#ffd8a8', '#eebefa', '#99e9f2', '#ffc078'];
 const NOISE_COLOR = '#868e96';
 const CORE_RADIUS = 5.5;
 const BORDER_RADIUS = 4.5;
@@ -364,11 +365,14 @@ export default function DbscanExplorer() {
             {points.map((p, i) => {
               const unvisited = visitedMask !== null && !visitedMask[i];
               const l = labels[i];
+              const clusterIdx = l.cluster >= 0 ? l.cluster % CLUSTER_COLORS.length : 0;
               const color = unvisited
                 ? UNVISITED_COLOR
                 : l.cluster === -1
                   ? NOISE_COLOR
-                  : CLUSTER_COLORS[l.cluster % CLUSTER_COLORS.length];
+                  : l.kind === 'border'
+                    ? BORDER_COLORS[clusterIdx]
+                    : CLUSTER_COLORS[clusterIdx];
               const r = unvisited
                 ? NOISE_RADIUS
                 : l.kind === 'core'
@@ -395,7 +399,11 @@ export default function DbscanExplorer() {
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[var(--text-secondary)]">
             <span className="flex items-center gap-1.5">
               <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: CLUSTER_COLORS[0] }} />
-              core / border point (colored by cluster)
+              core point (colored by cluster)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 rounded-full" style={{ background: BORDER_COLORS[0] }} />
+              border point (lighter shade of its cluster)
             </span>
             <span className="flex items-center gap-1.5">
               <span className="inline-block w-2 h-2 rounded-full opacity-45" style={{ background: NOISE_COLOR }} />
