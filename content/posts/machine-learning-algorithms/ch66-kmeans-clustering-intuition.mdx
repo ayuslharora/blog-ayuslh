@@ -39,13 +39,13 @@ With $K$ fixed, K-means runs five steps, the first two happening once and the la
 4. **Move each centroid to the mean of the points now assigned to it.** A cluster's centroid is recomputed as the average CGPA and average IQ of its current members, which usually shifts the centroid's position.
 5. **Check whether anything changed.** If a centroid moved in step 4, the cluster memberships from step 3 may no longer be optimal (some points might now be nearer a different centroid), so go back to step 3 and reassign. If no centroid moved, the assignments are stable and the algorithm stops.
 
-The buttons below step through an actual run of this loop, on the same 21-student dataset, starting from the same random centroids shown in Section 1. Click through them in order; each one carries the same point data and simply re-assigns colors and moves the triangles:
+The buttons below step through an actual run of this loop, on the same 21-student dataset shown in Section 1. Click through them in order; each one carries the same point data and simply re-assigns colors and moves the triangles:
 
 <KMeansIterationPlot />
 
 ### 4.1 Random Initialization
 
-Three centroids are dropped at random, deliberately not anywhere near where the real cluster centers will turn out to be. Every point is still gray, since nothing has been assigned to anything yet.
+A common way to initialize centroids, and the one used here, is to pick $K$ actual data points at random and use their coordinates as the starting centroids, rather than inventing arbitrary coordinates from nowhere. Three students get selected this way, and their (CGPA, IQ) values become the three starting centroids, not necessarily anywhere near where the real cluster centers will turn out to be. Every point is still gray, since nothing has been assigned to anything yet.
 
 ### 4.2 Round 1: Assign, Then Move
 
@@ -53,11 +53,11 @@ Every point computes its Euclidean distance to all three centroids and joins whi
 
 ### 4.3 Round 2: A Correction
 
-Because the centroids moved, step 5 sends the algorithm back to step 3: distances are recalculated against the *new* centroid positions, and this time two points switch which cluster they belong to, since their nearest centroid changed once the centroids shifted. This is the mechanism doing real work: a point's cluster assignment isn't fixed at step 3, it keeps getting re-evaluated every round, and it's entirely possible for a point to flip clusters partway through, even though the data itself never changed, because the frame of reference (the centroids) did.
+Because the centroids moved, step 5 sends the algorithm back to step 3: distances are recalculated against the *new* centroid positions, and this time one student switches which cluster they belong to, since their nearest centroid changed once the centroids shifted. This is the mechanism doing real work: a point's cluster assignment isn't fixed at step 3, it keeps getting re-evaluated every round, and it's entirely possible for a point to flip clusters partway through, even though the data itself never changed, because the frame of reference (the centroids) did.
 
 ### 4.4 Convergence
 
-With the two points reassigned, the centroids move again to the new per-cluster means, and the loop returns to step 3 one more time. This round produces no reassignments at all, every point is already closest to the correct centroid, so step 4 leaves every centroid exactly where it was. Since nothing changed, step 5's check says the algorithm is done, landing on the same three clusters a human eye picked out instantly in Section 1, starting from centroids that began nowhere near them.
+With that student reassigned, the centroids move again to the new per-cluster means, and the loop returns to step 3 one more time. This round produces no reassignments at all, every point is already closest to the correct centroid, so step 4 leaves every centroid exactly where it was. Since nothing changed, step 5's check says the algorithm is done, landing on the same three clusters a human eye picked out instantly in Section 1, starting from centroids that began nowhere near them.
 
 ### 4.5 Why Euclidean Distance Specifically
 
