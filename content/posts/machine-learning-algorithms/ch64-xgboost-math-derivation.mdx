@@ -16,7 +16,7 @@ The [regression](/machine-learning-algorithms/ch62-xgboost-for-regression) and [
 [Gradient boosting's additive structure](/machine-learning-algorithms/ch58-gradient-boosting-regression-intuition) means a model after $t$ stages is a sum of functions, $\hat y_i = \sum_{k=1}^{t} f_k(x_i)$, where each $f_k$ is one fitted tree (or, for $f_1$, a constant baseline). Every one of those trees makes some amount of error, and the quantity you want to minimize at any stage combines that error with a penalty on model complexity:
 
 $$
-\text{Obj}^{(t)} = \underbrace{\sum_{i=1}^{n} L(y_i, \hat y_i^{(t)})}_{\text{loss}} + \underbrace{\sum_{k=1}^{t} \Omega(f_k)}_{\text{regularization}}
+\mathcal{L}^{(t)} = \underbrace{\sum_{i=1}^{n} l(y_i, \hat y_i^{(t)})}_{\text{loss}} + \underbrace{\sum_{k=1}^{t} \Omega(f_k)}_{\text{regularization}}
 $$
 
 The regularization term $\Omega(f)$ only applies to decision trees, not to a constant baseline, since a flat number has no leaves to penalize. For the single-tree case this is:
@@ -30,7 +30,7 @@ $T$ is the number of leaves in that tree, $w_j$ is leaf $j$'s output value (its 
 At stage $t$, every tree before the current one is already fixed, so $\hat y_i^{(t)} = \hat y_i^{(t-1)} + f_t(x_i)$ splits the objective into "everything already accounted for" and "the one new tree":
 
 $$
-\text{Obj}^{(t)} = \sum_{i=1}^{n} L\!\left(y_i, \hat y_i^{(t-1)} + f_t(x_i)\right) + \Omega(f_t)
+\mathcal{L}^{(t)} = \sum_{i=1}^{n} l\!\left(y_i, \hat y_i^{(t-1)} + f_t(x_i)\right) + \Omega(f_t)
 $$
 
 The goal at every stage is the same: find the $f_t$ (equivalently, the leaf weights of the $t$-th tree) that minimizes this expression. That makes it an optimization problem, the same flavor as fitting $m$ and $b$ in linear regression by minimizing mean squared error, just with a far less convenient function to minimize.
@@ -65,28 +65,28 @@ With one term the fit only holds very close to $a=0$; with three terms it tracks
 
 ## 4. Applying the Taylor Expansion to the Objective
 
-Treat $L(y_i, \hat y_i^{(t-1)} + f_t(x_i))$ as the function being approximated, with $x = \hat y_i^{(t-1)} + f_t(x_i)$ and the expansion point $a = \hat y_i^{(t-1)}$, the prediction already locked in before this tree gets added. $x - a$ is then just $f_t(x_i)$, so the second-order expansion is:
+Treat $l(y_i, \hat y_i^{(t-1)} + f_t(x_i))$ as the function being approximated, with $x = \hat y_i^{(t-1)} + f_t(x_i)$ and the expansion point $a = \hat y_i^{(t-1)}$, the prediction already locked in before this tree gets added. $x - a$ is then just $f_t(x_i)$, so the second-order expansion is:
 
 $$
-L\!\left(y_i, \hat y_i^{(t-1)} + f_t(x_i)\right) \approx L\!\left(y_i, \hat y_i^{(t-1)}\right) + g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2
+l\!\left(y_i, \hat y_i^{(t-1)} + f_t(x_i)\right) \approx l\!\left(y_i, \hat y_i^{(t-1)}\right) + g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2
 $$
 
 where $g_i$ and $h_i$ are the first and second derivatives of the loss with respect to the previous prediction, evaluated at $\hat y_i^{(t-1)}$:
 
 $$
-g_i = \frac{\partial L(y_i, \hat y_i^{(t-1)})}{\partial \hat y_i^{(t-1)}}, \qquad h_i = \frac{\partial^2 L(y_i, \hat y_i^{(t-1)})}{\partial (\hat y_i^{(t-1)})^2}
+g_i = \frac{\partial l(y_i, \hat y_i^{(t-1)})}{\partial \hat y_i^{(t-1)}}, \qquad h_i = \frac{\partial^2 l(y_i, \hat y_i^{(t-1)})}{\partial (\hat y_i^{(t-1)})^2}
 $$
 
 $g_i$ is called the **gradient**, $h_i$ the **Hessian** (the standard name for a second derivative in optimization). Substituting this approximation into the objective:
 
 $$
-\text{Obj}^{(t)} \approx \sum_{i=1}^{n} \left[ L\!\left(y_i, \hat y_i^{(t-1)}\right) + g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2 \right] + \Omega(f_t)
+\mathcal{L}^{(t)} \approx \sum_{i=1}^{n} \left[ l\!\left(y_i, \hat y_i^{(t-1)}\right) + g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2 \right] + \Omega(f_t)
 $$
 
-The next move is to notice that $L(y_i, \hat y_i^{(t-1)})$ doesn't involve $f_t(x_i)$ at all, it's a fixed number by the time this tree is being fit. Since the entire point is to differentiate with respect to $f_t(x_i)$ and that term vanishes under differentiation anyway, it can be dropped without changing the answer:
+The next move is to notice that $l(y_i, \hat y_i^{(t-1)})$ doesn't involve $f_t(x_i)$ at all, it's a fixed number by the time this tree is being fit. Since the entire point is to differentiate with respect to $f_t(x_i)$ and that term vanishes under differentiation anyway, it can be dropped without changing the answer:
 
 $$
-\text{Obj}^{(t)} \approx \sum_{i=1}^{n} \left[ g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2 \right] + \Omega(f_t)
+\mathcal{L}^{(t)} \approx \sum_{i=1}^{n} \left[ g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2 \right] + \Omega(f_t)
 $$
 
 Checking this against the paper confirms it line for line: a gradient term, a Hessian term, and the regularization term, nothing else.
@@ -96,7 +96,7 @@ Checking this against the paper confirms it line for line: a gradient term, a He
 $\Omega(f_t)$ is still sitting unexpanded. Writing it out:
 
 $$
-\text{Obj}^{(t)} \approx \sum_{i=1}^{n} \left[ g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2 \right] + \gamma T + \frac{1}{2}\lambda \sum_{j=1}^{T} w_j^2
+\mathcal{L}^{(t)} \approx \sum_{i=1}^{n} \left[ g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2 \right] + \gamma T + \frac{1}{2}\lambda \sum_{j=1}^{T} w_j^2
 $$
 
 There are now two different summations, one over rows ($i = 1$ to $n$), one over leaves ($j = 1$ to $T$), and they need to become one. The bridge is that $f_t(x_i)$, the tree's output for row $i$, is just the output of whichever leaf row $i$ lands in. If $I_j$ denotes the set of row indices that fall into leaf $j$, then summing over all rows one at a time is equivalent to grouping rows by leaf first and summing within each group:
@@ -110,13 +110,13 @@ Reusing [the regression walkthrough's finished tree](/machine-learning-algorithm
 Within a single leaf $j$, every row shares the same tree output, $f_t(x_i) = w_j$ for every $i \in I_j$, by definition of what a leaf is. That lets $w_j$ be pulled out of the inner sum entirely:
 
 $$
-\text{Obj}^{(t)} \approx \sum_{j=1}^{T} \left[ \left(\sum_{i \in I_j} g_i\right) w_j + \frac{1}{2}\left(\sum_{i \in I_j} h_i + \lambda\right) w_j^2 \right] + \gamma T
+\mathcal{L}^{(t)} \approx \sum_{j=1}^{T} \left[ \left(\sum_{i \in I_j} g_i\right) w_j + \frac{1}{2}\left(\sum_{i \in I_j} h_i + \lambda\right) w_j^2 \right] + \gamma T
 $$
 
 This used the fact that the $\lambda \sum w_j^2 / 2$ term already sums over $j$, so its $j$-th piece, $\frac{1}{2}\lambda w_j^2$, folds directly into the $j$-th leaf's bracket. Writing $G_j = \sum_{i \in I_j} g_i$ and $H_j = \sum_{i \in I_j} h_i$ for brevity:
 
 $$
-\text{Obj}^{(t)} \approx \sum_{j=1}^{T} \left[ G_j w_j + \frac{1}{2}(H_j + \lambda) w_j^2 \right] + \gamma T
+\mathcal{L}^{(t)} \approx \sum_{j=1}^{T} \left[ G_j w_j + \frac{1}{2}(H_j + \lambda) w_j^2 \right] + \gamma T
 $$
 
 Every term here is a function of a single leaf's weight $w_j$, nothing couples one leaf's weight to another's. That's what makes the next step possible.
@@ -135,10 +135,10 @@ $$
 
 This is the general leaf weight formula, valid for any differentiable loss function, with the specific loss only entering through $G_j$ and $H_j$. To check it reproduces the regression and classification formulas used earlier, it just needs $g_i$ and $h_i$ for each loss:
 
-**Regression**, squared error $L(y, \hat y) = \frac{1}{2}(y-\hat y)^2$:
+**Regression**, squared error $l(y, \hat y) = \frac{1}{2}(y-\hat y)^2$:
 
 $$
-g_i = \frac{\partial L}{\partial \hat y} = \hat y_i^{(t-1)} - y_i = -\text{residual}_i, \qquad h_i = \frac{\partial^2 L}{\partial \hat y^2} = 1
+g_i = \frac{\partial l}{\partial \hat y} = \hat y_i^{(t-1)} - y_i = -\text{residual}_i, \qquad h_i = \frac{\partial^2 l}{\partial \hat y^2} = 1
 $$
 
 **Classification**, log loss with $\hat y$ in log-odds space and $p_i = \text{sigmoid}(\hat y_i^{(t-1)})$ (the same conversion used in [gradient boosting for classification](/machine-learning-algorithms/ch60-gradient-boosting-classification-intuition)):
@@ -200,7 +200,7 @@ $$
 Summed across all $T$ leaves, the minimum achievable objective for a given tree structure is:
 
 $$
-\text{Obj}^{*} = -\frac{1}{2}\sum_{j=1}^{T} \frac{G_j^2}{H_j + \lambda} + \gamma T
+\mathcal{L}^{*} = -\frac{1}{2}\sum_{j=1}^{T} \frac{G_j^2}{H_j + \lambda} + \gamma T
 $$
 
 The paper calls this a structure score, a single number that says how good a candidate tree shape is, lower is better since it's a loss. Flip the sign and drop the constant $-\frac{1}{2}$ and $\gamma T$ (neither affects which of several candidate splits scores *highest*, since a positive constant multiplier and an additive term that's identical across candidates can't change which one wins), and what's left is:
@@ -213,19 +213,19 @@ For a single leaf (T=1), this is $(\sum g_i)^2 / (\sum h_i + \lambda)$. Substitu
 
 ## 8. From Similarity Score to Split Gain
 
-A split takes one leaf (the parent) and replaces it with two (left and right child). Using $\text{Obj}^*$ from Section 7, the loss *before* splitting (one leaf, $T=1$) is:
+A split takes one leaf (the parent) and replaces it with two (left and right child). Using $\mathcal{L}^*$ from Section 7, the loss *before* splitting (one leaf, $T=1$) is:
 
 $$
-\text{Obj}^*_{\text{parent}} = -\frac{1}{2}\frac{G_P^2}{H_P+\lambda} + \gamma
+\mathcal{L}^*_{\text{parent}} = -\frac{1}{2}\frac{G_P^2}{H_P+\lambda} + \gamma
 $$
 
 and the loss *after* splitting (two leaves, $T=2$) is:
 
 $$
-\text{Obj}^*_{\text{children}} = -\frac{1}{2}\left[\frac{G_L^2}{H_L+\lambda} + \frac{G_R^2}{H_R+\lambda}\right] + 2\gamma
+\mathcal{L}^*_{\text{children}} = -\frac{1}{2}\left[\frac{G_L^2}{H_L+\lambda} + \frac{G_R^2}{H_R+\lambda}\right] + 2\gamma
 $$
 
-A split is worth making exactly when it reduces the loss, so the quantity that matters is $\text{Obj}^*_{\text{parent}} - \text{Obj}^*_{\text{children}}$:
+A split is worth making exactly when it reduces the loss, so the quantity that matters is $\mathcal{L}^*_{\text{parent}} - \mathcal{L}^*_{\text{children}}$:
 
 $$
 \text{Gain} = \frac{1}{2}\left[\frac{G_L^2}{H_L+\lambda} + \frac{G_R^2}{H_R+\lambda} - \frac{G_P^2}{H_P+\lambda}\right] - \gamma
