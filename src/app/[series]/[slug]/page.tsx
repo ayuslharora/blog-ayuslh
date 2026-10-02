@@ -48,6 +48,7 @@ import StackingDiagram from '../../../components/StackingDiagram';
 import MultiLayerBlendingDiagram from '../../../components/MultiLayerBlendingDiagram';
 import MnistPca3d from '../../../components/MnistPca3d';
 import KMeansBlobs3d from '../../../components/KMeansBlobs3d';
+import KMeansIterationPlot from '../../../components/KMeansIterationPlot';
 import LinRegCostSurface from '../../../components/LinRegCostSurface';
 import GradientDescentAnimation from '../../../components/GradientDescentAnimation';
 import GdCostSurface3d from '../../../components/GdCostSurface3d';
@@ -230,6 +231,7 @@ export default async function PostPage({
             MultiLayerBlendingDiagram,
             MnistPca3d,
             KMeansBlobs3d,
+            KMeansIterationPlot,
             LinRegCostSurface,
             GradientDescentAnimation,
             GdCostSurface3d,
