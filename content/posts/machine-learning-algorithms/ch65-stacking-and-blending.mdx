@@ -53,7 +53,11 @@ There's a subtlety easy to miss here: this K-fold process produces a *trained me
 
 Nothing restricts stacking to one layer of base models feeding one meta-model directly. A second layer of models can sit between the base models and the final meta-model, each layer's outputs becoming the next layer's inputs.
 
-Building this with blending's holdout approach means $D_{train}$ needs splitting into as many pieces as there are layers: a first chunk trains layer 1's models, a second chunk (which layer 1 hasn't seen) gets predicted on by layer 1 to produce layer 2's training data, a third chunk (which neither layer has seen) gets predicted on by layer 2 to produce the final meta-model's training data, and so on. Three layers means three-way splitting $D_{train}$ into progressively smaller holdout chunks. Multi-layer architectures like this show up frequently in Kaggle-winning solutions, sometimes with dozens of models in the first layer narrowing down through several layers to one final predictor, though working out the K-fold equivalent of this multi-layer holdout scheme (rather than progressively splitting the data, running nested K-fold CV at each layer) is a worthwhile exercise in its own right.
+Building this with blending's holdout approach means $D_{train}$ needs splitting into as many pieces as there are layers: a first chunk trains layer 1's models, a second chunk (which layer 1 hasn't seen) gets predicted on by layer 1 to produce layer 2's training data, a third chunk (which neither layer has seen) gets predicted on by layer 2 to produce the final meta-model's training data, and so on. Three layers means three-way splitting $D_{train}$ into progressively smaller holdout chunks, as the diagram below shows for a three-layer stack:
+
+<MultiLayerBlendingDiagram />
+
+Notice that every chunk trains exactly one layer, and before it does, it gets pushed through every layer that was already trained above it, so no layer ever trains on predictions made by models that had already seen those rows. Multi-layer architectures like this show up frequently in Kaggle-winning solutions, sometimes with dozens of models in the first layer narrowing down through several layers to one final predictor, though working out the K-fold equivalent of this multi-layer holdout scheme (rather than progressively splitting the data, running nested K-fold CV at each layer) is a worthwhile exercise in its own right.
 
 ## 7. In Code: scikit-learn's StackingClassifier
 

@@ -45,6 +45,7 @@ import SymmetricEncryptionDiagram from '../../../components/SymmetricEncryptionD
 import AsymmetricEncryptionDiagram from '../../../components/AsymmetricEncryptionDiagram';
 import BlendingDiagram from '../../../components/BlendingDiagram';
 import StackingDiagram from '../../../components/StackingDiagram';
+import MultiLayerBlendingDiagram from '../../../components/MultiLayerBlendingDiagram';
 import MnistPca3d from '../../../components/MnistPca3d';
 import LinRegCostSurface from '../../../components/LinRegCostSurface';
 import GradientDescentAnimation from '../../../components/GradientDescentAnimation';
@@ -225,6 +226,7 @@ export default async function PostPage({
             AsymmetricEncryptionDiagram,
             BlendingDiagram,
             StackingDiagram,
+            MultiLayerBlendingDiagram,
             MnistPca3d,
             LinRegCostSurface,
             GradientDescentAnimation,
