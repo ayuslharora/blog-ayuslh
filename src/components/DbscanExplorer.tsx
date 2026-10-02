@@ -1,7 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { dbscan, type Point } from '../lib/dbscan';
+import { dbscan, dbscanSteps, type Point, type StepFrame } from '../lib/dbscan';
+
+const UNVISITED_COLOR = '#adb5bd';
+const FRAME_MS = 120;
 
 const SIZE = 480;
 
@@ -123,12 +126,50 @@ export default function DbscanExplorer() {
   const [hover, setHover] = useState<Point | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
-  const labels = useMemo(() => dbscan(points, eps, minPts), [points, eps, minPts]);
+  // Animation: when non-null, we're replaying dbscanSteps() frame by frame
+  // instead of showing the final static result, the same "watch clusters
+  // grow ring by ring" walk the reference visualization uses.
+  const [animFrames, setAnimFrames] = useState<StepFrame[] | null>(null);
+  const [animIndex, setAnimIndex] = useState(0);
+  const isAnimating = animFrames !== null;
+
+  useEffect(() => {
+    if (!isAnimating) return;
+    if (animIndex >= animFrames!.length - 1) {
+      // hold on the final frame briefly, then hand back to the normal
+      // interactive (static-result) view with the "Run" button re-armed
+      const t = setTimeout(() => {
+        setAnimFrames(null);
+        setAnimIndex(0);
+      }, FRAME_MS * 4);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => setAnimIndex((i) => i + 1), FRAME_MS);
+    return () => clearTimeout(t);
+  }, [isAnimating, animIndex, animFrames]);
+
+  const staticLabels = useMemo(() => dbscan(points, eps, minPts), [points, eps, minPts]);
+  const frame = isAnimating ? animFrames![Math.min(animIndex, animFrames!.length - 1)] : null;
+  const labels = frame ? frame.labels : staticLabels;
+  const visitedMask = frame ? frame.visited : null;
+
   const nClusters = useMemo(() => {
     const ids = new Set(labels.filter((l) => l.cluster !== -1).map((l) => l.cluster));
     return ids.size;
   }, [labels]);
   const nNoise = useMemo(() => labels.filter((l) => l.kind === 'noise').length, [labels]);
+
+  const runAnimation = useCallback(() => {
+    const frames = dbscanSteps(points, eps, minPts);
+    if (frames.length === 0) return;
+    setAnimFrames(frames);
+    setAnimIndex(0);
+  }, [points, eps, minPts]);
+
+  const stopAnimation = useCallback(() => {
+    setAnimFrames(null);
+    setAnimIndex(0);
+  }, []);
 
   const toLocal = useCallback((e: { clientX: number; clientY: number }): Point | null => {
     const svg = svgRef.current;
@@ -141,6 +182,7 @@ export default function DbscanExplorer() {
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
+      if (isAnimating) return;
       const p = toLocal(e);
       if (!p) return;
       // if clicking near an existing point, remove it instead of adding
@@ -151,7 +193,7 @@ export default function DbscanExplorer() {
         setPoints((prev) => [...prev, p]);
       }
     },
-    [points, toLocal]
+    [points, toLocal, isAnimating]
   );
 
   const handleMove = useCallback(
@@ -162,6 +204,7 @@ export default function DbscanExplorer() {
   );
 
   const applyPreset = (name: PresetName) => {
+    stopAnimation();
     if (name === 'clear') setPoints([]);
     else if (name === 'smiley') setPoints(makeSmiley());
     else if (name === 'moons') setPoints(makeMoons());
@@ -185,7 +228,10 @@ export default function DbscanExplorer() {
               max={60}
               step={1}
               value={eps}
-              onChange={(e) => setEps(Number(e.target.value))}
+              onChange={(e) => {
+                stopAnimation();
+                setEps(Number(e.target.value));
+              }}
             />
           </div>
 
@@ -199,9 +245,28 @@ export default function DbscanExplorer() {
               max={15}
               step={1}
               value={minPts}
-              onChange={(e) => setMinPts(Number(e.target.value))}
+              onChange={(e) => {
+                stopAnimation();
+                setMinPts(Number(e.target.value));
+              }}
             />
           </div>
+
+          <button
+            onClick={() => (isAnimating ? stopAnimation() : runAnimation())}
+            disabled={points.length === 0}
+            className="rounded-lg px-2 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors bg-amber-500 text-black hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isAnimating ? '■ Stop' : '▶ Run DBSCAN'}
+          </button>
+          {isAnimating && (
+            <div className="h-1 rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden">
+              <div
+                className="h-full bg-amber-500 transition-[width] duration-100"
+                style={{ width: `${(100 * (animIndex + 1)) / animFrames!.length}%` }}
+              />
+            </div>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">Dataset</span>
@@ -244,8 +309,9 @@ export default function DbscanExplorer() {
           </div>
 
           <p className="text-[11px] text-[var(--text-secondary)]">
-            Click empty space to add a point, click an existing point to remove it. Drag the sliders and
-            watch clusters form and split live.
+            {isAnimating
+              ? 'Watching DBSCAN walk the points one at a time, growing each cluster outward as it goes.'
+              : 'Click empty space to add a point, click an existing point to remove it. Hit Run to watch the walk, or drag the sliders for an instant live result.'}
           </p>
         </div>
 
@@ -256,9 +322,9 @@ export default function DbscanExplorer() {
             onClick={handleClick}
             onMouseMove={handleMove}
             onMouseLeave={() => setHover(null)}
-            className="w-full h-auto rounded-lg border border-black/10 dark:border-white/10 bg-black/[0.015] dark:bg-white/[0.02] cursor-crosshair"
+            className={`w-full h-auto rounded-lg border border-black/10 dark:border-white/10 bg-black/[0.015] dark:bg-white/[0.02] ${isAnimating ? '' : 'cursor-crosshair'}`}
           >
-            {hover && (
+            {!isAnimating && hover && (
               <circle
                 cx={hover.x}
                 cy={hover.y}
@@ -270,21 +336,58 @@ export default function DbscanExplorer() {
                 opacity={0.6}
               />
             )}
+            {frame && (
+              <circle
+                cx={points[frame.visiting].x}
+                cy={points[frame.visiting].y}
+                r={eps}
+                fill="none"
+                stroke="#f08c00"
+                strokeDasharray="4 3"
+                strokeWidth={1.5}
+                opacity={0.85}
+              />
+            )}
+            {frame &&
+              frame.neighbors.map((nbIdx) => (
+                <line
+                  key={`ray-${nbIdx}`}
+                  x1={points[frame.visiting].x}
+                  y1={points[frame.visiting].y}
+                  x2={points[nbIdx].x}
+                  y2={points[nbIdx].y}
+                  stroke="#f08c00"
+                  strokeWidth={0.75}
+                  opacity={0.35}
+                />
+              ))}
             {points.map((p, i) => {
+              const unvisited = visitedMask !== null && !visitedMask[i];
               const l = labels[i];
-              const color = l.cluster === -1 ? NOISE_COLOR : CLUSTER_COLORS[l.cluster % CLUSTER_COLORS.length];
-              const r = l.kind === 'core' ? CORE_RADIUS : l.kind === 'border' ? BORDER_RADIUS : NOISE_RADIUS;
+              const color = unvisited
+                ? UNVISITED_COLOR
+                : l.cluster === -1
+                  ? NOISE_COLOR
+                  : CLUSTER_COLORS[l.cluster % CLUSTER_COLORS.length];
+              const r = unvisited
+                ? NOISE_RADIUS
+                : l.kind === 'core'
+                  ? CORE_RADIUS
+                  : l.kind === 'border'
+                    ? BORDER_RADIUS
+                    : NOISE_RADIUS;
+              const isActive = frame && frame.visiting === i;
               return (
                 <circle
                   key={i}
                   cx={p.x}
                   cy={p.y}
-                  r={r}
+                  r={isActive ? r + 2.5 : r}
                   fill={color}
-                  fillOpacity={l.kind === 'noise' ? 0.45 : 0.92}
-                  stroke={l.kind === 'core' ? color : 'none'}
-                  strokeWidth={l.kind === 'core' ? 1.5 : 0}
-                  strokeOpacity={0.3}
+                  fillOpacity={unvisited ? 0.5 : l.kind === 'noise' ? 0.45 : 0.92}
+                  stroke={isActive ? '#f08c00' : l.kind === 'core' ? color : 'none'}
+                  strokeWidth={isActive ? 2 : l.kind === 'core' ? 1.5 : 0}
+                  strokeOpacity={isActive ? 0.9 : 0.3}
                 />
               );
             })}
@@ -298,7 +401,14 @@ export default function DbscanExplorer() {
               <span className="inline-block w-2 h-2 rounded-full opacity-45" style={{ background: NOISE_COLOR }} />
               noise
             </span>
-            <span>dashed circle = ε-neighborhood under your cursor</span>
+            {isAnimating ? (
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-2 h-2 rounded-full opacity-50" style={{ background: UNVISITED_COLOR }} />
+                not yet visited · orange ring = ε around the point being checked right now
+              </span>
+            ) : (
+              <span>dashed circle = ε-neighborhood under your cursor</span>
+            )}
           </div>
         </div>
       </div>
