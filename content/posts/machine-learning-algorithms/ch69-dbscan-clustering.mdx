@@ -106,7 +106,15 @@ The clearest demonstration of *why* density-based clustering exists is a dataset
 
 K-means, asked for 2 clusters, does what it always does: minimizes distance to two centroids. Since both centroids land near the shared center of the rings, the only thing K-means can do is slice the data roughly in half, mixing inner- and outer-ring points together on each side. DBSCAN never looks at a centroid at all. It only asks, locally, "how many points are near this point," and since each ring is internally dense while the gap between rings is sparse, the two rings naturally separate into two clusters with the gap acting as the boundary. No amount of retrying or reseeding fixes K-means here. It's the wrong tool for this shape, structurally, exactly as Section 1 described.
 
-## 8. Advantages and Limitations
+## 8. Try It Yourself
+
+Every static chart above is one snapshot of $\epsilon$ and MinPoints. The fastest way to actually build intuition for how those two numbers interact is to vary them live and watch clusters merge, split, and shed noise in real time, the same idea the video closes on with [a visualization tool for exploring DBSCAN](https://www.naftaliharris.com/blog/visualizing-dbscan-clustering/). Here's a version of that same idea, running directly on this page:
+
+<DbscanExplorer />
+
+Click to drop your own points, or start from a preset. Drag $\epsilon$ up and watch separate clusters merge once their neighborhoods start overlapping; drag it down and watch a single cluster fracture along its sparsest stretch, exactly what happened to the crescents in Section 5. Raise MinPoints and previously-core points along a cluster's thin edges demote to noise, since the same neighborhood that was "dense enough" a moment ago no longer clears the stricter bar.
+
+## 9. Advantages and Limitations
 
 **Advantages:**
 
@@ -120,7 +128,7 @@ K-means, asked for 2 clusters, does what it always does: minimizes distance to t
 - **A single global $\epsilon$ doesn't suit clusters of different densities.** Give DBSCAN two clusters, one sparse and spread out, one tight and tightly packed, and one `eps` value has to work for both simultaneously. An `eps` tuned for the sparse cluster over-merges the dense one; an `eps` tuned for the dense cluster shreds the sparse one into noise. The moons example in Section 5 is a small version of exactly this problem.
 - **No prediction for new points.** DBSCAN has no `predict` the way K-means does: there's no centroid to compare a new point against. Placing a new point means rerunning the entire clustering from scratch, there's no incremental way to ask "which existing cluster does this new point belong to."
 
-## 9. What to Take Away
+## 10. What to Take Away
 
 - DBSCAN replaces K-means' "distance to a centroid" with "density of nearby points," fixing K-means' three core weaknesses: no need to specify cluster count up front, resistance to outliers, and the ability to find non-spherical clusters.
 - Everything rests on two hyperparameters: $\epsilon$, a neighborhood radius, and MinPoints, the neighbor count that makes a neighborhood "dense."
