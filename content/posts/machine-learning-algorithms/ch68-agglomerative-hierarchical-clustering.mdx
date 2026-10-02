@@ -57,6 +57,20 @@ Given two clusters, each with potentially many points, scikit-learn's `Agglomera
 - **Average link (`linkage="average"`)**: average every pairwise distance between the two clusters' points. A compromise between single and complete, inheriting a milder version of each one's behavior rather than either extreme.
 - **Ward's method (`linkage="ward"`, scikit-learn's default)**: merge whichever pair of clusters produces the smallest increase in total within-cluster variance. Concretely, for two candidate clusters, compute their combined centroid, sum the squared distances from every point in both clusters to that shared centroid, then subtract out the variance that was already present inside each cluster separately, what's left is the "cost" of merging them. Like average link, it sits between single and complete in practice.
 
+Written out, Ward's merge cost for two clusters $A$ and $B$, with centroids $\mu_A$ and $\mu_B$, and $\mu_{A \cup B}$ the centroid of all their points combined, is exactly that three-part recipe:
+
+$$
+\Delta(A, B) = \sum_{x \in A \cup B} \lVert x - \mu_{A \cup B} \rVert^2 \;-\; \sum_{x \in A} \lVert x - \mu_A \rVert^2 \;-\; \sum_{x \in B} \lVert x - \mu_B \rVert^2
+$$
+
+The first term is the spread of the merged cluster around its shared centroid; the other two are the spread each cluster already had on its own. With a little algebra, the whole expression collapses into a form that only needs the two centroids and the two cluster sizes $n_A$ and $n_B$:
+
+$$
+\Delta(A, B) = \frac{n_A \, n_B}{n_A + n_B} \, \lVert \mu_A - \mu_B \rVert^2
+$$
+
+This second form shows what Ward actually rewards. The $\lVert \mu_A - \mu_B \rVert^2$ part says clusters whose centers are close are cheap to merge, like any other linkage. The $\frac{n_A n_B}{n_A + n_B}$ weight is the new part: it grows with cluster size, so two big clusters cost more to merge than two small ones at the same centroid distance. That pushes Ward toward absorbing small clusters first and producing clusters of similar size. One detail if you read the dendrogram's merge heights: SciPy's `linkage(..., method="ward")` reports $\sqrt{2\,\Delta(A, B)}$ as the height rather than $\Delta(A, B)$ itself. Since that's a monotonic rescaling, the merge order and the shape of the tree are unchanged; only the numbers on the vertical axis differ.
+
 The same two clusters, with each method's defining computation drawn directly on top of the points:
 
 <img src="/images/ch68-linkage-types.png" alt="Four scatter plots of the same two clusters, one blue (5 points) and one red (5 points), with all 25 cross-cluster pairs drawn faintly as background lines in each panel. Single link panel: the single closest pair across the two clusters is highlighted in bold green, labeled 'min distance'. Complete link panel: the single farthest pair is highlighted instead, labeled 'max distance'. Average link panel: all 25 pairwise lines are drawn solid green with the mean distance labeled. Ward panel: both clusters' individual centroids are marked with triangles, the combined centroid of all 10 points is marked with a star, and every point connects to that combined centroid with a thin orange line." className="w-full h-auto" />
