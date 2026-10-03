@@ -18,6 +18,7 @@ content/posts/system-design-interview/
 
 # yt-transcribe output, source material only
 transcripts/
+content/posts/**/*.txt
 
 # Local-only authoring guide, not for publishing
 content/posts/system-design-foundation/instruction.md
