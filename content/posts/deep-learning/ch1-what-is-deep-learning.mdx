@@ -1,0 +1,307 @@
+---
+title: "Ch.1: What is Deep Learning? Deep Learning vs Machine Learning"
+description: "Where deep learning sits inside AI and machine learning, what representation learning means and why layers learn edges before faces, five practical differences from classical machine learning (data, hardware, training time, features, interpretability), and the five forces behind deep learning's rise after 2010."
+date: "2026-10-03T18:22:00+05:30"
+tags: ["deep-learning", "neural-networks", "representation-learning", "machine-learning", "introduction"]
+subtopic: "Foundations of Deep Learning"
+draft: false
+broadcast: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=fHF22Wxuyw4)
+
+This series starts from scratch. Before touching a single neuron, it's worth having a clear map of the territory: what deep learning actually is, how it differs from the machine learning that came before it, and why, after decades of being a niche idea, it suddenly took over around 2012.
+
+This post answers three questions:
+
+1. What is deep learning? (two definitions, one simple and one technical)
+2. How is it different from classical machine learning, in practice?
+3. Why did it become so dominant now, and not in the 1960s when the ideas first appeared?
+
+## 1. The Simple Definition
+
+Search for "what is deep learning" and you'll mostly find two kinds of definition. Here's the simpler one:
+
+> Deep learning is a subfield of artificial intelligence and machine learning that is inspired by the structure of a human brain. Deep learning algorithms attempt to draw similar conclusions as humans would by continually analyzing data with a given logical structure called a neural network.
+
+There are two ideas packed in here. Take them one at a time.
+
+### Where deep learning sits
+
+Picture three nested circles.
+
+- **Artificial intelligence** is the outermost one, the umbrella term. It's the long-running human ambition to build machines that are intelligent the way we are. People have been at it for decades, and the field has produced several partial successes.
+- **Machine learning** is the biggest of those successes, a subfield of AI built on one idea: *learn from data*. If you have data with inputs and outputs, a machine learning algorithm's job is to figure out the relationship between the input and the output.
+- **Deep learning** is a subfield of machine learning. It does the same job, finding the input-to-output relationship (mostly in supervised settings), but it does it in a different way.
+
+That "different way" is the real distinction. Most classical machine learning algorithms capture the input-output relationship using **statistical techniques**: linear regression fits a line by minimizing squared error, Naive Bayes multiplies conditional probabilities, and so on. Deep learning instead relies on a **logical structure called a neural network**.
+
+### Why a brain?
+
+The neural network is inspired by the human brain, and the reasoning behind that is simple. Computer scientists wanted to build intelligent machines, and the most intelligent thing we know of on Earth is the human brain. So: what if we built algorithms whose structure loosely mimics how the brain makes decisions? A neural network is that idea made concrete, and the whole family of algorithms built on neural networks is what we collectively call deep learning.
+
+### A first look at a neural network
+
+The simplest kind of neural network is the **artificial neural network (ANN)**. We'll study it in depth later; for now, just the anatomy:
+
+- The fundamental unit is the **perceptron**. Each circle you see in a neural network diagram is one.
+- Perceptrons are arranged in vertical columns called **layers**.
+- Data enters through the **input layer**, and the prediction comes out of the **output layer**.
+- Every layer in between is a **hidden layer**. You can have as many hidden layers as you want.
+
+That last point is where the name comes from. A network with many hidden layers is *deep*, so learning with such networks is *deep learning*.
+
+The ANN is only the starting point. Different architectures are built for different kinds of data:
+
+- **Convolutional neural networks (CNNs)** work very well on image data.
+- **Recurrent neural networks (RNNs)** work well on sequential data like speech and text.
+- **Generative adversarial networks (GANs)** generate new things: images, text, and more.
+
+The series will cover these one by one. For now, the summary is: deep learning does what machine learning does (find input-output relationships), but uses brain-inspired neural networks instead of statistical techniques to do it.
+
+## 2. Why Is Deep Learning So Famous?
+
+If deep learning is just a different way to do what machine learning already does, why is it suddenly everywhere? Two reasons.
+
+**Applicability.** Deep learning works across an enormous range of domains: computer vision, speech recognition, natural language processing, machine translation, bioinformatics, drug design, medical image analysis, climate science, material inspection, and game-playing programs. One family of techniques, applied almost everywhere.
+
+**Performance.** In those same fields, deep learning keeps producing state-of-the-art results, performance that's hard for any other approach to beat. In some cases it has surpassed human experts. The famous example is the board game Go: in 2016, DeepMind's AlphaGo played the world champion Lee Sedol and won 4 of the 5 games.
+
+Put those together, a technique that applies to almost any problem *and* is the best performer wherever it's applied, and you get the reputation deep learning has today, driving work on self-driving cars, new drug discovery, and research in chemistry and medicine.
+
+## 3. The Technical Definition: Representation Learning
+
+The second, more technical definition says more about *how* deep learning works:
+
+> Deep learning is part of a broader family of machine learning methods based on artificial neural networks with representation learning. Deep learning algorithms use multiple layers to progressively extract higher-level features from the raw input. For example, in image processing, lower layers may identify edges, while higher layers may identify the concepts relevant to a human such as digits, letters, or faces.
+
+The first sentence repeats what we know (machine learning, neural networks) but adds one new term: **representation learning**. If you want to understand deep learning, this is the idea to get right.
+
+### The problem it solves: hand-made features
+
+Wikipedia defines it like this:
+
+> Feature learning or representation learning is a set of techniques that allow a system to automatically discover the representations needed for feature detection or classification from raw data. This replaces manual feature engineering and allows a machine to both learn the features and use them to perform a specific task.
+
+To see what that replaces, think about how you'd build a dog vs cat image classifier with classical machine learning. An algorithm like logistic regression can't look at a raw photo and reason about it. You first have to decide, yourself, what properties distinguish dogs from cats and turn them into numeric columns:
+
+- **Size**: bigger animals are more likely dogs, smaller ones cats.
+- **Color**.
+- Other physical attributes: ear shape, snout length, and so on.
+
+This is **feature engineering** (or feature extraction), and in machine learning it's your job. The algorithm only ever sees the features you designed, so its ceiling is set by how good your features are.
+
+In deep learning, that whole step is automated. You don't write rules like "if big, then dog." You feed the network the image itself, pixel by pixel, in the right format, and the network works out on its own which features matter. That's representation learning: **automatic feature extraction from raw data**.
+
+### How the layers do it
+
+The second sentence of the definition explains the mechanism: *multiple layers progressively extract higher-level features*.
+
+Every layer in the network has a purpose. Feed a photo into the input layer and follow it through:
+
+- The **first hidden layers** pick out primitive features: **edges**, lines at various angles, simple contrasts.
+- The **middle layers** combine those edges into more complex features: **shapes and parts**, like curves, corners, an eye, an ear.
+- The **last layers** combine the parts into **high-level concepts**: a whole face, a digit, a letter, a dog.
+- The output layer then gives the final answer: dog or cat.
+
+The reason it works this way is that each layer only sees the output of the layer before it. A layer can't detect an eye directly from raw pixels; it has to build it from the edges that an earlier layer already found. So complexity has to grow layer by layer, from simple to complex.
+
+Notice something about the early layers: edges, lines and simple textures aren't specific to dogs or cats. They appear in *every* image, whether it's a street, a face, or an X-ray. Only the later layers become specific to the task. Keep that in mind; it's the key to one of the biggest reasons deep learning became practical, which we'll get to in section 5.
+
+## 4. Deep Learning vs Machine Learning: Five Differences
+
+So far: deep learning is a subfield of machine learning that uses neural networks instead of statistical techniques. In practice, that one change leads to five concrete differences.
+
+### 4.1 Data dependency
+
+Deep learning needs **far more data** than machine learning. A deep learning model's performance only becomes reliable after it has seen a lot of examples.
+
+There's a well-known graph that captures this: amount of training data on the x-axis, model performance on the y-axis, with one curve for machine learning and one for deep learning. It shows three things:
+
+1. **With little data, machine learning wins.** At the left of the graph, classical models outperform deep learning models.
+2. **As data grows, machine learning stagnates.** Past a certain point, adding more data barely moves the machine learning curve. It plateaus.
+3. **Deep learning keeps climbing.** Its performance keeps improving roughly in step with the amount of data, eventually overtaking machine learning by a wide margin.
+
+Why does the machine learning curve flatten? Look back at representation learning. A classical model works with a fixed set of hand-designed features and a relatively simple model of how they relate to the output. Once it has seen enough data to pin down that relationship, more data has nothing new to teach it: the limit is the features and the model, not the data. A deep network can keep learning richer features as data grows, so extra data keeps paying off. In short: deep learning is **data hungry**, and it rewards being fed.
+
+### 4.2 Hardware
+
+You can train most machine learning models on an ordinary computer's CPU. Deep learning is different: under the hood, training a neural network is an enormous number of **matrix multiplications** over huge arrays of numbers. Run that on a CPU and training crawls.
+
+To handle it you need a **GPU** (graphics processing unit), ideally a powerful one with plenty of memory. Section 5 explains why GPUs specifically are such a good fit. The practical consequence: machine learning runs on cheap hardware, while deep learning needs costly hardware.
+
+### 4.3 Training time and prediction time
+
+Because deep learning models are complex, **training time is high**. Training a large network on a large dataset can take weeks, and some research projects have taken months. A machine learning model, by comparison, usually trains in minutes, occasionally a few hours.
+
+**Prediction time is a different story.** Once a deep learning model is trained, making a prediction is fast: one pass of the input through the network. For machine learning, prediction time *varies* by algorithm. Some are fast, but some are slow. K-nearest neighbors (KNN) is the classic slow one. KNN does almost nothing during training; it just stores the training data. All the work happens at prediction time, when it has to compute the distance from the new point to every stored training point before it can find the nearest neighbors. The bigger the dataset, the slower every single prediction.
+
+So: training time is reliably low for machine learning and high for deep learning; prediction time is fast for deep learning and varies for machine learning.
+
+### 4.4 Feature selection
+
+This is representation learning again, seen as a practical difference. Take a concrete project: given a student's resume, predict whether they'll get placed, so you can give them feedback.
+
+With machine learning, you have to extract features from the resume yourself:
+
+- 12th grade marks
+- 10th grade marks
+- Number of achievements
+- Number of courses completed
+- Quality of college
+
+And to choose those features well, you need **domain experts**. You'd have to sit with HR people or teachers to learn which aspects of a resume actually predict placement. Whatever features you build depend on the domain, and getting them right is real work.
+
+With deep learning, you give the algorithm the full resume content in the right form, and it extracts the relevant features behind the scenes on its own, the same way the image network learned edges, then shapes, then faces without being told to. No feature engineering, no domain-expert sessions to design features.
+
+### 4.5 Interpretability
+
+The automatic feature extraction that makes deep learning so convenient has a cost. The features are learned, not designed, so **you don't know what they are**. Which edges did the first layer pick up? What did the middle layers combine them into? The network doesn't tell you. Internally it's a **black box**.
+
+That matters whenever you need to explain a decision. Say a social network uses a deep learning model that reads a user's comments and decides whether to ban them. It bans someone. The user asks, reasonably: why was I banned? With a deep learning model, you have no answer. You know the model's output, not its reasons.
+
+Classical machine learning models are often far more **interpretable**. Take logistic regression predicting placement from two columns, CGPA and IQ:
+
+$$
+P(\text{placed}) = \sigma(w_1 \cdot \text{CGPA} + w_2 \cdot \text{IQ} + b)
+$$
+
+The learned weights $w_1$ and $w_2$ tell you how much each feature counts. If a student asks why the model predicted they won't get placed, you can point to it: CGPA carries a large weight, and theirs is low. A **decision tree** is even more transparent: it's literally a flowchart of decisions, and you can trace the exact path that led to a yes or no.
+
+Where explainability matters (bans, loans, medical decisions), this is a real point against deep learning.
+
+### Summary
+
+| | Machine learning | Deep learning |
+|---|---|---|
+| **Data needed** | Works with little data, plateaus as data grows | Needs lots of data, keeps improving with more |
+| **Hardware** | Ordinary CPU | Powerful GPU (costly) |
+| **Training time** | Low: minutes to hours | High: hours to weeks or months |
+| **Prediction time** | Varies (KNN is slow) | Fast |
+| **Features** | Hand-engineered, needs domain experts | Learned automatically (representation learning) |
+| **Interpretability** | Often high (weights, decision paths) | Low: a black box |
+
+### Deep learning won't replace machine learning
+
+Given how powerful deep learning is, it's tempting to ask: why not use it for every project? These five differences are the answer. With a small dataset, cheap hardware, a tight time budget, or a need to explain every decision, classical machine learning is the better tool.
+
+There's an old saying that fits: where you need a needle, you don't use a sword. Machine learning is the needle, deep learning is the sword. Which one you reach for depends on whether you're stitching cloth or going into battle.
+
+## 5. Why Now? Five Forces Behind Deep Learning's Rise
+
+Here's the puzzle. The core ideas of deep learning date back to the 1960s. Yet it only took off in the 2010s, with 2012 often called the breakthrough year. What changed? There isn't one answer; five forces came together.
+
+### 5.1 Datasets
+
+Deep learning is data hungry. A classical model can learn something useful from a dataset of 100 or 1,000 rows; a deep network can't. In the 1960s, the data simply didn't exist.
+
+Around 2010, two revolutions changed that:
+
+1. **The smartphone revolution.** Suddenly nearly everyone carried a computer with a camera.
+2. **The internet-pricing revolution.** The internet already existed, but its price collapsed. In India, for example, Reliance Jio entered the market around 2015-16 and offered high-speed mobile data almost free.
+
+Combine the two and almost everyone on Earth has a smartphone with a fast connection, using apps like TikTok, Snapchat and a stream of other social platforms. Every day, people generate enormous amounts of data, and the amount generated each year has been growing exponentially since around 2015.
+
+**But raw data isn't enough.** Think about training a dog vs cat classifier. You need many photos where each one is *labeled*: this one has a dog, this one has a cat. The data people generate on their phones is almost entirely **unlabeled**. When you upload a photo of your puppy to Facebook, you don't attach a label saying "this is a dog."
+
+Turning unlabeled data into labeled data takes people, and people cost money. This is where large companies like Microsoft, Google and Facebook stepped in. They spent heavily to label large collections of data. Then they made a crucial decision: rather than keeping these datasets in-house, where they'd only help their own research, they released them as **public datasets** that anyone could access and build on. Building a dataset like this is beyond what most researchers or universities could ever afford, so making them public meant everyone could now do deep learning research, and the field accelerated rapidly.
+
+A few examples:
+
+| Data type | Dataset | What it contains |
+|---|---|---|
+| Images | **Microsoft COCO** | Images with bounding boxes drawn around each object and labels for what each object is; heavily used for object detection |
+| Video | **YouTube-8M** | Labeled data for around 6.1 million YouTube videos |
+| Text | **SQuAD** (Stanford Question Answering Dataset) | Around 100,000 question-answer pairs built from Wikipedia articles |
+| Audio | **Google AudioSet** | Around 2 million sound clips taken from YouTube, labeled across more than 600 categories |
+
+Today there are thousands of public datasets like these, on Kaggle, on their own websites, or a search away. Without data there would be no deep learning, which makes datasets arguably the single biggest contributor to its success.
+
+### 5.2 Hardware
+
+The second force is computing hardware, and it starts with **Moore's law**. Gordon Moore, co-founder of Intel, observed that the number of transistors that fit on a microchip doubles roughly every two years, while the cost of computing falls. Take any chip line, and every couple of years the next generation packs twice the transistors. That's why hardware keeps getting both more powerful and cheaper: around 2005-06 a typical phone had something like 128 MB of RAM; today's phones have many gigabytes, at prices that have fallen in real terms. That hardware revolution is still running.
+
+Deep learning needs lots of data, and on that data it performs huge numbers of matrix operations. On a CPU, training is slow. The breakthrough came around 2010, when researchers realized something about those matrix multiplications: **they can be split into a huge number of small, independent calculations and run in parallel.** And there was already hardware built for exactly that kind of work. Rendering a high-quality image means computing millions of pixels in parallel, which is what GPUs were designed to do for games and graphics. If GPUs handle parallel pixel math, why not use them for the parallel math of training a network?
+
+A CPU has a handful of powerful cores, good at working through complex tasks a few at a time. A GPU has thousands of simpler cores, good at doing the same simple arithmetic on many numbers at once. A matrix multiplication is exactly that kind of work.
+
+The idea spread through the deep learning community, and NVIDIA made it practical by launching **CUDA**, a platform for programming GPUs for general-purpose computation. From then on, GPUs became the standard for training neural networks. Graphics cards stopped being bought only by gamers; deep learning researchers became major customers, and NVIDIA's stock rose accordingly. A good GPU can cut training time by something like 10 to 20 times, which is the difference between a week and a few hours.
+
+Once people saw that parallel processing gave much faster results, more specialized hardware followed:
+
+- **FPGAs (field-programmable gate arrays)** are reprogrammable chips. They're very fast, run on low power, and can be configured for custom solutions. Their downside is cost: they're expensive. Xilinx is a leading manufacturer, and Microsoft uses FPGAs heavily; much of the AI behind its Bing search engine runs on them.
+- **ASICs (application-specific integrated circuits)** are custom chips designed for one job. They're expensive to design initially, but cheap per unit when made at scale. Several deep learning ASICs appeared:
+  - **TPU (Tensor Processing Unit)**: Google's chip built specifically for training deep learning models. Google Colab lets you select a TPU to run your code.
+  - **Edge TPU**: a tiny version for edge devices, for running deep learning models on drones, smartwatches, or smart glasses.
+  - **NPU (Neural Processing Unit)**: built into smartphones to accelerate the AI operations that apps now run on the device.
+
+Which hardware fits which situation:
+
+| Situation | Hardware |
+|---|---|
+| Just starting out, small projects | CPU |
+| Training larger networks | A GPU (e.g. an RTX 2080 Ti) or a TPU |
+| Deep learning inside a smartphone app | Mobile CPU (e.g. Snapdragon), mobile GPU, digital signal processors, or NPU |
+| Smartwatches, smart glasses | Edge TPU or NPU |
+
+The shift was that hardware stopped being general-purpose and started being built *for* deep learning. Faster training means faster experiments, and faster experiments mean faster research.
+
+### 5.3 Frameworks and libraries
+
+Training deep learning models is hard, and writing all the code from scratch is worse: you'd spend more time building the machinery than solving your actual problem. What machine learning had in scikit-learn, a library that handles the internals so you just build your application, deep learning needed too.
+
+The history of how that happened:
+
+- **2011, DistBelief.** Google saw deep learning's potential early and wanted to use it in its products, especially speech products. It built an internal framework, DistBelief. It worked, but it was tightly tied to Google's own products.
+- **2015, TensorFlow.** Google built a separate, general framework and released it as TensorFlow. It was very powerful and was immediately adopted everywhere. But over time people found it *hard to use*; the joke went that if you could use TensorFlow, you could get a job at Google.
+- **Keras.** Around the same time, a library called Keras appeared that sat on top of TensorFlow as a friendly frontend: you talk to Keras, and Keras talks to TensorFlow. The combination became very popular.
+- **2019, TensorFlow 2.0.** Google recognized that to make TensorFlow accessible to everyone, the way to do it was through Keras. From TensorFlow 2.0 on, Keras ships built in. This series will use this combination.
+- **2016, PyTorch.** Facebook didn't want to fall behind and released PyTorch, which tried to fix TensorFlow's shortcomings. AI researchers in particular loved it.
+- **2018, Caffe2.** Facebook also worked on Caffe2, aimed at taking models and deploying them to servers so many people could use them. It was later merged into PyTorch to form one complete framework.
+
+Today there are two main ecosystems: **TensorFlow + Keras**, used more for industry applications, and **PyTorch**, used more in research.
+
+That split creates a problem: sometimes you need code from one ecosystem in the other, for example when a research paper's model is implemented in PyTorch and your production stack is TensorFlow, and converting between them is hard. Partly in response, GUI-based tools appeared where you assemble a neural network visually and the tool handles the code for you: Google's **AutoML**, Microsoft's **Custom Vision AI**, and Apple's **Create ML** are examples.
+
+In short, the biggest companies built frameworks that pushed both deep learning research and its adoption in industry.
+
+### 5.4 Architectures and transfer learning
+
+The fourth force is **architectures**. Recall the ANN: circles connected by lines. That structure has two ingredients:
+
+- **Nodes**: the circles, the fundamental units of the network.
+- **Edges**: the connections between nodes. Each one carries a **weight**, and the edges define which node connects to which.
+
+Vary these two and you get different networks: fewer nodes, more nodes, this node connected to that one but not to another. Each distinct arrangement is a different **neural network architecture**, and different problems call for different architectures.
+
+Which architecture works best for your problem? The only way to know is to experiment: build it, train it, measure it. Every experiment costs time and effort, and sometimes money. Finding the best architecture from scratch is genuinely hard.
+
+But there's a second option. Researchers have already designed strong architectures for major problems, **trained them on large datasets**, and released them ready to use. You can download one and apply it directly to your own problem. This is **transfer learning**, and it's used heavily in industry today.
+
+Why would a network trained on one problem work on a different one? Go back to how the layers learn. A network trained on millions of everyday photos has early layers that detect edges, gradients, textures and simple shapes, and those features appear in *any* image. Say a small hospital has only 2,000 labeled chest X-rays. That's far too little to train a deep network from scratch. But X-rays are made of edges and textures too. So the hospital can take a network pre-trained on everyday photos, keep its general-purpose early layers, and retrain only the later, task-specific layers on its X-rays. The network doesn't have to learn how to *see* from 2,000 images; it only has to learn what matters *in X-rays*. That's why a couple of thousand examples can be enough.
+
+That's a massive boost for adoption. If a company has a problem to solve, it doesn't need to sit its researchers down to invent an architecture from scratch. It can take a state-of-the-art architecture, one that already reaches the best accuracy and in some cases exceeds human-level accuracy, and use it directly. Some well-known examples across domains:
+
+| Task | Architecture |
+|---|---|
+| Image classification | ResNet |
+| Text / NLP | BERT, Transformers |
+| Image segmentation | U-Net |
+| Image translation | Pix2Pix |
+| Object detection | YOLO (You Only Look Once) |
+| Speech generation | WaveNet |
+
+Researchers invested the time to design these and train them on data; now anyone can download one and run it on their own problem. Someone had already done the hard work we'd otherwise have to do, and adoption sped up dramatically.
+
+### 5.5 People and community
+
+The last force isn't technical: **people**. None of this would have happened without people passionate enough to stick with deep learning. Its history is long and bumpy: researchers worked on it from the 1960s, it failed multiple times, and only around 2011-12 did it finally succeed.
+
+Researchers, the companies investing in it, deep learning engineers, teachers, students, and communities like Kaggle together pushed the technology forward. Arguably this belongs at number 1 rather than number 5; it's set apart here only because it's a non-technical reason. People recognized that deep learning is a technology that will change the world, and is already changing it, and chose to invest their time in it.
+
+## Wrapping Up
+
+- **Deep learning** is a subfield of machine learning. It does the same job, learning the relationship between inputs and outputs, but with brain-inspired **neural networks** instead of statistical techniques. "Deep" refers to having many hidden layers.
+- Its defining trait is **representation learning**: it extracts features from raw data automatically, with early layers finding edges and later layers building them into shapes, parts and whole concepts.
+- Compared with machine learning, deep learning needs **more data** (but keeps improving with it), **more powerful hardware**, and **longer training**, while predicting fast. It removes manual **feature engineering** but gives up **interpretability**. That's why it complements machine learning rather than replacing it.
+- It took off after 2010 thanks to five forces: **labeled public datasets**, **parallel hardware** (GPUs, then FPGAs, TPUs, NPUs), **frameworks** (TensorFlow, Keras, PyTorch), **pre-trained architectures** and transfer learning, and a **community** that never gave up on it.
