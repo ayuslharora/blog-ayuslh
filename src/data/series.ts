@@ -30,6 +30,12 @@ export const SERIES: Record<string, SeriesInfo> = {
       "A deep dive into how core machine learning algorithms actually work, from linear regression to ensemble methods.",
     category: "machine-learning",
   },
+  'deep-learning': {
+    title: "Deep Learning",
+    description:
+      "How neural networks actually learn, from perceptrons and backpropagation to the architectures behind modern deep learning.",
+    category: "machine-learning",
+  },
   til: {
     title: "Today I Learned",
     description:
