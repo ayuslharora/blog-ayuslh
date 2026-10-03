@@ -1,0 +1,247 @@
+---
+title: "Ch.2: Types of Neural Networks, History and Applications of Deep Learning"
+description: "The five neural network families you'll meet first (MLP, CNN, RNN, autoencoders, GANs) and what each is built for, the boom-and-bust history from Rosenblatt's perceptron through two AI winters to the 2012 ImageNet breakthrough, and where deep learning shows up today."
+date: "2026-10-03T20:33:00+05:30"
+tags: ["deep-learning", "neural-networks", "history-of-ai", "cnn", "rnn", "gan", "introduction"]
+subtopic: "Foundations of Deep Learning"
+draft: false
+broadcast: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=fne_UE7hDn0)
+
+The [previous post](/deep-learning/ch1-what-is-deep-learning) defined deep learning and explained why it took off. This one finishes the big-picture tour before we start building things, starting with the perceptron in the next post. Three topics:
+
+1. **Types of neural networks**: the five families you'll keep running into, and what each one is designed for.
+2. **History of deep learning**: a story of hype, collapse and comeback that explains why the field looks the way it does.
+3. **Applications**: where deep learning is actually being used.
+
+It's all theory, but it's the kind of theory that pays off later. When you study a technique in detail, knowing which problem it was invented to fix makes the details far easier to hold on to.
+
+## 1. Types of Neural Networks
+
+Search for "types of neural networks" and you'll find dozens. That's because a neural network is really a design space: you can arrange layers and nodes in many different ways, and each arrangement gives a different architecture. As a beginner, five are worth knowing. Here's a short overview of each; every one of them gets proper treatment later in the series.
+
+### 1.1 Multilayer perceptron (MLP)
+
+The simplest kind. For a long time "artificial neural network" and "MLP" were used as synonyms. An MLP is exactly what the name says: many perceptrons organized into layers, with an input layer, one or more hidden layers, and an output layer. Information flows straight through, from the input layer to the output layer.
+
+**What it's for:** almost any supervised machine learning problem, regression or classification, on ordinary tabular data. Its strength is capturing **non-linear relationships**. Adding hidden layers lets it capture more complex non-linear patterns. *Why* stacking layers does this is the turning point of the history section below.
+
+### 1.2 Convolutional neural network (CNN)
+
+A CNN is a neural network with at least one **convolutional layer**. We'll get to what a convolutional layer does when we study CNNs. The short version: it's built to exploit the structure of images, where a pixel's meaning depends on the pixels around it.
+
+**What it's for:** image and video processing. Almost every major image application today uses CNNs: self-driving cars reading the road, or medical systems that look at a chest scan and flag whether cancer might be present. **Yann LeCun** is considered the father of CNNs; he shows up again in the history section.
+
+### 1.3 Recurrent neural network (RNN)
+
+MLPs and CNNs are **feed-forward** networks: information moves in one direction, from the first layer to the last, and never comes back. An RNN breaks that rule. The output of a hidden layer is **fed back** into the network, so when it processes the next input, it still carries information about what came before.
+
+Why would you want that? Because some data only makes sense in order. The meaning of a word in a sentence depends on the words before it. A feed-forward network sees each input in isolation; the feedback loop gives an RNN a kind of memory.
+
+A very popular variant is the **LSTM** (Long Short-Term Memory), which is better at holding on to information over long sequences. RNNs and LSTMs were the workhorses of **natural language processing**: voice assistants like Google Now, Siri and Cortana relied on them.
+
+### 1.4 Autoencoders
+
+Less famous than CNNs and RNNs, but with a very different job: **compression**. You have some input (an image, a file, a video) and want a much smaller version of it that loses as little quality as possible.
+
+The architecture makes the trick visible. The input layer and the output layer have the **same number of nodes**, but the hidden layers in between have **fewer**. The network is trained to reproduce its own input at the output. Since everything has to pass through the narrow middle, the network is forced to find a compact representation that keeps what matters and discards the rest. That narrow middle is the compressed version of the data.
+
+### 1.5 Generative adversarial networks (GANs)
+
+Introduced by **Ian Goodfellow** in 2014, GANs are about generating things that never existed. The architecture pits **two neural networks against each other** in a game:
+
+- The **generator** creates fake data, say images of human faces.
+- The **discriminator** looks at images and tries to tell real faces from the generator's fakes.
+
+Each improves by beating the other. As the discriminator gets better at spotting fakes, the generator is pushed to produce more convincing ones, until its output is realistic enough that the discriminator can't tell the difference. The result: photos of people who look completely real but have never existed, along with generated music, stories and more. It's a way of getting a program to *imagine*.
+
+### Summary
+
+| Type | Key structural idea | Typical data / use |
+|---|---|---|
+| MLP | Perceptrons in layers, information flows forward | Tabular regression and classification |
+| CNN | At least one convolutional layer | Images and video |
+| RNN / LSTM | Hidden output fed back into the network | Sequences: text, speech |
+| Autoencoder | Hidden layers narrower than input and output | Compression |
+| GAN | Generator vs discriminator game | Generating new images, music, text |
+
+## 2. History of Deep Learning
+
+Why bother with history? Two reasons.
+
+First, it's **recent**. Most of the people who built this field are still alive and active, so the history isn't dusty: you can read their papers, watch their talks and learn directly from them.
+
+Second, it's a genuinely good story, and the story explains a lot. Deep learning didn't rise smoothly. It went through repeated cycles of excitement and collapse, and each collapse was caused by a specific technical limitation. Knowing those limitations tells you exactly what problem each later technique was solving.
+
+### 2.1 The perceptron and the first wave of hype (late 1950s)
+
+The setting matters. The Second World War had just ended, and countries were pouring money into research to establish technological supremacy, with the US and the USSR as the main rivals. Computer science and space research were getting a lot of that funding.
+
+In this environment, **Frank Rosenblatt**, a researcher in the US, came up with the **perceptron**: a mathematical model whose learning mechanism and working were inspired by a biological neuron. Rosenblatt was convinced he'd built something extraordinary, and the press amplified the excitement. In 1958 the *New York Times* reported that the US Navy expected it to be "the embryo of an electronic computer that [the Navy] expects will be able to walk, talk, see, write, reproduce itself and be conscious of its existence." The general feeling was that this was the start of truly intelligent machines.
+
+Over the next decade, lots of researchers worked on perceptrons, and lots of small projects were built on them.
+
+### 2.2 The XOR problem and the first AI winter (1969)
+
+In 1969 **Marvin Minsky** (with Seymour Papert) published *Perceptrons*, a book pointing out a fundamental problem. A perceptron can learn many things, but there is a simple function it can **never** learn, no matter how long you train it: **XOR**.
+
+XOR takes two binary inputs and outputs 1 when exactly one of them is 1:
+
+| $x_1$ | $x_2$ | AND | XOR |
+|---|---|---|---|
+| 0 | 0 | 0 | 0 |
+| 0 | 1 | 0 | 1 |
+| 1 | 0 | 0 | 1 |
+| 1 | 1 | 1 | 0 |
+
+Why is XOR impossible? A single perceptron decides by drawing **one straight line** (in two dimensions) and putting one class on each side. That's what "the perceptron is a linear model" means. AND is fine: one line separates the single 1 at the top-right corner from the three 0s. For XOR, the two 1s sit on opposite corners of the square, and so do the two 0s. No straight line can put both 1s on one side and both 0s on the other.
+
+You can check this directly. The figure below trains scikit-learn's `Perceptron` on the four points of each truth table:
+
+<img src="/images/dl-ch2-and-vs-xor.png" alt="Three panels: a single perceptron separates AND with one line at 100% accuracy; a single perceptron on XOR ends with zero weights and 50% accuracy; two hidden perceptrons draw two parallel lines whose band classifies XOR at 100% accuracy" className="w-full h-auto" />
+
+On AND (left), the perceptron finds a line and gets all four points right. On XOR (middle), it doesn't just fail, it gives up in a telling way: training stops with **all weights at zero**, so it predicts 0 everywhere and gets exactly 50%, no better than ignoring the input. That's not bad luck with this run. A brute-force search over 200,000 random lines never got more than 3 of the 4 XOR points right (75%). The best any single line can do is sacrifice one corner.
+
+XOR looks like a toy, but it stands for a whole class of problems: anything whose decision boundary isn't a straight line. Most real problems are like that. This criticism landed hard. All the momentum the perceptron had built collapsed: funding dried up, the media turned negative, and fewer researchers wanted to work on neural networks. This slump through the 1970s is known as the **first AI winter**.
+
+### 2.3 Backpropagation and the comeback (1986)
+
+The way out came from **Geoffrey Hinton**, now known as the father of deep learning (and, as a piece of trivia, a great-great-grandson of the mathematician George Boole). After his PhD in 1978, Hinton spent around eight years working on perceptrons and neural networks. In 1986, together with David Rumelhart and Ronald Williams, he published a landmark paper: **"Learning representations by back-propagating errors."**
+
+The key idea: a single perceptron is stuck with linear boundaries, but a **bunch of perceptrons used together**, arranged in layers with hidden layers in between, is not. Look at the right panel of the figure above. Two hidden perceptrons each draw one line ($x_1 + x_2 = 0.5$ and $x_1 + x_2 = 1.5$), and an output perceptron fires only for points that are above the first line but below the second. The band between the lines contains exactly the two XOR 1s. Two straight lines, combined, make a non-linear boundary.
+
+Push this further and it becomes a general result: with enough hidden perceptrons, a neural network can approximate **any** mathematical function. This is known as the **universal approximation theorem**. The perceptron's biggest flaw, its inability to handle non-linear functions, was overcome simply by adding more perceptrons in more layers.
+
+There was a catch. In the figure, the hidden weights were set by hand. For a real network with thousands of weights, how do you find good values? That's what **backpropagation** solved: compute the error of the network's prediction, differentiate that error with respect to each weight, and use those derivatives to adjust every weight, layer by layer, from the output backwards. It made it possible to *train* large networks, and large networks could approximate anything. Backpropagation gets its own full post later in the series.
+
+The excitement came back. In **1989**, **Yann LeCun**, who had worked as a postdoc in Hinton's lab, used a neural network trained with backpropagation to read **handwritten zip codes** from images. It was one of the first landmark achievements of neural networks in computer vision.
+
+### 2.4 The second AI winter (1990s to mid-2000s)
+
+Around the early 1990s, people noticed the problem wasn't fully solved. Neural networks worked on small problems but still performed poorly on large-scale ones. Research pointed to several reasons:
+
+1. **Not enough labeled data.** Large networks have many weights, and training them well needs a lot of labeled examples. Those datasets didn't exist yet.
+2. **Not enough computation.** Calculating all the weights with backpropagation is expensive, and the hardware of the time couldn't handle it once you added many layers.
+3. **Poor weight initialization.** Training started from completely random weights. In a deep network, starting from random weights tended to work badly: the error signal that backpropagation sends from the output has to pass back through every layer, and by the time it reaches the early layers it's often too weak to train them properly. (We'll see exactly why when we study backpropagation.)
+4. **Better alternatives arrived.** Machine learning algorithms like **support vector machines (SVMs)** and **random forests** came along. They worked better on the smaller datasets people actually had, and were easier to train.
+
+So interest dipped again. This was the **second AI winter**, and it lasted roughly fifteen years.
+
+### 2.5 Unsupervised pre-training and the rebrand to "deep learning" (2006)
+
+In 2006, Hinton (with Simon Osindero and Yee-Whye Teh) published another key paper, introducing **deep belief networks** and a technique called **unsupervised pre-training**.
+
+It attacked reason 3 above head-on. Instead of starting from random weights, you first train the network one layer at a time, *without labels*, to learn useful structure in the raw data. Those learned weights become the starting point, and only then do you fine-tune the whole network with backpropagation on labeled data. Each layer starts somewhere sensible instead of somewhere random. By then computation power and labeled data had also improved, and Hinton showed that with this technique you could stack **as many layers as you wanted** and still train the network.
+
+This paper is why the field got a new name. What had been called artificial neural networks was **rebranded as deep learning**, the "deep" referring to these many-layered networks. From 2006 to 2010, a stream of papers followed.
+
+### 2.6 The breakthrough: ImageNet 2012
+
+2012 was the year after which deep learning never looked back.
+
+The **ImageNet** competition (formally the ImageNet Large Scale Visual Recognition Challenge) asks teams to classify images from a huge dataset into 1,000 categories. It started in 2010. The headline metric is the **top-5 error rate**: how often the correct label is not among a model's five best guesses.
+
+| Year | Winning top-5 error | Approach |
+|---|---|---|
+| 2010 | 28.2% | Classical machine learning |
+| 2011 | 25.8% | Classical machine learning |
+| 2012 | **15.3%** | Deep CNN trained on GPUs (Hinton's team) |
+
+In 2012, Hinton entered with his students Alex Krizhevsky and Ilya Sutskever. They used a deep convolutional network, and crucially, they trained it on **GPUs**, betting the hardware would make the difference. Their error rate was **15.3%**; the next best entry, using classical methods, was at 26.2%. The best researchers in the world, using traditional machine learning, couldn't get meaningfully below 25%. A deep network on GPUs nearly halved the error in one year.
+
+That was the tipping point. Google, Facebook and other technology companies poured in money and researchers, papers multiplied, and a whole ecosystem started to form.
+
+### 2.7 After 2012
+
+The milestones came quickly:
+
+- **2014:** Ian Goodfellow introduced **GANs**, opening up the generation of realistic new images.
+- **Mid-2010s:** Google's **self-driving car** project became a serious engineering effort built on deep learning.
+- **2016:** DeepMind's **AlphaGo** beat **Lee Sedol**, the world champion at Go, winning 4 of 5 games. Go is an ancient Chinese board game far more complex than chess, and was widely considered out of reach for AI.
+
+Today the technology is embedded in almost every product we use.
+
+### 2.8 Why the peak now?
+
+Looking at all those ups and downs, why did deep learning finally reach its peak in the last decade, after failing twice? Compare the reasons for each winter with what changed:
+
+- **Data:** every time we use social media or apps, we generate data, much of it labeled. The data shortage that caused the second winter is gone.
+- **Hardware:** computation power has exploded. Ten years ago smartphones came with little RAM and slow processors; today phones in our pockets have 12 GB of RAM. The training cost that crippled networks in the 1990s is now affordable.
+- **Algorithms and frameworks:** years of research produced better techniques, and frameworks like **TensorFlow, Keras, PyTorch and Theano** let even beginners build deep learning projects.
+- **Community:** a growing ecosystem of researchers and practitioners keeps pushing the field forward.
+
+Where it goes from here is anyone's guess. Growth could be linear or exponential, and it's not impossible that within a decade we'll be building genuinely human-like intelligent systems.
+
+## 3. Applications of Deep Learning
+
+Since 2012, deep learning has spread into almost every field and changed each one. There are countless everyday uses, Netflix's recommendation engine and chatbots among them. Here's a curated tour, starting with the mainstream and moving to the more unusual.
+
+### 3.1 Self-driving cars
+
+Probably the most famous application. A self-driving car is covered in sensors: front, back, left and right cameras, a **LiDAR** sensor on top that measures the distance to nearby objects, GPS, and more. All of this input is fed into a computer inside the car, where deep learning algorithms process it and control the car's mechanical systems: steering, braking, accelerating. Search for self-driving car videos and you'll find people sitting in the driver's seat while the car drives itself smoothly. It's not hard to imagine booking a cab one day and having a car with no driver pull up.
+
+### 3.2 Game-playing agents
+
+Teaching a computer program to play a game is an old idea. What changed is combining deep learning with **reinforcement learning**, a combination called **deep reinforcement learning**, which made game-playing agents dramatically more capable.
+
+The landmark is **AlphaGo**, built by DeepMind (acquired by Google). Go has more possible positions than there are atoms in the universe, and people took comfort in the idea that AI wasn't powerful enough to beat humans at it. In 2016 AlphaGo beat world champion Lee Sedol in 4 of 5 games. Lee Sedol later retired from professional Go, saying AI simply couldn't be defeated. (The documentary *AlphaGo* covers the match and is well worth watching.)
+
+### 3.3 Virtual assistants and chatbots
+
+Google Now, Siri and Cortana can understand what you say, follow context, and refer back to earlier parts of a conversation, sometimes even replying sarcastically. That ability comes from RNNs and related deep learning algorithms, which handle sequences like speech and text. Today almost every company uses chatbots, and deep learning powers them.
+
+### 3.4 Image colorization
+
+Give a deep learning model a black-and-white photo, and it predicts what color each pixel should be and returns a colored version. This is being used to add color to old black-and-white films.
+
+### 3.5 Adding sound to silent video
+
+Researchers have trained networks to watch a silent video clip and **generate matching audio** automatically, producing plausible sound purely from what's happening in the scene.
+
+### 3.6 Image caption generation
+
+Give the algorithm an image and it generates a text description of what's happening in it, often precisely to the point.
+
+### 3.7 Text translation
+
+Point your phone's camera at text in a foreign language, and apps translate it **in real time** into English, Hindi or another language. Google Translate's translation runs on deep learning. For travelers, this is enormously useful.
+
+### 3.8 Pixel restoration
+
+Old photos are often so blurry you can't make out what's in them. Researchers on the **Google Brain** team worked on **pixel restoration**: give the model a tiny, very low-resolution image, and it predicts the values of the missing pixels from the surrounding ones, producing a much higher-resolution version. Feed it a scan of an old family album photo and get back something far clearer.
+
+### 3.9 Object detection and identification
+
+Google Photos automatically sorts your photos into groups: one for you, one for your parents, your pet, your friends, your college trip. Nobody does this manually. The algorithm first **detects** objects in each photo, then **identifies** them, then clusters matching ones together.
+
+It can go further. Parents who photograph their baby constantly for a year or two may get a notification from Google Photos saying it has a surprise for them: a short video of all the baby's photos arranged in chronological order, captioned "They grow up so fast". All of it is automatic, and it's exactly the kind of personal touch that keeps users loyal to the product.
+
+### 3.10 Generating new content with GANs
+
+GANs generate images of people who have never existed, by learning from huge numbers of real photos. They power apps that take photos of a couple and predict what their baby might look like. They can generate **music**, which raises the possibility of AI-composed songs with their own fans. Given enough samples of someone's handwriting, they can generate new text in **the same handwriting**.
+
+Generative models can also write **stories**. In 2016 a short film, *Sunspring*, was shot from a screenplay written entirely by a neural network (in that case an LSTM, the RNN variant from section 1.3).
+
+### 3.11 And much more
+
+The list keeps going:
+
+- **DeepDream:** a technique where a network amplifies the patterns it "sees" in an image, producing surreal, dream-like pictures. In a sense, the computer dreams.
+- **Medicine:** drug research, genetics, and vaccine development.
+- **Finance:** fraud detection and predicting customer churn.
+- **Education:** measuring and predicting student performance.
+
+Technical people at almost every company are learning deep learning and applying it to their own problems. That's why it has become such a sought-after skill.
+
+## Wrapping Up
+
+- The five neural network families to know first: **MLPs** for general supervised problems with non-linear relationships, **CNNs** (at least one convolutional layer) for images and video, **RNNs/LSTMs** (outputs fed back into the network) for sequences like text and speech, **autoencoders** (a narrow middle layer) for compression, and **GANs** (generator vs discriminator) for generating new content.
+- The history is a cycle of hype and winters, each winter caused by a concrete limitation. The **perceptron** (late 1950s) can only draw one straight line, so it can't learn **XOR**; Minsky's 1969 critique triggered the **first AI winter**.
+- **Multiple perceptrons in layers** can combine lines into non-linear boundaries and, given enough of them, approximate any function (**universal approximation theorem**). **Backpropagation** (Hinton, 1986) made those networks trainable.
+- The **second AI winter** came from too little labeled data, too little computation, poor random weight initialization, and strong alternatives like **SVMs** and **random forests**.
+- Hinton's 2006 **unsupervised pre-training** fixed initialization, made deep networks trainable, and rebranded the field as **deep learning**. The **2012 ImageNet** result (15.3% vs 26.2% top-5 error, on GPUs) was the tipping point.
+- Deep learning now powers self-driving cars, game-playing agents, virtual assistants, colorization, captioning, translation, photo restoration and organization, generative content, and work in medicine, finance and education.
+
+Next up, the practical part begins with the building block of every network above: the perceptron.
