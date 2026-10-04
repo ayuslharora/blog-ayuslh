@@ -28,6 +28,7 @@ import QuicHandshakeExplorer from '../../../components/QuicHandshakeExplorer';
 import QuicFramingExplorer from '../../../components/QuicFramingExplorer';
 import MtuMssDiagram from '../../../components/MtuMssDiagram';
 import RequestFlowDiagram from '../../../components/RequestFlowDiagram';
+import PdfChatFlowDiagram from '../../../components/PdfChatFlowDiagram';
 import DatabaseArchitectureDiagram from '../../../components/DatabaseArchitectureDiagram';
 import LoadBalancerDiagram from '../../../components/LoadBalancerDiagram';
 import DatabaseReplicationDiagram from '../../../components/DatabaseReplicationDiagram';
@@ -213,6 +214,7 @@ export default async function PostPage({
             QuicFramingExplorer,
             MtuMssDiagram,
             RequestFlowDiagram,
+            PdfChatFlowDiagram,
             DatabaseArchitectureDiagram,
             LoadBalancerDiagram,
             DatabaseReplicationDiagram,
