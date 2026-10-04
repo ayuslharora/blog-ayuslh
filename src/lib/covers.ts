@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { SERIES } from '../data/series';
+import { SERIES, type SeriesStatus } from '../data/series';
 import { CATEGORIES } from '../data/categories';
 import { getAllSeries } from './posts';
 
@@ -16,6 +16,10 @@ export function getSeriesDescription(slug: string): string {
 
 export function getSeriesCategory(slug: string): string | undefined {
   return SERIES[slug]?.category;
+}
+
+export function getSeriesStatus(slug: string): SeriesStatus | undefined {
+  return SERIES[slug]?.status;
 }
 
 export function hasCover(slug: string, coversDir: string = DEFAULT_COVERS_DIR): boolean {

@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { getAllSeries, getPostsBySeries } from '../../lib/posts';
 import { getSeriesTitle, getSeriesDescription, hasCover } from '../../lib/covers';
 import { buildSeriesCollectionPageJsonLd, serializeJsonLd } from '../../lib/jsonLd';
+import SeriesStatusBadge from '../../components/SeriesStatusBadge';
 
 export const dynamicParams = false;
 
@@ -73,6 +74,7 @@ export default async function SeriesPage({
             >
               <span>← All Series</span>
             </Link>
+            <div className="mb-3 flex"><SeriesStatusBadge slug={series} /></div>
             <h1 className="text-4xl md:text-6xl font-extrabold mb-2 text-white drop-shadow-md tracking-tight">
               {seriesTitle}
             </h1>
@@ -88,6 +90,7 @@ export default async function SeriesPage({
             <span className="relative z-10 group-hover/back:text-black dark:group-hover/back:text-white transition-colors duration-300">← All Series</span>
             <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-200 transform -translate-x-full group-hover/back:translate-x-0 transition-transform duration-500 ease-in-out z-0" />
           </Link>
+          <div className="mb-3 flex"><SeriesStatusBadge slug={series} /></div>
           <h1 className="text-5xl md:text-6xl font-extrabold mb-4 text-gradient-gold tracking-tight">
             {seriesTitle}
           </h1>

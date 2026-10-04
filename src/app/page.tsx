@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getAllPosts, getAllSeries, getPostBySlug, getPostsBySeries } from '../lib/posts';
 import { getSeriesTitle, getSeriesDescription, hasCover } from '../lib/covers';
+import SeriesStatusBadge from '../components/SeriesStatusBadge';
 import { getReadingTimeMinutes } from '../lib/readingTime';
 import { formatTagLabel } from '../lib/format';
 
@@ -121,8 +122,11 @@ export default function Home() {
                      )}
                      <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/20 to-transparent" />
                      {/* Chapter badge */}
-                     <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest shadow-lg">
-                       {seriesPosts.length} {seriesPosts.length === 1 ? 'Chapter' : 'Chapters'}
+                     <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                       <div className="px-3 py-1 rounded-full bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest shadow-lg">
+                         {seriesPosts.length} {seriesPosts.length === 1 ? 'Chapter' : 'Chapters'}
+                       </div>
+                       <SeriesStatusBadge slug={s} />
                      </div>
                      {/* Frosted tags */}
                      {seriesTags.length > 0 && (

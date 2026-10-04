@@ -7,6 +7,7 @@ import {
   getCategoryTitle,
   hasCover,
 } from '../lib/covers';
+import SeriesStatusBadge from './SeriesStatusBadge';
 
 export default function SeriesCard({ slug }: { slug: string }) {
   const categorySlug = getSeriesCategory(slug);
@@ -32,9 +33,12 @@ export default function SeriesCard({ slug }: { slug: string }) {
 
       {/* Content Container */}
       <div className="relative z-10 flex flex-col h-full p-6">
-        {/* Top Badge */}
-        <div className="self-start px-3 py-1 rounded-full bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest shadow-lg">
-          Collection
+        {/* Top Badges */}
+        <div className="flex flex-wrap gap-2">
+          <div className="px-3 py-1 rounded-full bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest shadow-lg">
+            Collection
+          </div>
+          <SeriesStatusBadge slug={slug} />
         </div>
 
         <div className="mt-auto pt-8">
