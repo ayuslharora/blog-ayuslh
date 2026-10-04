@@ -36,6 +36,12 @@ export const SERIES: Record<string, SeriesInfo> = {
       "How neural networks actually learn, from perceptrons and backpropagation to the architectures behind modern deep learning.",
     category: "machine-learning",
   },
+  'genai-langchain': {
+    title: "Generative AI using LangChain",
+    description:
+      "Building real generative AI applications with LangChain, from models, prompts, and chains to RAG pipelines, tool calling, and AI agents.",
+    category: "machine-learning",
+  },
   til: {
     title: "Today I Learned",
     description:
