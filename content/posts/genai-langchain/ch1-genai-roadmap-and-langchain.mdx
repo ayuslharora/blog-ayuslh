@@ -1,6 +1,6 @@
 ---
 title: "Ch.1: The Generative AI Roadmap and Where LangChain Fits"
-description: "What makes generative AI different from classical machine learning, why foundation models sit at the centre of the field, how every GenAI term sorts into a builder or a user perspective, the curriculum for each side, and why LangChain is the starting point for building LLM applications."
+description: "What makes generative AI different from classical machine learning, why foundation models sit at the centre of the field, how every GenAI term sorts into a builder or a user perspective, and why LangChain is the starting point for building LLM applications."
 date: "2026-10-05T03:10:00+05:30"
 tags: ["generative-ai", "langchain", "llm", "foundation-models", "roadmap"]
 subtopic: "Getting Started"
@@ -9,83 +9,56 @@ draft: false
 
 *Inspired by:* [YouTube (GenAI roadmap)](https://www.youtube.com/watch?v=pSVk-5WemQ0), [YouTube (LangChain playlist overview)](https://www.youtube.com/watch?v=_3ezSpJw2E8)
 
-Generative AI has a navigation problem. Every week brings a new model, a new paper, a new tool, and a new piece of jargon, and social media turns all of it into a constant fear of missing out. There is no single textbook or established course that everyone learns from, because the field is barely two years into its mainstream life.
-
-So before writing any LangChain code, this post builds a map. By the end you should be able to take any GenAI term you hear (RAG, RLHF, quantization, agents, PEFT) and say exactly where it belongs and whether it's something you need right now.
-
-This post answers four questions:
-
-1. What actually makes generative AI different from the machine learning that came before it?
-2. What is the one idea at the centre of the whole field?
-3. How do you organise the flood of GenAI terms into something learnable?
-4. Where does LangChain fit, and what will this series cover?
+Generative AI moves so fast that new models, papers, tools, and jargon show up every week. Before writing any LangChain code, this post builds a map: by the end you should be able to take any GenAI term (RAG, RLHF, quantization, agents) and say where it belongs, and see exactly where LangChain fits.
 
 ## 1. What Makes Generative AI Different
 
-AI as a field has been worked on for 60 to 70 years, and it produced many techniques along the way: symbolic AI (which powered the expert systems of the 1980s), fuzzy logic, evolutionary algorithms, and separate long-running efforts in natural language processing and computer vision.
-
-The technique with the biggest impact was **machine learning**: take a mathematical or statistical algorithm, feed it a lot of data, and let it extract patterns so it can make predictions on new data. That simple idea is still everywhere today. Classical ML handles roughly three kinds of problems:
+Classical machine learning feeds a statistical algorithm lots of data so it can learn patterns and make predictions. It handles three kinds of problems:
 
 | Problem type | What it outputs | Example |
 |---|---|---|
 | Regression | A number | Tomorrow's stock price of a company |
 | Classification | A category from a fixed set | Is this photo a cat or a dog? |
-| Ranking | An ordering | Products most similar to the one you're viewing (recommendations) |
+| Ranking | An ordering | Products most similar to the one you're viewing |
 
-Notice what's missing. None of these *create* anything. Classical ML picks from options or estimates a value; it was never used for problems that need human creativity. For years the standard line was "however strong AI gets, it won't replace human creativity."
+None of these *create* anything. Classical ML picks from options or estimates a value; it was never used for problems that need human creativity.
 
-**Generative AI** broke that assumption. Its defining feature is that it creates new content: text, images, video, even code. Within about two years of its arrival, mimicking human creative output went from "not possible" to routine. That is its superpower, and it's the reason GenAI is treated as a separate thing rather than just "better ML."
+**Generative AI** changed that. Its defining feature is that it creates new content: text, images, video, even code.
 
-### Where it sits in the AI landscape
+It sits at the innermost layer of the AI landscape:
 
-The standard mental model is a set of nested circles:
-
-- **AI** is the outermost umbrella: anything that makes machines behave intelligently, including symbolic AI, expert systems, and fuzzy logic.
-- **Machine learning** is the most powerful technique inside AI: learning patterns from data.
-- **Deep learning** is a technique inside ML: using neural-network-based models.
-- **Generative AI** came out of deep learning, specifically after the **transformer architecture** arrived and pushed deep learning far enough to generate content.
-
-So GenAI isn't a replacement for ML or deep learning. It's built directly on top of them, which is why a background in both pays off here.
+- **AI** is the outer umbrella (symbolic AI, expert systems, fuzzy logic, and more).
+- **Machine learning** is the most powerful technique inside AI.
+- **Deep learning** is the part of ML that uses neural networks.
+- **Generative AI** came out of deep learning once the **transformer architecture** arrived.
 
 ## 2. The Centre of Everything: Foundation Models
 
-To organise a messy field, you need one concept to put at the centre and arrange everything else around. In generative AI, that concept is the **foundation model**.
+To organise a messy field you need one concept at the centre. In generative AI, that concept is the **foundation model**: an AI model trained at enormous scale, on close to "everything on the internet," using huge numbers of GPUs.
 
-A foundation model is an AI model at an enormous scale:
+What makes it special isn't the size itself. It's what the size buys you: **foundation models are general, not specialised.**
 
-- **Data:** trained on a huge amount of it, close to "everything on the internet."
-- **Hardware:** needs a very large number of GPUs to train.
-- **Cost:** training runs cost crores of rupees.
+A classical ML model built to predict a stock price does only that; it won't predict cricket scores. A foundation model can solve many different tasks with the same weights, because it has:
 
-What makes it special, though, isn't the size itself. It's what the size buys you: **foundation models are general, not specialised.**
-
-Compare this with a classical ML model. If you build a model to predict a company's stock price on a future date, that is *all* it does. It won't predict cricket scores. Every task needs its own model, its own dataset, and its own training run.
-
-A foundation model can solve many different tasks with the same weights. Two things make this possible:
-
-1. **A huge architecture** with a very large number of parameters, so it has the capacity to represent many skills.
-2. **A huge amount of data**, so it is exposed to examples of nearly every kind of task.
-
-The analogy: take a person with an exceptionally large brain and make them read an exceptionally large library. They'll be able to solve problems across many domains, not just one.
+1. **A huge architecture** with a very large number of parameters, so it has the capacity to hold many skills.
+2. **A huge amount of data**, so it has seen examples of nearly every kind of task.
 
 ### LLMs: the best-known foundation models
 
-The most familiar example is the **large language model (LLM)**, which is effectively the backbone of generative AI today. Pick any LLM and you can ask it to do text generation, sentiment analysis, summarization, and question answering, all with the same model.
+The most familiar foundation model is the **large language model (LLM)**, the backbone of generative AI today. One LLM can do text generation, sentiment analysis, summarization, and question answering.
 
-Why can one model do all of that? An LLM is trained on a deceptively simple objective: predict the next word, across the text of the internet. But predicting the next word *well* across that much varied text forces the model to pick up much more along the way. To continue a negative product review convincingly, it has to recognise that the review is negative. To continue "In summary," it has to know what a summary of the preceding text looks like. To continue a question with its answer, it has to know the answer. Sentiment analysis, summarization, and question answering aren't trained in separately; they are learned as a side effect of getting next-word prediction right at scale.
+Why can one model do all of that? An LLM is trained on a deceptively simple objective: predict the next word, across the text of the internet. But predicting the next word *well* across that much varied text forces the model to pick up much more. To continue a negative product review convincingly, it has to recognise that the review is negative. To continue "In summary," it has to know what a summary of the preceding text looks like. To continue a question with its answer, it has to know the answer. Those skills aren't trained in separately; they're learned as a side effect of getting next-word prediction right at scale.
 
-Foundation models aren't limited to text. **Large multimodal models (LMMs)** work with images, video, and sound as well. For simplicity, though, you can mentally replace "foundation model" with "LLM" for most of this series.
+Foundation models aren't limited to text: **large multimodal models (LMMs)** also work with images, video, and sound. For this series, you can mentally replace "foundation model" with "LLM."
 
 ## 3. Builder vs User: Sorting Every GenAI Term
 
-Once foundation models are at the centre, the whole field splits cleanly in two. With a foundation model, there are only two things you can do:
+With foundation models at the centre, the field splits cleanly in two. There are only two things you can do with a foundation model:
 
-- **Build it.** This is the **builder perspective**: designing, training, and deploying foundation models, typically at a large company or research lab.
-- **Use it.** This is the **user perspective**: taking an already-built foundation model and building something useful on top of it.
+- **Build it.** The **builder perspective**: designing, training, and deploying foundation models, typically at a large company or research lab.
+- **Use it.** The **user perspective**: taking an already-built foundation model and building applications on top of it.
 
-Every term, tool, and technique in generative AI belongs to one of these two sides (or occasionally both). This turns the information overload into a game: whenever you hear a new term, look up what it means and ask, *"is this about building foundation models, or about using them?"*
-
-Here is that game applied to some of the most common terms:
+Every GenAI term belongs to one of these sides (occasionally both). Whenever you hear a new one, ask: *"is this about building foundation models, or about using them?"*
 
 | Term | What it is | Side |
 |---|---|---|
@@ -93,109 +66,62 @@ Here is that game applied to some of the most common terms:
 | RLHF (reinforcement learning from human feedback) | Adjusting an LLM's behaviour and adding safeguards so it doesn't produce harmful or nonsensical output | Builder |
 | RAG (retrieval-augmented generation) | Letting an existing LLM answer questions over your own private data | User |
 | Pre-training | Training a foundation model from scratch on world-scale data with massive hardware | Builder |
-| Quantization | Optimising/compressing a model so it can run in more environments | Builder |
+| Quantization | Compressing a model so it can run in more environments | Builder |
 | AI agents | Software built with an LLM that doesn't just answer but also *does* tasks for you (like booking a ticket) | User |
 | Vector databases | Storage used when implementing RAG | User |
 | Fine-tuning | Further training a model for a specific task | Both |
 
-Fine-tuning shows up on both sides because it happens at two depths. Labs fine-tune models during the building process, and application developers also fine-tune existing models for their own needs (more on this difference below).
+The rule of thumb: if the technique changes *how the model itself is made*, it's builder side. If it takes a finished model as given and works around it, it's user side.
 
-The rule of thumb behind the table: if the technique changes *how the model itself is made*, it's builder side. If it takes a finished model as given and works around it, it's user side.
+The builder side covers the transformer architecture, types of transformers (like BERT and GPT), pre-training, optimization, fine-tuning, evaluation, and deployment of foundation models. It's the work of research labs, and it's not what this series is about.
 
-## 4. The Builder Curriculum
+## 4. The User Curriculum
 
-The builder side is how foundation models are actually made and shipped. It's the more technical of the two, and it's the natural continuation for anyone coming from machine learning and deep learning.
+The user side is about building applications on top of models that already exist. This is where LangChain lives, and it's what this series covers.
 
-**Prerequisites:** machine learning fundamentals, deep learning fundamentals, and one deep learning framework (TensorFlow or PyTorch; PyTorch is preferred).
-
-The curriculum runs in this order:
-
-1. **Transformer architecture.** Every foundation model today is built on transformers, so this comes first: what happens on the encoder side and the decoder side, embeddings, self-attention, layer normalization, and the concept of language modeling.
-2. **Types of transformers.** Encoder-only, decoder-only, and encoder-decoder transformers, along with the architectures of famous examples like BERT and GPT.
-3. **Pre-training.** Actually training a foundation model: different training objectives, tokenization strategies, training strategies (single machine vs cloud vs distributed training across many machines), the many challenges that appear when training at this scale and their solutions, and how to evaluate a pre-trained model.
-4. **Optimization.** Foundation models are too big to run on normal hardware, so they have to be made cheaper: optimizations during training, model compression (quantization, knowledge distillation), and optimizing inference so predictions come back faster.
-5. **Fine-tuning.** A pre-trained model is general; fine-tuning specialises it to boost performance on a particular task or type of task. Techniques include task-specific tuning, instruction tuning, continual pre-training (more pre-training on one domain), RLHF, and PEFT (parameter-efficient fine-tuning).
-6. **Evaluation.** Thorough evaluation before using a model in a domain. This is also how LLM leaderboards decide that one model "beats" another: evaluation across many metrics.
-7. **Deployment.** Shipping the model so the rest of the world can use it.
-
-This is, end to end, what the research and engineering teams at companies like OpenAI and Google do: start from the transformer idea, train a model, and deploy it.
-
-## 5. The User Curriculum
-
-The user side is about building applications on top of models that already exist. It's less technical than the builder side (using a foundation model is easier than creating one), and for most developers it's where the interesting products get built. This is the side LangChain belongs to.
-
-1. **Building basic LLM applications.** First, learn what kinds of models exist: closed source and open source. Closed-source models are used through their APIs. Open-source models can be run on your own machine using the Hugging Face library, or on your machine or server using a tool like Ollama. This is also where you learn a framework like **LangChain** for building LLM-based applications.
+1. **Building basic LLM applications.** Models come in two kinds: closed source, used through their APIs, and open source, which you can run on your own machine with the Hugging Face library or on your machine or server with a tool like Ollama. This is also where you learn a framework like **LangChain** for building LLM-based applications.
 2. **Improving the LLM's responses.** Three techniques, from lightest to heaviest:
    - **Prompt engineering:** the art and science of writing prompts (the input to a foundation model). Better prompts give better responses.
-   - **RAG:** LLMs are trained on public data and know nothing about *your* data. RAG lets you show an LLM your private data and do question answering over it. RAG is a big field of study on its own.
-   - **Fine-tuning:** yes, again. User-side fine-tuning is shallower than builder-side fine-tuning, which goes deeper into the model's layers, but it's still a real way to adapt a model.
-3. **AI agents.** Most LLM apps are chatbots that talk. An **agent** is a chatbot plus tools: it can take actions, not just reply. Ask a chatbot for the best tourist destinations in India and it answers "Goa." Give it access to booking tools and it can go on to book the trip for you. Chatbot + tools = agent, and this is one of the most active areas right now.
-4. **LLMOps.** The applications you build are for customers and clients, so they have to be deployed somewhere. LLMOps covers everything involved in building, deploying, and continuously improving LLM-based applications.
-5. **Miscellaneous.** Working with multimodal foundation models (audio or video as input or output), and diffusion-based models like Stable Diffusion.
+   - **RAG:** LLMs are trained on public data and know nothing about *your* data. RAG lets you show an LLM your private data and do question answering over it.
+   - **Fine-tuning:** user-side fine-tuning is shallower than the builder-side kind, but it's still a real way to adapt a model to your task.
+3. **AI agents.** Most LLM apps are chatbots that talk. An **agent** is a chatbot plus tools: it can take actions, not just reply. Ask a chatbot for the best tourist destinations in India and it answers "Goa." Give it access to booking tools and it can go on to book the trip for you.
+4. **LLMOps.** Deploying LLM-based applications for real users, and continuously evaluating and improving them.
+5. **Miscellaneous.** Multimodal models (audio or video as input or output) and diffusion models like Stable Diffusion.
 
-Put together, the user curriculum is the path for learning how to build applications using large language models.
-
-## 6. Do You Need Both Sides?
-
-The two sides map onto different roles:
-
-- **Builder side:** the work of a research scientist or data scientist, with some machine learning engineering and MLOps skill on top.
-- **User side:** something almost any software developer can do. Most of it is calling an LLM through an API and building an application around it. (This is also why so many people suddenly became "AI experts" overnight: the user side has a low barrier to entry.)
-
-Where the two overlap, a new job role appears: the **AI engineer**. An AI engineer's main job is building LLM-based applications, which is user-side work, but they also understand the builder side: how foundation models are made. That knowledge makes them better at the user side, because they understand *why* a model behaves the way it does, what fine-tuning can and can't fix, and what quantization costs. It's also why they can command a higher salary than a developer who only knows how to call an API. Demand for this role is growing steadily on job sites, and it could become as common as "software developer" or "web developer" within a few years.
-
-So the answer depends on where you want to land:
-
-| Goal | Focus |
-|---|---|
-| Research scientist | Mostly the builder side |
-| Application developer | Mostly the user side |
-| AI engineer | Both, in parallel |
-
-The two sides don't overlap much in their content, so you can learn them side by side.
-
-## 7. Where LangChain Fits
+## 5. Where LangChain Fits
 
 The first step of the user curriculum is building basic LLM applications, and that's where this series starts.
 
-**LangChain is an open-source framework for building LLM-based applications.** It provides modular components and end-to-end tools that help developers build complex AI applications: chatbots, question-answering systems, RAG-based applications, autonomous agents, and more.
+**LangChain is an open-source framework for building LLM-based applications.** It provides modular components and end-to-end tools for building chatbots, question-answering systems, RAG-based applications, autonomous agents, and more.
 
 Why it became so popular:
 
-1. **It integrates with almost every LLM.** OpenAI's GPT models, Anthropic's Claude models, Google's Gemini models, and the many open-source models on Hugging Face can all be connected through LangChain. This is its most important feature: your application code doesn't have to be rewritten around each provider's SDK.
-2. **It simplifies building LLM applications.** Concepts like **chains** let you link steps into complex pipelines, and those pipelines are how you build complex applications without hand-wiring every step.
-3. **It has integrations for everything around the LLM.** Real applications have to connect to databases, remote data sources, or cloud services like AWS for deployment. LangChain ships wrappers for these, so you don't write piles of boilerplate code.
-4. **It's free and open source**, and very actively developed. It went through three major versions in one to two years, and new components are added constantly.
-5. **It's an all-rounder.** Chatbots, agents, RAG applications: nearly every kind of GenAI application can be built with it.
+1. **It integrates with almost every LLM.** OpenAI's GPT models, Anthropic's Claude models, Google's Gemini models, and the open-source models on Hugging Face all connect through LangChain, so your application code doesn't have to be rewritten around each provider's SDK.
+2. **It simplifies building LLM applications.** Concepts like **chains** let you link steps into pipelines, and pipelines are how you build complex applications without hand-wiring every step.
+3. **It has integrations for everything around the LLM.** Real applications connect to databases, remote data sources, and cloud services like AWS. LangChain ships wrappers for these, so you skip the boilerplate.
+4. **It's free and open source**, and very actively developed.
+5. **It's an all-rounder.** Chatbots, agents, and RAG applications can all be built with it.
 
-### Why start the user side with LangChain?
+### Why start with LangChain?
 
-Look back at the user curriculum: open- and closed-source models, APIs, Hugging Face, Ollama, prompt engineering, RAG, agents. LangChain touches *all* of them. You can use it with closed-source APIs and open-source models, integrate it with Hugging Face and with Ollama, and along the way you get a taste of prompt engineering, build RAG applications, and build agents.
+Look back at the user curriculum: open- and closed-source models, APIs, Hugging Face, Ollama, prompt engineering, RAG, agents. LangChain touches *all* of them. Learning it first gives you hands-on experience across the whole user side, after which topics like prompt engineering and RAG can each be studied in depth.
 
-That makes it the best first step: it gives you a holistic, hands-on view of the whole user side. After that, individual topics like prompt engineering and RAG (including advanced RAG techniques) can each be revisited in depth.
+## 6. What This Series Covers
 
-## 8. What This Series Covers
-
-The series is split into three parts:
-
-**Part 1: Fundamentals.** The most important part, because nothing later makes sense without it.
-- What LangChain is, its technical aspects, and most importantly *why* it's needed
-- An overview of all of LangChain's components
+**Part 1: Fundamentals.** Nothing later makes sense without this.
+- What LangChain is and *why* it's needed
+- An overview of LangChain's components
 - Models
 - Prompts
 - Parsing the output an LLM returns
-- Runnables and LCEL (LangChain Expression Language), one of LangChain's core technical ideas
+- Runnables and LCEL (LangChain Expression Language)
 - Chains
-- Memory, the concept that lets chatbots remember the conversation
+- Memory, which lets chatbots remember the conversation
 
 **Part 2: RAG.** Document loaders, text splitters, embeddings, vector databases, and retrievers, then putting them together into a working RAG application.
 
-**Part 3: Agents.** Tools and toolkits, the concept of tool calling, and finally building an agent.
+**Part 3: Agents.** Tools and toolkits, tool calling, and finally building an agent.
 
-Three things guide how it's taught:
-
-- **The current LangChain version.** LangChain changes fast, and its versions are quite different from each other: code written for 0.1 or 0.3 often won't run on 1.x. This series targets the current 1.x release, not the older 0.x APIs that most existing tutorials still use. When you follow any LangChain tutorial, check which version it targets.
-- **Conceptual clarity over copy-paste apps.** A lot of LangChain material jumps straight to building an application without teaching the fundamentals, so you end up with a working app you don't understand. LangChain is a practical framework, but it has real concepts underneath (runnables, chains). Understand those, and a future version won't be a problem.
-- **The most useful 80%.** Not every corner of LangChain is worth learning. The series covers the parts you'll actually use.
+One note on versions: LangChain changes fast, and code written for 0.1 or 0.3 often won't run on 1.x. This series targets the current 1.x release, not the older 0.x APIs that most existing tutorials still use. When you follow any LangChain tutorial, check which version it targets.
 
 The next post starts Part 1: what LangChain is in detail, and why you'd need a framework for LLM applications at all.
