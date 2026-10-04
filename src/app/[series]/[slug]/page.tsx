@@ -60,6 +60,7 @@ import MultiRegPlane3d from '../../../components/MultiRegPlane3d';
 import PolyRegSurface3d from '../../../components/PolyRegSurface3d';
 import ElasticNetR2Surface3d from '../../../components/ElasticNetR2Surface3d';
 import PerceptronScorePlane3d from '../../../components/PerceptronScorePlane3d';
+import PerceptronDiagram from '../../../components/PerceptronDiagram';
 import SigmoidProbabilitySurface3d from '../../../components/SigmoidProbabilitySurface3d';
 import LogLossSurface3d from '../../../components/LogLossSurface3d';
 import GdLogLossDescent3d from '../../../components/GdLogLossDescent3d';
@@ -244,6 +245,7 @@ export default async function PostPage({
             PolyRegSurface3d,
             ElasticNetR2Surface3d,
             PerceptronScorePlane3d,
+            PerceptronDiagram,
             SigmoidProbabilitySurface3d,
             LogLossSurface3d,
             GdLogLossDescent3d,
