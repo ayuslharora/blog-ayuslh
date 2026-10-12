@@ -1,0 +1,845 @@
+---
+title: "Ch.5: Structured Output in LangChain: TypedDict, Pydantic, and JSON Schema"
+description: "Getting LLMs to return data instead of prose: why structured output lets models talk to databases, APIs, and tools, how with_structured_output works under the hood, describing the format with TypedDict, Pydantic, or JSON Schema, the method parameter, and what happens with a model that can't do it."
+date: "2026-10-30T23:46:00+05:30"
+tags: ["generative-ai", "langchain", "llm", "structured-output", "pydantic", "json-schema"]
+subtopic: "LangChain Fundamentals"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=y5EmRr1O1h4)
+
+## From Text to Data
+
+The [previous post](/genai-langchain/ch4-prompts-in-langchain) was about the *input* side of an LLM: prompts. This one, and the next, are about the *output* side: getting something out of the model that your code can actually use.
+
+So far, every reply has been text. Ask "What is the capital of India?" and you get back "New Delhi is the capital of India." That's perfect for a human reader, but text has no fixed structure, which is why it's called **unstructured output**.
+
+Now ask a model to "create a one-day travel itinerary for Paris". A normal reply looks like this:
+
+```
+Here's a suggested itinerary:
+Morning: Visit the Eiffel Tower.
+Afternoon: Walk through the Louvre Museum.
+Evening: Enjoy dinner at a Seine riverside café.
+```
+
+Compare it with this version of the same answer:
+
+```json
+[
+  {"time": "Morning", "activity": "Visit the Eiffel Tower"},
+  {"time": "Afternoon", "activity": "Walk through the Louvre Museum"},
+  {"time": "Evening", "activity": "Enjoy dinner at a Seine riverside café"}
+]
+```
+
+The information is the same, but now it has a shape: a list of three objects, each with a `time` and an `activity`. A program can loop over it, store it, or send it somewhere, without guessing where one item ends and the next begins. That's **structured output**:
+
+> In LangChain, structured output refers to the practice of having language models return responses in a well-defined data format (for example, JSON), rather than free-form text. This makes the model output easier to parse and work with programmatically.
+
+## Why Structured Output Matters
+
+Until now, LLMs have been talking to **humans**. Structured output lets them talk to **other machines**: databases, APIs, and other programs. Three examples:
+
+1. **Data extraction.** A job portal like Naukri lets candidates upload a resume. You want the key facts in a database: name, last company, 10th, 12th and college marks. Extract the resume's text, send it to an LLM with the fields you want, get JSON back, and insert it into the database. Repeat for every candidate.
+2. **Building APIs.** Product reviews on Amazon are long and unstructured. An LLM can turn each one into data: the topics it covers (battery, display, processor), its pros, its cons, and its overall sentiment. Wrap that in an API with a framework like FastAPI, and anyone can call it.
+3. **Agents and tools.** An agent does work using **tools**, for example a calculator. Tell a maths agent "find the square root of 2", and you can't pass that sentence to a calculator, which expects an operation and a number. Structured output turns the request into `{"operation": "sqrt", "value": 2}`, which the calculator can run. Every tool an agent uses needs structured input like this, so this topic comes back in a big way when agents arrive later in the series.
+
+## Two Kinds of Models
+
+Models come in two kinds here:
+
+- **Models that support structured output natively.** OpenAI's, Anthropic's and Google's models, and many open ones, are trained (and served) to return data in a format you specify. In LangChain you use them through one method: **`with_structured_output`**. That's this post.
+- **Models that can't.** Some, usually small open-source models, have no structured-output support at all. For those, LangChain has **output parsers**: classes that take a model's plain-text reply and turn it into structured data. That's the next post.
+
+**Setup.** Same as before: Groq's free tier running `openai/gpt-oss-20b`, with `GROQ_API_KEY` in `.env`. A few extra packages:
+
+```bash
+pip install pydantic email-validator   # Python (pydantic usually comes with LangChain already)
+npm install zod                        # JavaScript
+```
+
+These examples were run on LangChain 1.4.7 (langchain-core 1.7.1, langchain-groq 1.1.3, Pydantic 2.14) and LangChain.js with @langchain/core 1.3.2 and @langchain/groq 1.3.1.
+
+## `with_structured_output`
+
+The workflow from the earlier posts barely changes. Before, you called `model.invoke(...)`. Now you first call `model.with_structured_output(schema)`, passing a description of the data format you want, and invoke what it returns:
+
+```python
+structured_model = model.with_structured_output(Review)   # Review describes the format
+result = structured_model.invoke(review_text)              # result follows that format
+```
+
+That's the only difference. The part worth learning is the **schema**, the description of the format. Python gives you three ways to write one:
+
+1. **TypedDict**, a Python dictionary with declared keys and types
+2. **Pydantic**, a validation library (the one FastAPI is built on)
+3. **JSON Schema**, a language-neutral standard
+
+JavaScript has no TypedDict or Pydantic. Its equivalent of Pydantic is **[Zod](https://zod.dev/)**, and that's what the JavaScript tabs use for both the TypedDict and Pydantic sections. Keep in mind that Zod *validates*, like Pydantic, which matters once you see what TypedDict doesn't do. JSON Schema works the same in both languages.
+
+## TypedDict
+
+### What a TypedDict is
+
+A **TypedDict** is a way to define a dictionary in Python where you specify which keys should exist and what type each value should have.
+
+Normally you create a dictionary on the fly, `{"name": "nitish", "age": 35}`, and nothing says what it should contain. If two programmers share a file and one of them treats `age` as a string, nothing catches it until something breaks at runtime. A TypedDict declares the shape up front, so your editor can warn you:
+
+<CodeTabs>
+
+```python
+from typing import TypedDict
+
+class Person(TypedDict):
+    name: str
+    age: int
+
+new_person: Person = {"name": "nitish", "age": "35"}  # age should be an int
+
+print(new_person)
+```
+
+```js
+// @ts-check
+
+/** @typedef {{ name: string, age: number }} Person */
+
+/** @type {Person} */
+const newPerson = { name: "nitish", age: "35" }; // age should be a number
+
+console.log(newPerson);
+```
+
+</CodeTabs>
+
+```
+{'name': 'nitish', 'age': '35'}
+```
+
+The code ran without complaint, even though `age` is a string. Your editor underlines the mistake, and hovering over `age` tells you it should be an `int`, but Python itself checks nothing at runtime. A TypedDict is a **type hint only**: it tells you what the dictionary *should* look like and doesn't stop you from breaking it. (The JavaScript tab shows the same idea with a JSDoc type: the editor flags it, and Node runs it anyway.)
+
+### A first structured call
+
+The problem: take a phone review and get back a dictionary with a `summary` and a `sentiment`. Define the schema as a TypedDict, pass it to `with_structured_output`, and invoke:
+
+<CodeTabs>
+
+```python
+from typing import TypedDict
+from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+# schema
+class Review(TypedDict):
+    """Structured analysis of a product review."""
+    summary: str
+    sentiment: str
+
+structured_model = model.with_structured_output(Review)
+
+result = structured_model.invoke("""The hardware is great, but the software feels bloated.
+There are too many pre-installed apps that I can't remove. Also, the UI looks
+outdated compared to other brands. Hoping for a software update to fix this.""")
+
+print(type(result))
+print(result)
+print(result["summary"])
+print(result["sentiment"])
+```
+
+```js
+import "dotenv/config";
+import * as z from "zod";
+import { ChatGroq } from "@langchain/groq";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+// schema
+const Review = z
+  .object({
+    summary: z.string(),
+    sentiment: z.string(),
+  })
+  .describe("Structured analysis of a product review.");
+
+const structuredModel = model.withStructuredOutput(Review);
+
+const result = await structuredModel.invoke(`The hardware is great, but the software feels bloated.
+There are too many pre-installed apps that I can't remove. Also, the UI looks
+outdated compared to other brands. Hoping for a software update to fix this.`);
+
+console.log(typeof result);
+console.log(result);
+console.log(result.summary);
+console.log(result.sentiment);
+```
+
+</CodeTabs>
+
+```
+<class 'dict'>
+{'sentiment': 'negative', 'summary': 'The user praises the hardware but criticizes the software for being bloated, containing many unremovable pre-installed apps and an outdated UI, and hopes for a software update to address these issues.'}
+The user praises the hardware but criticizes the software for being bloated, containing many unremovable pre-installed apps and an outdated UI, and hopes for a software update to address these issues.
+negative
+```
+
+A real dictionary comes back, so you can pull out `result["summary"]` and `result["sentiment"]` directly. And the prompt never asked for a summary or a sentiment: it's just the review.
+
+### What happens behind the scenes
+
+So how did the model know what to produce? LangChain converts your schema into a **JSON Schema** (the field names, their types, and any descriptions) and sends it to the provider *alongside* your message, through one of two channels:
+
+- **Function calling.** The schema is sent as a **tool** the model is required to call. The model doesn't write a reply at all; it "calls" a tool named `Review`, and the tool's arguments are your fields. LangChain then hands you those arguments.
+- **JSON schema mode.** The schema is sent as the required **response format**. The provider makes the model's reply valid JSON matching the schema, and LangChain parses it.
+
+Setting `include_raw=True` shows the model's actual reply next to the parsed result, so you can see both channels:
+
+<CodeTabs>
+
+```python
+from typing import TypedDict
+from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+class Review(TypedDict):
+    """Structured analysis of a product review."""
+    summary: str
+    sentiment: str
+
+for method in ["function_calling", "json_schema"]:
+    structured_model = model.with_structured_output(Review, method=method, include_raw=True)
+    result = structured_model.invoke("The hardware is great, but the software feels bloated.")
+    print(method)
+    print("  content:   ", repr(result["raw"].content))
+    print("  tool_calls:", [(call["name"], call["args"]) for call in result["raw"].tool_calls])
+    print("  parsed:    ", result["parsed"])
+```
+
+```js
+import "dotenv/config";
+import * as z from "zod";
+import { ChatGroq } from "@langchain/groq";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+const Review = z
+  .object({ summary: z.string(), sentiment: z.string() })
+  .describe("Structured analysis of a product review.");
+
+for (const method of ["functionCalling", "jsonSchema"]) {
+  const structuredModel = model.withStructuredOutput(Review, { name: "Review", method, includeRaw: true });
+  const result = await structuredModel.invoke("The hardware is great, but the software feels bloated.");
+  console.log(method);
+  console.log("  content:   ", JSON.stringify(result.raw.content));
+  console.log("  tool_calls:", JSON.stringify(result.raw.tool_calls.map((call) => [call.name, call.args])));
+  console.log("  parsed:    ", JSON.stringify(result.parsed));
+}
+```
+
+</CodeTabs>
+
+```
+function_calling
+  content:    ''
+  tool_calls: [('Review', {'sentiment': 'Mixed', 'summary': 'The hardware is praised for its performance, but the software is criticized for being bloated.'})]
+  parsed:     {'sentiment': 'Mixed', 'summary': 'The hardware is praised for its performance, but the software is criticized for being bloated.'}
+json_schema
+  content:    '{"summary":"Hardware praised for quality, but software criticized for bloat.","sentiment":"mixed"}'
+  tool_calls: []
+  parsed:     {'summary': 'Hardware praised for quality, but software criticized for bloat.', 'sentiment': 'mixed'}
+```
+
+With function calling, the reply's text is empty and the data sits in a tool call. With JSON schema mode, the reply's text *is* the JSON. Python's `ChatGroq` uses function calling by default; LangChain.js picks JSON schema mode for the `gpt-oss` models.
+
+This has a practical consequence: **everything in your schema is part of the prompt**. The model reads the schema's name, its description, and every field's name and description to decide what to write. A field called `summary` works because the word is clear. A vague name gets a vague answer.
+
+Look at the sentiments too. Across these runs, the same kind of review got `negative`, `mixed`, and `Mixed`. Nothing in a `str` field tells the model which words are allowed, so it picks its own, and your code would have to handle every spelling. The next section fixes that.
+
+One failure seen while testing, worth knowing about: once in a few runs of the function-calling version, the model ignored the tool and chatted instead ("What's the main thing that feels bloated to you?"), and Groq rejected the request with `Tool choice is required, but model did not call a tool`. Function calling depends on the model choosing to call the tool, and occasionally it doesn't.
+
+### Guiding the model: `Annotated`, `Literal`, and `Optional`
+
+Now a harder input, a long review saved as `review.txt`:
+
+```text
+I recently upgraded to the Samsung Galaxy S24 Ultra, and I must say, it’s an absolute powerhouse! The Snapdragon 8 Gen 3 processor makes everything lightning fast—whether I’m gaming, multitasking, or editing photos. The 5000mAh battery easily lasts a full day even with heavy use, and the 45W fast charging is a lifesaver.
+
+The S-Pen integration is a great touch for note-taking and quick sketches, though I don't use it often. What really blew me away is the 200MP camera—the night mode is stunning, capturing crisp, vibrant images even in low light. Zooming up to 100x actually works well for distant objects, but anything beyond 30x loses quality.
+
+However, the weight and size make it a bit uncomfortable for one-handed use. Also, Samsung’s One UI still comes with bloatware—why do I need five different Samsung apps for things Google already provides? The $1,300 price tag is also a hard pill to swallow.
+
+Pros:
+Insanely powerful processor (great for gaming and productivity)
+Stunning 200MP camera with incredible zoom capabilities
+Long battery life with fast charging
+S-Pen support is unique and useful
+
+Review by Nitish Singh
+```
+
+This time you want more than a summary and a sentiment: the **key themes** discussed (processor, battery, camera...), the **pros**, the **cons**, and the reviewer's **name**. Three tools from Python's `typing` module help:
+
+- **`Annotated[type, ..., "description"]`** attaches a description to a field, so the model knows exactly what you mean instead of guessing from a one-word key. The `...` marks the field as required.
+- **`Literal["pos", "neg"]`** restricts a field to a fixed set of values. The model can't invent `mixed` or `Positive`; it must pick one. That's what you want when the value goes into a database column.
+- **`Optional[...]`** marks a field that may not exist in the input. Not every review lists pros and cons, and most don't name the reviewer. Write it as `Annotated[Optional[X], None, "description"]`, where `None` is the default.
+
+Getting the `Annotated` form exactly right matters. Here's what LangChain builds from two slightly different versions of a field:
+
+```python
+from typing import TypedDict, Annotated
+from langchain_core.utils.function_calling import convert_to_json_schema
+
+class Wrong(TypedDict):
+    summary: Annotated[str, "A brief summary of the review"]
+
+class Right(TypedDict):
+    """Structured analysis of a product review."""
+    summary: Annotated[str, ..., "A brief summary of the review"]
+
+for schema in (Wrong, Right):
+    json_schema = convert_to_json_schema(schema)
+    print(schema.__name__)
+    print("  description:", json_schema["description"].splitlines()[0])
+    print("  summary:    ", json_schema["properties"]["summary"])
+    print("  required:   ", json_schema.get("required"))
+```
+
+```
+Wrong
+  description: dict() -> new empty dictionary
+  summary:     {'default': 'A brief summary of the review', 'type': 'string'}
+  required:    None
+Right
+  description: Structured analysis of a product review.
+  summary:     {'description': 'A brief summary of the review', 'type': 'string'}
+  required:    ['summary']
+```
+
+Two surprises, both silent:
+
+- With only one extra argument, `Annotated[str, "A brief summary..."]`, LangChain treats the string as the field's **default value**, not its description. The model never sees a description, and the field isn't even required. You need the `...` in the middle (or `None` for an optional field).
+- A TypedDict without a docstring inherits the docstring of Python's built-in `dict`, and LangChain sends *that* to the model as the schema's description: "dict() -> new empty dictionary...". Give every schema a one-line docstring saying what it represents.
+
+(This section is Python-only: in Zod, `.describe("...")` sets a description and `.optional()` makes a field optional, with no positional arguments to confuse.)
+
+With that, the full schema:
+
+<CodeTabs>
+
+```python
+from typing import TypedDict, Annotated, Optional, Literal
+from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+# schema
+class Review(TypedDict):
+    """Structured analysis of a product review."""
+    key_themes: Annotated[list[str], ..., "Write down all the key themes discussed in the review in a list"]
+    summary: Annotated[str, ..., "A brief summary of the review"]
+    sentiment: Annotated[Literal["pos", "neg"], ..., "Return sentiment of the review, either pos or neg"]
+    pros: Annotated[Optional[list[str]], None, "Write down all the pros inside a list"]
+    cons: Annotated[Optional[list[str]], None, "Write down all the cons inside a list"]
+    name: Annotated[Optional[str], None, "Write the name of the reviewer"]
+
+structured_model = model.with_structured_output(Review)
+
+with open("review.txt") as f:
+    review = f.read()
+
+result = structured_model.invoke(review)
+
+for key, value in result.items():
+    print(f"{key}: {value}")
+```
+
+```js
+import "dotenv/config";
+import { readFileSync } from "node:fs";
+import * as z from "zod";
+import { ChatGroq } from "@langchain/groq";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+// schema
+const Review = z
+  .object({
+    key_themes: z.array(z.string()).describe("Write down all the key themes discussed in the review in a list"),
+    summary: z.string().describe("A brief summary of the review"),
+    sentiment: z.enum(["pos", "neg"]).describe("Return sentiment of the review, either pos or neg"),
+    pros: z.array(z.string()).optional().describe("Write down all the pros inside a list"),
+    cons: z.array(z.string()).optional().describe("Write down all the cons inside a list"),
+    name: z.string().optional().describe("Write the name of the reviewer"),
+  })
+  .describe("Structured analysis of a product review.");
+
+const structuredModel = model.withStructuredOutput(Review);
+
+const review = readFileSync("review.txt", "utf8");
+
+const result = await structuredModel.invoke(review);
+
+for (const [key, value] of Object.entries(result)) {
+  console.log(`${key}: ${JSON.stringify(value)}`);
+}
+```
+
+</CodeTabs>
+
+```
+cons: ['Weight and size make it uncomfortable for one-handed use', 'Samsung’s One UI includes bloatware', 'High price tag ($1,300)']
+key_themes: ['Performance (Snapdragon 8 Gen 3)', 'Battery life and fast charging', 'Camera (200MP, night mode, zoom)', 'S-Pen integration', 'User interface bloatware', 'Price']
+name: Nitish Singh
+pros: ['Insanely powerful processor (great for gaming and productivity)', 'Stunning 200MP camera with incredible zoom capabilities', 'Long battery life with fast charging', 'S-Pen support is unique and useful']
+sentiment: pos
+summary: Nitish Singh praises the Galaxy S24 Ultra for its top-tier performance, exceptional camera, and long battery life, while noting issues with its size, UI bloatware, and high cost.
+```
+
+Every field is filled in: the themes as a list, the pros copied from the review's "Pros:" section, the sentiment as exactly `pos`, and the name picked out of the last line.
+
+Now look at `cons`. The review has no "Cons:" section, yet the model listed three, taken from the "However..." paragraph. `Optional` means the field is *allowed* to be missing; it doesn't tell the model to leave it out. The model found complaints, so it reported them. If you only want cons the reviewer explicitly listed, say so in the description ("only if the review has an explicit list of cons").
+
+TypedDict has one big weakness, though, which follows from what you saw earlier: **it validates nothing**. You declared `sentiment` as `Literal["pos", "neg"]`, but if a model ever returned `"mixed"`, or a number where you expected a list, TypedDict would hand it to you without a word. For that you need Pydantic.
+
+## Pydantic
+
+### What Pydantic is
+
+**Pydantic** is a data validation and data parsing library for Python. It ensures the data you work with is correct, structured, and type-safe. It's what FastAPI uses to check incoming requests. Instead of `TypedDict`, your class inherits from Pydantic's `BaseModel`, and every object you create is **checked when it's built**:
+
+<CodeTabs>
+
+```python
+from typing import Optional
+from pydantic import BaseModel, EmailStr, Field, ValidationError
+
+class Student(BaseModel):
+    name: str = "nitish"                  # default value
+    age: Optional[int] = None             # optional
+    email: EmailStr                       # built-in email validation
+    cgpa: float = Field(gt=0, lt=10, default=5, description="A decimal value representing the cgpa of the student")
+
+student = Student(age="32", email="abc@gmail.com")
+print(student)
+print(type(student.age))                 # "32" was converted to an int
+print(student.model_dump())              # to a Python dict
+print(student.model_dump_json())         # to a JSON string
+
+bad_inputs = [
+    {"name": 32, "email": "abc@gmail.com"},
+    {"email": "abc"},
+    {"email": "abc@gmail.com", "cgpa": 12},
+]
+for data in bad_inputs:
+    try:
+        Student(**data)
+    except ValidationError as e:
+        print("Error:", e.errors()[0]["msg"])
+```
+
+```js
+import * as z from "zod";
+
+const Student = z.object({
+  name: z.string().default("nitish"),             // default value
+  age: z.coerce.number().int().optional(),        // optional; coerce turns "32" into 32
+  email: z.email(),                               // built-in email validation
+  cgpa: z.number().gt(0).lt(10).default(5).describe("A decimal value representing the cgpa of the student"),
+});
+
+const student = Student.parse({ age: "32", email: "abc@gmail.com" });
+console.log(student);
+console.log(typeof student.age);                  // "32" was converted to a number
+console.log(JSON.stringify(student));             // to a JSON string
+
+const badInputs = [
+  { name: 32, email: "abc@gmail.com" },
+  { email: "abc" },
+  { email: "abc@gmail.com", cgpa: 12 },
+];
+for (const data of badInputs) {
+  const parsed = Student.safeParse(data);
+  if (!parsed.success) console.log("Error:", parsed.error.issues[0].message);
+}
+```
+
+</CodeTabs>
+
+```
+# Python
+name='nitish' age=32 email='abc@gmail.com' cgpa=5
+<class 'int'>
+{'name': 'nitish', 'age': 32, 'email': 'abc@gmail.com', 'cgpa': 5}
+{"name":"nitish","age":32,"email":"abc@gmail.com","cgpa":5.0}
+Error: Input should be a valid string
+Error: value is not a valid email address: An email address must have an @-sign.
+Error: Input should be less than 10
+
+// JavaScript
+{ name: 'nitish', age: 32, email: 'abc@gmail.com', cgpa: 5 }
+number
+{"name":"nitish","age":32,"email":"abc@gmail.com","cgpa":5}
+Error: Invalid input: expected string, received number
+Error: Invalid email address
+Error: Too big: expected number to be <10
+```
+
+Each feature in that class, in order:
+
+- **Validation.** Passing `32` as the name raises an error ("Input should be a valid string"). With a TypedDict, the same mistake went through silently.
+- **Default values.** `name` wasn't passed, so it's `"nitish"`. This is how you fill in a value the LLM didn't send.
+- **Optional fields.** `Optional[int] = None` means `age` may be missing; it's `None` if so. (The `= None` is required: without a default, the field is still compulsory.)
+- **Type coercion.** `age` arrived as the string `"32"`, and Pydantic converted it to the integer `32`, because the conversion is unambiguous. Zod is strict by default and only converts when you ask, with `z.coerce.number()`.
+- **Built-in validators.** `EmailStr` rejects `"abc"` because it has no `@`. (It needs the `email-validator` package.)
+- **`Field` constraints and descriptions.** `Field(gt=0, lt=10, ...)` rejects a CGPA of 12. `Field(default=5)` sets a default, and `Field(description=...)` does what `Annotated` did for TypedDict: it's the text the LLM will read. `Field` can also check strings against a regex pattern, for example a phone number.
+- **Conversion.** `model_dump()` turns the object into a dictionary, and `model_dump_json()` into a JSON string. Older tutorials use `.dict()` and `.json()`, which are deprecated in Pydantic 2.
+
+One small quirk in the output: `cgpa=5` is printed as an integer, even though the field is a `float`. Pydantic doesn't validate default values unless you ask it to, so the default `5` is stored as it is, and only the JSON output shows `5.0`.
+
+### Pydantic with `with_structured_output`
+
+Swap the TypedDict for a Pydantic class. Each `Annotated[...]` becomes a `Field(description=...)`, and each optional field gets `default=None`:
+
+<CodeTabs>
+
+```python
+from typing import Optional, Literal
+from pydantic import BaseModel, Field
+from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+# schema
+class Review(BaseModel):
+    """Structured analysis of a product review."""
+    key_themes: list[str] = Field(description="Write down all the key themes discussed in the review in a list")
+    summary: str = Field(description="A brief summary of the review")
+    sentiment: Literal["pos", "neg"] = Field(description="Return sentiment of the review, either pos or neg")
+    pros: Optional[list[str]] = Field(default=None, description="Write down all the pros inside a list")
+    cons: Optional[list[str]] = Field(default=None, description="Write down all the cons inside a list")
+    name: Optional[str] = Field(default=None, description="Write the name of the reviewer")
+
+structured_model = model.with_structured_output(Review)
+
+with open("review.txt") as f:
+    review = f.read()
+
+result = structured_model.invoke(review)
+
+print(type(result))
+print(result.name)
+print(result.sentiment)
+print(result.model_dump()["key_themes"])
+```
+
+```js
+import "dotenv/config";
+import { readFileSync } from "node:fs";
+import * as z from "zod";
+import { ChatGroq } from "@langchain/groq";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+// schema
+const Review = z
+  .object({
+    key_themes: z.array(z.string()).describe("Write down all the key themes discussed in the review in a list"),
+    summary: z.string().describe("A brief summary of the review"),
+    sentiment: z.enum(["pos", "neg"]).describe("Return sentiment of the review, either pos or neg"),
+    pros: z.array(z.string()).nullish().describe("Write down all the pros inside a list"),
+    cons: z.array(z.string()).nullish().describe("Write down all the cons inside a list"),
+    name: z.string().nullish().describe("Write the name of the reviewer"),
+  })
+  .describe("Structured analysis of a product review.");
+
+const structuredModel = model.withStructuredOutput(Review);
+
+const review = readFileSync("review.txt", "utf8");
+
+const result = await structuredModel.invoke(review);
+
+console.log(typeof result);
+console.log(result.name);
+console.log(result.sentiment);
+console.log(result.key_themes);
+```
+
+</CodeTabs>
+
+```
+<class '__main__.Review'>
+Nitish Singh
+pos
+['Processor performance', 'Battery life and charging', 'Camera quality and zoom', 'S-Pen integration', 'App bloatware', 'Price and value', 'Ergonomics']
+```
+
+The result is now a `Review` **object**, not a dictionary. You read fields as attributes (`result.name`), and `result["name"]` raises a `TypeError`. Use `result.model_dump()` when you need a dictionary, for example to insert into a database.
+
+The difference shows up when the model gets something wrong. LangChain feeds the model's reply through your Pydantic class. If the sentiment comes back as `"mixed"`, you get an error right there, instead of a bad value flowing into your database. You'll see exactly that happen at the end of this post. For anything going into a real system, this is the version to use.
+
+## JSON Schema
+
+TypedDict and Pydantic are Python-only. If your project spans languages (say, a Python backend and a JavaScript frontend that both need the same schema), write the schema once in **JSON Schema**, a standard any language can read.
+
+A JSON Schema has a few standard keys:
+
+```json
+{
+  "title": "Student",
+  "description": "Schema about students",
+  "type": "object",
+  "properties": {
+    "name": {"type": "string"},
+    "age": {"type": "integer"}
+  },
+  "required": ["name"]
+}
+```
+
+- `title` and `description` name and describe the schema. The description is optional, but the LLM reads it.
+- `type` is `"object"`, JSON's word for a dictionary.
+- `properties` lists the fields. Each one is itself an object, `{"type": "string"}`, not just the word `"string"`.
+- `required` lists the fields that must be present. Anything not listed (here, `age`) is optional.
+
+The review schema in JSON Schema uses two more features: an `enum` (JSON Schema's version of `Literal`), and a type list like `["array", "null"]` for fields that may be empty:
+
+<CodeTabs>
+
+```python
+from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+# schema
+json_schema = {
+    "title": "Review",
+    "description": "Structured analysis of a product review",
+    "type": "object",
+    "properties": {
+        "key_themes": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Write down all the key themes discussed in the review in a list",
+        },
+        "summary": {"type": "string", "description": "A brief summary of the review"},
+        "sentiment": {
+            "type": "string",
+            "enum": ["pos", "neg"],
+            "description": "Return sentiment of the review, either pos or neg",
+        },
+        "pros": {
+            "type": ["array", "null"],
+            "items": {"type": "string"},
+            "description": "Write down all the pros inside a list",
+        },
+        "cons": {
+            "type": ["array", "null"],
+            "items": {"type": "string"},
+            "description": "Write down all the cons inside a list",
+        },
+        "name": {"type": ["string", "null"], "description": "Write the name of the reviewer"},
+    },
+    "required": ["key_themes", "summary", "sentiment"],
+}
+
+structured_model = model.with_structured_output(json_schema)
+
+with open("review.txt") as f:
+    review = f.read()
+
+result = structured_model.invoke(review)
+
+print(type(result))
+print(result["sentiment"], "|", result["name"])
+print(result["cons"])
+```
+
+```js
+import "dotenv/config";
+import { readFileSync } from "node:fs";
+import { ChatGroq } from "@langchain/groq";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+// schema
+const jsonSchema = {
+  title: "Review",
+  description: "Structured analysis of a product review",
+  type: "object",
+  properties: {
+    key_themes: {
+      type: "array",
+      items: { type: "string" },
+      description: "Write down all the key themes discussed in the review in a list",
+    },
+    summary: { type: "string", description: "A brief summary of the review" },
+    sentiment: {
+      type: "string",
+      enum: ["pos", "neg"],
+      description: "Return sentiment of the review, either pos or neg",
+    },
+    pros: {
+      type: ["array", "null"],
+      items: { type: "string" },
+      description: "Write down all the pros inside a list",
+    },
+    cons: {
+      type: ["array", "null"],
+      items: { type: "string" },
+      description: "Write down all the cons inside a list",
+    },
+    name: { type: ["string", "null"], description: "Write the name of the reviewer" },
+  },
+  required: ["key_themes", "summary", "sentiment"],
+};
+
+const structuredModel = model.withStructuredOutput(jsonSchema);
+
+const review = readFileSync("review.txt", "utf8");
+
+const result = await structuredModel.invoke(review);
+
+console.log(typeof result);
+console.log(result.sentiment, "|", result.name);
+console.log(result.cons);
+```
+
+</CodeTabs>
+
+```
+<class 'dict'>
+pos | Nitish Singh
+['Weight and size make it uncomfortable for one-handed use', 'Samsung’s One UI still comes with bloatware—why do I need five different Samsung apps for things Google already provides?', 'The $1,300 price tag is a hard pill to swallow']
+```
+
+Same answers again, returned as a plain dictionary, so you index it with `result["sentiment"]`. Notice that this time the model copied one con, with its em dash and rhetorical question, almost word for word from the review, rather than summarizing it. Same schema, same input, different run, a slightly different style of answer.
+
+## Which One to Use
+
+| | TypedDict | Pydantic (Zod in JS) | JSON Schema |
+|---|---|---|---|
+| Describes the structure | ✅ | ✅ | ✅ |
+| Type hints in your editor | ✅ | ✅ | ❌ |
+| Validates the model's output | ❌ | ✅ | ❌ (unless you run a validator yourself) |
+| Fills in default values | ❌ | ✅ | ❌ |
+| Converts types (`"32"` → `32`) | ❌ | ✅ | ❌ |
+| Shared across languages | ❌ | ❌ | ✅ |
+
+- **TypedDict**: everything is in Python, you only need type hints, and you trust the model to return the right data. That's rare in a real project.
+- **Pydantic**: you need validation, defaults, or type conversion. This is the default choice for Python, and **Zod** is its counterpart in JavaScript.
+- **JSON Schema**: the same schema has to work in more than one language.
+
+## The `method` Parameter
+
+`with_structured_output` takes a `method` argument that picks the channel from earlier:
+
+| `method` | How it works |
+|---|---|
+| `"function_calling"` | The schema is sent as a tool the model must call; the fields arrive as the tool's arguments. Also how agents call real tools |
+| `"json_schema"` | The provider's own structured-output feature: the reply is constrained to match the schema |
+| `"json_mode"` | The older approach: the provider only guarantees valid JSON. The schema is *not* sent, so you must describe the fields in your prompt |
+
+In JavaScript the names are camelCase: `"functionCalling"`, `"jsonSchema"`, `"jsonMode"`.
+
+The defaults differ by provider: `ChatOpenAI` defaults to `json_schema`, Python's `ChatGroq` to `function_calling`, and LangChain.js's `ChatGroq` to `jsonSchema` for the `gpt-oss` models. Older tutorials recommend function calling for OpenAI models and JSON mode for the rest. Today, prefer `json_schema` wherever the provider supports it, because the provider then makes the reply match your schema instead of hoping the model complies. Which methods a model supports is listed on its provider's integration page in the LangChain docs.
+
+## When a Model Can't Do It
+
+Not every model supports these methods. `allam-2-7b`, a small model on Groq, supports neither tools nor JSON schema mode. Here's the same `Review` schema tried with all three methods:
+
+<CodeTabs>
+
+```python
+from typing import Optional, Literal
+from pydantic import BaseModel, Field
+from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="allam-2-7b")  # a small model without structured output support
+
+class Review(BaseModel):
+    """Structured analysis of a product review."""
+    summary: str = Field(description="A brief summary of the review")
+    sentiment: Literal["pos", "neg"] = Field(description="Return sentiment of the review, either pos or neg")
+    name: Optional[str] = Field(default=None, description="Write the name of the reviewer")
+
+prompt = """The phone is fast and the camera is great, but it's heavy. Review by Nitish Singh.
+Return JSON with the keys summary, sentiment ("pos" or "neg") and name."""
+
+for method in ["function_calling", "json_schema", "json_mode"]:
+    structured_model = model.with_structured_output(Review, method=method)
+    try:
+        print(method, "->", structured_model.invoke(prompt))
+    except Exception as e:
+        print(method, "->", type(e).__name__, str(e)[:200])
+```
+
+```js
+import "dotenv/config";
+import * as z from "zod";
+import { ChatGroq } from "@langchain/groq";
+
+const model = new ChatGroq({ model: "allam-2-7b" }); // a small model without structured output support
+
+const Review = z
+  .object({
+    summary: z.string().describe("A brief summary of the review"),
+    sentiment: z.enum(["pos", "neg"]).describe("Return sentiment of the review, either pos or neg"),
+    name: z.string().nullish().describe("Write the name of the reviewer"),
+  })
+  .describe("Structured analysis of a product review.");
+
+const prompt = `The phone is fast and the camera is great, but it's heavy. Review by Nitish Singh.
+Return JSON with the keys summary, sentiment ("pos" or "neg") and name.`;
+
+for (const method of ["functionCalling", "jsonSchema", "jsonMode"]) {
+  try {
+    const structuredModel = model.withStructuredOutput(Review, { method });
+    console.log(method, "->", await structuredModel.invoke(prompt));
+  } catch (e) {
+    console.log(method, "->", e.constructor.name, e.message.slice(0, 200));
+  }
+}
+```
+
+</CodeTabs>
+
+```
+function_calling -> BadRequestError Error code: 400 - {'error': {'message': '`tool calling` is not supported with this model', 'type': 'invalid_request_error', 'param': 'tool calling'}}
+json_schema -> BadRequestError Error code: 400 - {'error': {'message': 'This model does not support response format `json_schema`. See supported models at https://console.groq.com/docs/structured-outputs#supported-models', 'type':
+json_mode -> summary='Positive review highlighting phone speed, camera quality, and weight' sentiment='pos' name='Nitish Singh'
+```
+
+- **Function calling** fails at the API: the model doesn't support tool calling.
+- **JSON schema mode** fails too. The JavaScript version even refuses before sending the request, because it knows only the `gpt-oss` models support it on Groq.
+- **JSON mode** works, because all it asks for is valid JSON, and the prompt describes the fields. But nothing makes the model follow your schema. In 8 runs, 2 failed: the model answered `"sentiment": "mixed"`, Pydantic's `Literal["pos", "neg"]` rejected it, and LangChain raised an `OutputParserException` instead of returning bad data. This is Pydantic's validation earning its place.
+
+So for models like this, `with_structured_output` is either unavailable or unreliable. The fix is to ask for the format in the prompt and parse the plain-text reply yourself, which is exactly what **output parsers** do, and what the next post covers.
+
+## Summary
+
+| Topic | What to remember |
+|---|---|
+| **Structured output** | The model returns data in a defined format (usually JSON) instead of prose, so it can talk to databases, APIs, and tools |
+| **`with_structured_output`** | Wrap the model with a schema, then invoke as usual. Works with models that support structured output; output parsers cover the rest |
+| **Under the hood** | The schema becomes a JSON Schema sent as a tool (function calling) or a response format (JSON schema mode). Its names and descriptions are part of the prompt |
+| **TypedDict** | Type hints only, no runtime checks. Use `Annotated[type, ..., "desc"]` (not `Annotated[type, "desc"]`), `Literal` for fixed choices, `Optional` for fields that may be missing, and a docstring |
+| **Pydantic** | Validates the reply: types, constraints, defaults, coercion, email checks. Returns an object; `model_dump()` gives a dict. Zod is the JavaScript equivalent |
+| **JSON Schema** | Language-neutral: `type`, `properties`, `required`, `enum`. Returns a plain dict with no validation |
+| **`method`** | `function_calling`, `json_schema` (preferred where supported), or the older `json_mode`. Defaults vary by provider |
+| **Unsupported models** | Tools and JSON schema mode fail; JSON mode is unreliable. Use output parsers instead |
