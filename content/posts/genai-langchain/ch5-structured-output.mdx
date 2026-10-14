@@ -1,6 +1,6 @@
 ---
 title: "Ch.5: Structured Output in LangChain: TypedDict, Pydantic, and JSON Schema"
-description: "Getting LLMs to return data instead of prose: why structured output lets models talk to databases, APIs, and tools, how with_structured_output works under the hood, describing the format with TypedDict, Pydantic, or JSON Schema, the method parameter, and what happens with a model that can't do it."
+description: "Getting LLMs to return data instead of prose: why structured output lets models talk to databases, APIs, and tools, how with_structured_output works under the hood, describing the format with TypedDict, Pydantic, or JSON Schema, the method parameter, structured output in agents, and what happens with a model that can't do it."
 date: "2026-10-30T23:46:00+05:30"
 tags: ["generative-ai", "langchain", "llm", "structured-output", "pydantic", "json-schema"]
 subtopic: "LangChain Fundamentals"
@@ -76,6 +76,8 @@ That's the only difference. The part worth learning is the **schema**, the descr
 1. **TypedDict**, a Python dictionary with declared keys and types
 2. **Pydantic**, a validation library (the one FastAPI is built on)
 3. **JSON Schema**, a language-neutral standard
+
+None of these is outdated: they are still the three main options in LangChain today. A plain Python `@dataclass` also works as a schema. It behaves like a TypedDict, with no validation, and comes back as a plain dictionary.
 
 JavaScript has no TypedDict or Pydantic. Its equivalent of Pydantic is **[Zod](https://zod.dev/)**, and that's what the JavaScript tabs use for both the TypedDict and Pydantic sections. Keep in mind that Zod *validates*, like Pydantic, which matters once you see what TypedDict doesn't do. JSON Schema works the same in both languages.
 
@@ -757,6 +759,188 @@ In JavaScript the names are camelCase: `"functionCalling"`, `"jsonSchema"`, `"js
 
 The defaults differ by provider: `ChatOpenAI` defaults to `json_schema`, Python's `ChatGroq` to `function_calling`, and LangChain.js's `ChatGroq` to `jsonSchema` for the `gpt-oss` models. Older tutorials recommend function calling for OpenAI models and JSON mode for the rest. Today, prefer `json_schema` wherever the provider supports it, because the provider then makes the reply match your schema instead of hoping the model complies. Which methods a model supports is listed on its provider's integration page in the LangChain docs.
 
+With `json_schema` you can also pass `strict=True`, which asks the provider to follow the schema exactly, on providers that support it. On Groq, strict mode has one extra requirement: the schema must forbid keys you didn't list. A Pydantic model does that with `model_config = ConfigDict(extra="forbid")`; without it, Groq rejects the request with a 400 error.
+
+## Structured Output in Agents
+
+So far every example has been a single model call: send the review, get the data back. In [ch2](/genai-langchain/ch2-langchain-components) you met **agents**, built with `create_agent`. An agent is a model running in a loop. It can call **tools** (ordinary functions you give it, like a weather lookup), read what they return, and keep going until it has an answer.
+
+What if you want that final answer as structured data too? `with_structured_output` doesn't fit, because an agent makes many model calls, not one. Instead, you hand the schema to the agent itself, through a parameter called `response_format`. When the agent finishes, its answer is checked against your schema and stored in the result under the key `structured_response`. This arrived with LangChain 1.0, and it's the approach LangChain's current docs lead with.
+
+<CodeTabs>
+
+```python
+from typing import Literal
+from pydantic import BaseModel, Field
+from langchain_groq import ChatGroq
+from langchain.agents import create_agent
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+class Review(BaseModel):
+    """Structured analysis of a product review."""
+    summary: str = Field(description="A one-line summary of the review")
+    sentiment: Literal["pos", "neg", "mixed"] = Field(description="Overall sentiment")
+    rating: int = Field(ge=1, le=5, description="The reviewer's rating on a 1 to 5 scale")
+
+agent = create_agent(model, response_format=Review)
+
+result = agent.invoke({"messages": [
+    {"role": "user", "content": "The phone is fast and the camera is great, but the battery dies by evening. 4 stars."}
+]})
+print(repr(result["structured_response"]))
+for m in result["messages"]:
+    print(type(m).__name__)
+```
+
+```js
+import "dotenv/config";
+import * as z from "zod";
+import { ChatGroq } from "@langchain/groq";
+import { createAgent } from "langchain";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+const Review = z
+  .object({
+    summary: z.string().describe("A one-line summary of the review"),
+    sentiment: z.enum(["pos", "neg", "mixed"]).describe("Overall sentiment"),
+    rating: z.number().int().min(1).max(5).describe("The reviewer's rating on a 1 to 5 scale"),
+  })
+  .describe("Structured analysis of a product review.");
+
+const agent = createAgent({ model, responseFormat: Review });
+
+const result = await agent.invoke({
+  messages: [
+    { role: "user", content: "The phone is fast and the camera is great, but the battery dies by evening. 4 stars." },
+  ],
+});
+console.log(result.structuredResponse);
+console.log(result.messages.map((m) => m.constructor.name));
+```
+
+</CodeTabs>
+
+```
+Review(summary='Fast phone with great camera, but battery life is lacking.', sentiment='pos', rating=4)
+HumanMessage
+AIMessage
+```
+
+The answer is a validated `Review` object, just like with `with_structured_output`. (The model read "4 stars" as a positive review overall, even with the battery complaint.) This agent has no tools, so it answers in one step, but `response_format` works the same way when it does have tools: the schema only applies to the final answer.
+
+You passed only the schema, so LangChain had to decide *how* to get structured output. It looks at the model's **profile**, a built-in record of what each model can do. The profile for `gpt-oss-20b` says `structured_output: True`, so LangChain chose the provider's own structured-output feature, the `json_schema` method from the previous section. That's why there are only two messages: your question and the model's answer.
+
+You can also choose yourself, by wrapping the schema in a **strategy**:
+
+| Strategy | What it does | Same idea as |
+|---|---|---|
+| `ProviderStrategy(Review)` | Uses the provider's own structured-output feature | `method="json_schema"` |
+| `ToolStrategy(Review)` | Sends the schema as a tool the model must call | `method="function_calling"` |
+
+Both are imported from `langchain.agents.structured_output`. In JavaScript they're `providerStrategy(Review)` and `toolStrategy(Review)`, imported from `langchain`, and the result is `result.structuredResponse`.
+
+### Retrying When the Answer Is Wrong
+
+`ToolStrategy` can do something `with_structured_output` can't: **retry**. When the model's answer fails validation, `with_structured_output` simply raises an error and stops. The agent instead sends the error message back to the model, like a teacher handing back homework with the mistake circled, and lets it try again.
+
+To see this, add a rule the model can't see. A Pydantic `field_validator` is a function that checks a field after the model replies. This one rejects any summary longer than 6 words. Because the rule lives in Python code, it isn't part of the JSON Schema sent to the model, so the model will probably break it on the first try:
+
+<CodeTabs>
+
+```python
+from pydantic import BaseModel, Field, field_validator
+from langchain_groq import ChatGroq
+from langchain.agents import create_agent
+from langchain.agents.structured_output import ToolStrategy
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+class Review(BaseModel):
+    """Structured analysis of a product review."""
+    summary: str = Field(description="A one-line summary of the review")
+
+    @field_validator("summary")
+    @classmethod
+    def short_enough(cls, v: str) -> str:
+        words = len(v.split())
+        if words > 6:
+            raise ValueError(f"summary must be 6 words or fewer, got {words}")
+        return v
+
+agent = create_agent(model, response_format=ToolStrategy(Review))
+
+result = agent.invoke({"messages": [
+    {"role": "user", "content": "The phone is fast and the camera is great, but the battery dies by evening and it gets warm while gaming."}
+]})
+print(repr(result["structured_response"]))
+for m in result["messages"]:
+    print(type(m).__name__, "|", (m.content or str([tc["args"] for tc in m.tool_calls]))[:400])
+```
+
+```js
+import "dotenv/config";
+import * as z from "zod";
+import { ChatGroq } from "@langchain/groq";
+import { createAgent, toolStrategy } from "langchain";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+const Review = z
+  .object({
+    summary: z.string().max(30).describe("A one-line summary of the review"),
+  })
+  .describe("Structured analysis of a product review.");
+
+const agent = createAgent({ model, responseFormat: toolStrategy(Review) });
+
+const result = await agent.invoke({
+  messages: [
+    {
+      role: "user",
+      content: "The phone is fast and the camera is great, but the battery dies by evening and it gets warm while gaming.",
+    },
+  ],
+});
+console.log(result.structuredResponse);
+for (const m of result.messages) {
+  console.log(m.constructor.name, "|", (m.content || JSON.stringify(m.tool_calls?.map((tc) => tc.args))).slice(0, 300));
+}
+```
+
+</CodeTabs>
+
+```
+Review(summary='Fast, great camera, battery weak.')
+HumanMessage | The phone is fast and the camera is great, but the battery dies by evening and it gets warm while gaming.
+AIMessage | [{'summary': 'Fast phone with great camera but battery drains quickly and gets warm during gaming.'}]
+ToolMessage | Error: Failed to parse structured output for tool 'Review': Failed to parse data to Review: 1 validation error for Review
+summary
+  Value error, summary must be 6 words or fewer, got 14 [type=value_error, input_value='Fast phone with great ca...ets warm during gaming.', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.14/v/value_error.
+ Please fix your mistakes.
+AIMessage | [{'summary': 'Fast, great camera, battery weak.'}]
+ToolMessage | Returning structured response: summary='Fast, great camera, battery weak.'
+```
+
+Read the messages from top to bottom:
+
+1. **AIMessage**: the model's first try, a 14-word summary.
+2. **ToolMessage**: the validator's error, sent back to the model, ending with "Please fix your mistakes."
+3. **AIMessage**: the second try, 5 words, which passes.
+4. **ToolMessage**: the agent confirms the answer and stops.
+
+In 3 runs, the first try failed every time and the second try passed every time.
+
+Retrying is on by default. To turn it off and get the error instead, use `ToolStrategy(Review, handle_errors=False)`. Retries only cover answers that fail *your* validation. If the provider rejects the request itself, like the "model did not call a tool" error from earlier, the agent still fails.
+
+**A JavaScript difference.** LangChain.js doesn't run your Zod schema on the reply. It converts the schema to JSON Schema and checks the reply against that. Any rule JSON Schema can express, like `.max(30)` (at most 30 characters), triggers a retry. But a custom `.refine()` check is skipped without any warning: when tested with a 6-word `.refine()` rule, a 16-word summary went straight through. That's why the JavaScript tab uses `.max(30)` instead of a word count. Its run went the same way as the Python one: a 51-character summary was rejected with `String is too long (51 > 30)`, and the second try passed. Since the model can see this limit in the schema, it often gets it right the first time; 2 of 4 runs needed a retry.
+
 ## When a Model Can't Do It
 
 Not every model supports these methods. `allam-2-7b`, a small model on Groq, supports neither tools nor JSON schema mode. Here's the same `Review` schema tried with all three methods:
@@ -842,4 +1026,5 @@ So for models like this, `with_structured_output` is either unavailable or unrel
 | **Pydantic** | Validates the reply: types, constraints, defaults, coercion, email checks. Returns an object; `model_dump()` gives a dict. Zod is the JavaScript equivalent |
 | **JSON Schema** | Language-neutral: `type`, `properties`, `required`, `enum`. Returns a plain dict with no validation |
 | **`method`** | `function_calling`, `json_schema` (preferred where supported), or the older `json_mode`. Defaults vary by provider |
+| **Agents** | Pass the schema as `create_agent(..., response_format=Review)` and read `result["structured_response"]`. `ToolStrategy` retries when validation fails; LangChain.js only checks rules that JSON Schema can express |
 | **Unsupported models** | Tools and JSON schema mode fail; JSON mode is unreliable. Use output parsers instead |
