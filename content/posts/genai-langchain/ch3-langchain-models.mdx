@@ -24,7 +24,7 @@ flowchart LR
 ```
 
 - **Language models** take text and return text. You build chatbots, assistants, and agents with these.
-- **Embedding models** take text and return a vector of numbers that captures its meaning. You use these for **semantic search**, the core of RAG applications like the chat-with-your-PDF app from the [first post](/genai-langchain/ch1-introduction-to-langchain).
+- **Embedding models** take text and return a vector of numbers that captures its meaning. You use these for **semantic search**, the core of RAG applications (retrieval-augmented generation: first look up the relevant text, then let the model answer from it) like the chat-with-your-PDF app from the [first post](/genai-langchain/ch1-introduction-to-langchain).
 
 The plan: language models first, both closed-source (OpenAI, Anthropic, Google) and open-source (Hugging Face), then embedding models from both worlds, and finally a small document-similarity app that ties it together.
 
@@ -39,7 +39,7 @@ Language models themselves come in two types.
 | | LLMs | Chat models |
 |---|---|---|
 | **Purpose** | Free-form text generation, summarization, translation, Q&A | Multi-turn conversations between a user and an AI |
-| **Training** | Trained on general text (books, articles, Wikipedia) | Same pretraining, then **fine-tuned on conversations** (chat logs, forum threads, user–assistant dialogues) |
+| **Training** | Trained on general text (books, articles, Wikipedia) | Same pretraining (the first, expensive round of learning from huge amounts of text), then **fine-tuned on conversations** (trained a little further on chat logs, forum threads, user–assistant dialogues) |
 | **Input / output** | One string in, one string out | A list of messages in, one message out |
 | **Memory** | No concept of conversation history | Conversation history can be passed in as earlier messages |
 | **Role awareness** | No roles | Understands **system**, **user**, and **AI** roles |
@@ -48,13 +48,13 @@ Language models themselves come in two types.
 
 It's worth being precise about *why* a chat model handles "you are an experienced doctor" better. It isn't that a plain LLM doesn't know what a doctor is; it learned that in pretraining. The difference is structural. A chat model receives messages tagged with roles, so the instruction about who it should be arrives in its own **system** message, separate from what the user asked. And because it was fine-tuned on conversations laid out exactly this way, it has learned to treat the system message as "this is who you are" and the human message as "this is what to answer." A plain LLM gets one undifferentiated string and has to guess which part is an instruction and which part is the question. Memory works the same way: a chat model doesn't remember anything by itself; the earlier turns are simply sent back in as messages, a structure an LLM has no slot for.
 
-LangChain mirrors this split in its code: every LLM class inherits from `BaseLLM`, every chat model class from `BaseChatModel`.
+LangChain mirrors this split in its code: every LLM class inherits from `BaseLLM`, every chat model class from `BaseChatModel`. (A class "inherits" from another when it reuses that class's code and adds to it; here it just means they share a common base.)
 
 **LLMs are on their way out.** LangChain recommends chat models for all new work, and the providers agree: OpenAI shut down its last text-completion models (`gpt-3.5-turbo-instruct`, `davinci-002`, `babbage-002`) on 28 September 2026, so LangChain's old `OpenAI` LLM class has no OpenAI model left to call. Plain LLMs still exist in the open-source world, and the Hugging Face section below shows one being wrapped into a chat model. Everything else in this post uses chat models.
 
 ## Setup
 
-Create a project folder, open it in your editor, and set up an isolated environment:
+Create a project folder, open it in your editor, and set up an isolated environment. A **virtual environment** is a private folder of installed packages that belongs to this project only, so installing LangChain here can't clash with other projects on your computer:
 
 ```bash
 # Python: create and activate a virtual environment, then install
@@ -70,7 +70,7 @@ npm install langchain @langchain/core @langchain/groq @langchain/openai @langcha
 
 To confirm the install worked, print the version: `python -c "import langchain; print(langchain.__version__)"` should show 1.x (these examples were run on 1.4.7).
 
-API keys never go in your code. They go in a `.env` file in the project folder, and `load_dotenv()` (Python) or `import "dotenv/config"` (JavaScript) loads them into the environment at runtime:
+An **API key** is a long secret string, like a password, that tells the provider who is making the request (and who to bill). API keys never go in your code, because anyone who sees the code would see the key. They go in a `.env` file in the project folder, a plain text file of `NAME=value` lines, and `load_dotenv()` (Python) or `import "dotenv/config"` (JavaScript) loads them into the environment at runtime:
 
 ```
 GROQ_API_KEY="..."
@@ -120,7 +120,7 @@ content='The capital of India is **New\u202fDelhi**.' additional_kwargs={'reason
 
 (The JavaScript version prints the same object as an `AIMessage { ... }` structure.)
 
-This is not plain text: it's an **`AIMessage`**. The answer lives in `content`; around it sits metadata: how many tokens the prompt and the completion used, which model replied, and why it stopped (`finish_reason`). Two details are worth noticing:
+This is not plain text: it's an **`AIMessage`**. The answer lives in `content`; around it sits metadata (extra information about the reply): how many tokens the prompt and the completion used (a **token** is a small chunk of text, roughly three-quarters of a word; more on tokens under Max Tokens below), which model replied, and why it stopped (`finish_reason`). Two details are worth noticing:
 
 - The question is seven words, yet `prompt_tokens` is **77**. That's the chat-model interface at work: LangChain wrapped the plain string in a human message, and the provider laid it out in the model's chat format, with role markers and a default system section, before the model ever saw it.
 - `gpt-oss-20b` is a **reasoning model**: before writing the visible answer it "thinks" in hidden reasoning tokens (shown under `reasoning_content` and counted in `reasoning_tokens`). This becomes important for max tokens below.
@@ -213,7 +213,7 @@ The system message set the persona and the format (two sentences); the human mes
 
 ## Temperature: Controlling Creativity
 
-You can tune a chat model's behaviour with parameters. The most useful one is **temperature**: a number from 0 to 2 that controls how random the output is. Low values make the model pick its most likely next words, so answers are deterministic and predictable; high values let it pick less likely words, so answers become creative and diverse.
+You can tune a chat model's behaviour with parameters. The most useful one is **temperature**: a number from 0 to 2 that controls how random the output is. Low values make the model pick its most likely next words, so answers are deterministic (the same input gives the same output) and predictable; high values let it pick less likely words, so answers become creative and diverse.
 
 | Use case | Temperature |
 |---|---|
@@ -280,7 +280,7 @@ In that pause, the heart of sport beats pure delight.
 
 Two different poems, neither of them the temperature-0 one. That's the knob in action: for a SQL generator you want the first behaviour, for brainstorming startup names you want the second. Swap them and you get bland, repetitive names and a SQL query that varies between runs and can come out wrong.
 
-One honest caveat: temperature 0 means *nearly* deterministic, not guaranteed. Asking the same model for "5 Indian male names" at temperature 0 twice gave two different lists. Hosted APIs batch requests on GPUs, and tiny floating-point differences can occasionally tip the choice between two almost equally likely words. Don't build anything that depends on byte-identical output.
+One honest caveat: temperature 0 means *nearly* deterministic, not guaranteed. Asking the same model for "5 Indian male names" at temperature 0 twice gave two different lists. Hosted APIs batch requests on GPUs (graphics chips that do the heavy math for AI models), and tiny rounding differences in the computer's decimal arithmetic can occasionally tip the choice between two almost equally likely words. Don't build anything that depends on byte-identical output.
 
 ## Max Tokens: Capping the Output
 
@@ -431,7 +431,7 @@ The [previous post](/genai-langchain/ch2-langchain-components) showed one more w
 
 Every closed-source model above follows the same setup: the model sits on the company's servers, and the company puts an API in front of it. That has two flaws: **you pay for every call**, and **you have no control**, because the model lives on someone else's machine.
 
-**Open-source models** fix both. They are freely available models that you can download, modify, fine-tune, and deploy without restrictions from a central provider. Some company or organization trains the model and releases its weights; you download it and run it on your own machine:
+**Open-source models** fix both. They are freely available models that you can download, modify, fine-tune, and deploy without restrictions from a central provider. (**Closed-source** models are the opposite: only the company can see inside, and you can only reach them through its API.) Some company or organization trains the model and releases its **weights**, the numbers the model learned during training, which are the model itself; you download it and run it on your own machine:
 
 | | Open-source models | Closed-source models |
 |---|---|---|
@@ -456,7 +456,7 @@ Open-source models have real **disadvantages** too:
 
 - **Hardware.** Running them locally needs serious hardware; large models need expensive GPUs that most individuals don't have.
 - **Setup complexity.** Downloading models, managing dependencies, and fitting models into memory is more work than calling an API.
-- **Less refinement.** Closed models get extensive fine-tuning on human feedback (**RLHF**), and many open models get less, so their answers can feel less polished.
+- **Less refinement.** Closed models get extensive fine-tuning on human feedback (**RLHF**), and many open models get less, so their answers can feel less polished. RLHF means reinforcement learning from human feedback: people rate the model's answers, and the model is trained to prefer the ones people liked.
 - **Multimodal support.** Open multimodal models exist now (Qwen's vision-language models, for example), but the strongest image and audio capabilities are still mostly in closed models, and running multimodal models locally is harder still.
 
 ### Through the Hugging Face inference API
@@ -549,12 +549,12 @@ console.log(output[0].generated_text.at(-1).content);
 
 </CodeTabs>
 
-`HuggingFacePipeline.from_model_id` downloads the model (around **2.2 GB** for TinyLlama: 1.1 billion parameters at 2 bytes each), along with its tokenizer and configuration files, loads it into memory, and runs it with Hugging Face's `transformers` library. `pipeline_kwargs` sets the generation parameters: `temperature`, `max_new_tokens`, and `do_sample=True`. That last one matters: without it, Hugging Face uses greedy decoding (always the most likely word), and `temperature` is ignored (`transformers` only prints a warning).
+`HuggingFacePipeline.from_model_id` downloads the model (around **2.2 GB** for TinyLlama: 1.1 billion parameters at 2 bytes each), along with its tokenizer and configuration files, loads it into memory, and runs it with Hugging Face's `transformers` library (the Python library that loads and runs these models). The **tokenizer** is the file that splits your text into tokens before the model reads it. `pipeline_kwargs` sets the generation parameters: `temperature`, `max_new_tokens`, and `do_sample=True`. That last one matters: without it, Hugging Face uses greedy decoding (always picking the single most likely next word), and `temperature` is ignored (`transformers` only prints a warning).
 
 Practical notes:
 
-- The **first run** downloads everything; later runs load from the local cache, so they skip the download. By default the cache is `~/.cache/huggingface` (on Windows, on the C drive). The optional `HF_HOME` line moves it, handy when that disk is full.
-- **Inference is slow on a CPU**, and a GPU speeds it up considerably. Even a 1.1-billion-parameter model can take minutes on a modest laptop and make the whole machine sluggish while it runs.
+- The **first run** downloads everything; later runs load from the local **cache** (a saved copy kept on your disk), so they skip the download. By default the cache is `~/.cache/huggingface` (on Windows, on the C drive). The optional `HF_HOME` line moves it, handy when that disk is full.
+- **Inference** (running the model to get an answer) **is slow on a CPU**, your computer's general-purpose processor, and a GPU speeds it up considerably. Even a 1.1-billion-parameter model can take minutes on a modest laptop and make the whole machine sluggish while it runs.
 - Any text-generation model on Hugging Face can be downloaded and run this same way.
 
 This example also shows the LLM vs chat model split from earlier, in one place. `HuggingFacePipeline` is a plain **LLM** (it inherits from `BaseLLM`): string in, string out. `ChatHuggingFace` turns it into a **chat model** by applying the model's chat template, the same role-marker layout that made a seven-word question cost 77 tokens earlier, so TinyLlama receives a properly formatted conversation instead of raw text.
@@ -778,8 +778,8 @@ console.log("similarity score is:", score);
 
 Step by step:
 
-- `embed_documents` gives a 2D list (five vectors); `embed_query` gives a 1D list (one vector).
-- scikit-learn's `cosine_similarity` expects **2D inputs on both sides**, so the query vector is wrapped in a list: `[query_embedding]`. The result is a 2D array with one row (the query's scores against each document), and `[0]` pulls out that row.
+- `embed_documents` gives a 2D list, meaning a list of lists (five vectors); `embed_query` gives a 1D list, meaning a single flat list (one vector).
+- scikit-learn (a popular Python library for classic machine learning) has a `cosine_similarity` function that expects **2D inputs on both sides**, so the query vector is wrapped in a list: `[query_embedding]`. The result is a 2D array with one row (the query's scores against each document), and `[0]` pulls out that row.
 - To find the best document you need its *index*, not just its score. Sorting the scores directly would lose track of which document each one belongs to, so `enumerate` first pairs each score with its index: `(0, score0), (1, score1), ...`. Sorting those pairs by the score (`key=lambda x: x[1]`) puts the highest last, and `[-1]` takes it.
 - `documents[index]` is the answer. Ask "tell me about bumrah" and the app returns the Jasprit Bumrah sentence; change the query to "tell me about Virat Kohli" and it returns the Kohli one.
 
