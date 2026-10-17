@@ -39,7 +39,7 @@ So far, the programmer has written every prompt directly in the code. A real app
 
 Take a concrete example: a **research assistant tool** that summarizes research papers. The obvious design is a web page with a text box. The user types "Summarize the Attention Is All You Need paper in 3 lines", clicks **Summarize**, your code sends that text to the LLM, and the reply appears on the page.
 
-Here it is, built with [Streamlit](https://streamlit.io/), a Python library for quick web UIs (run it with `streamlit run static_ui.py`). Streamlit is Python-only, so the JavaScript version asks the same question in the terminal:
+Here it is, built with [Streamlit](https://streamlit.io/), a Python library for quick web UIs (UI means user interface: the screen a person clicks and types into; run it with `streamlit run static_ui.py`). Streamlit is Python-only, so the JavaScript version asks the same question in the terminal:
 
 <CodeTabs>
 
@@ -86,7 +86,7 @@ It works. This is a **static prompt**: the user writes the whole prompt, and you
 
 Static prompts are rarely used in real products, because they hand the user full control over the one input the output is most sensitive to:
 
-- **Mistakes become hallucinations.** If the user misremembers the paper's title, the model still has to say *something*, so it may confidently summarize a paper that doesn't exist.
+- **Mistakes become hallucinations.** A **hallucination** is when a model states something false with total confidence. If the user misremembers the paper's title, the model still has to say *something*, so it may confidently summarize a paper that doesn't exist.
 - **You can't promise a consistent experience.** Say you want every summary to explain the maths with intuition, add analogies, and admit when the paper doesn't cover something. With a free-text box, whether that happens depends on what each user happens to type.
 
 The fix is to write the prompt yourself, once, as a **template with blanks**, and let the user fill only the blanks:
@@ -176,7 +176,7 @@ You list the placeholders in `input_variables`. There's also a shorter form, `Pr
 
 ## Why Not Just Use an f-string?
 
-Look at what `PromptTemplate` does: it puts values into placeholders inside a big string at runtime. A Python f-string (or a JavaScript template literal) does exactly the same thing, and the whole research tool would work with one. So why use a class? There are three reasons.
+Look at what `PromptTemplate` does: it puts values into placeholders inside a big string at runtime. A Python f-string (a string with variables dropped in, like `f"Hello {name}"`) or a JavaScript template literal does exactly the same thing, and the whole research tool would work with one. So why use a class? There are three reasons.
 
 ### 1. Mistakes show up early
 
@@ -217,7 +217,7 @@ Error: Invalid prompt schema: (f-string) Missing value for input length_input
 
 What matters is **when** this fails. With `validate_template=True` (in JavaScript it's on by default), the check runs the moment the template object is created. That happens when your app starts, on your machine, in front of you.
 
-An f-string doesn't skip the mistake silently either: a missing variable raises a `NameError`. But that only happens when *that line runs*. In the research tool, that's inside the button handler, so the app starts fine, and the crash happens on the server the first time a real user clicks **Summarize**.
+An f-string doesn't skip the mistake silently either: a missing variable raises a `NameError` (Python's error for using a name that doesn't exist). But that only happens when *that line runs*. In the research tool, that's inside the button handler (the function that runs when the button is clicked), so the app starts fine, and the crash happens on the server (the computer hosting your app) the first time a real user clicks **Summarize**.
 
 Validation catches a placeholder you forgot to list. Listing an *extra* name that isn't in the template is no longer an error in current versions: Python quietly drops it, and JavaScript keeps it without complaint. Even without validation, invoking a template with a value missing fails with a clear message naming the missing variable.
 
@@ -294,11 +294,11 @@ Run this once and a `template.json` appears, holding the template text, its inpu
 
 Loading it back is one call: `loads(...)` in Python, `load(...)` in JavaScript, shown in the full app below. Older tutorials use `template.save("template.json")` and `load_prompt("template.json")`; both are deprecated since langchain-core 1.2.21 in favour of `dumps` and `loads`.
 
-Python's `loads` takes an `allowed_objects` list because loading a file rebuilds real Python objects from whatever the file names. Allowing only `PromptTemplate` means a tampered file can't make your app build anything else. It also prints a warning that `loads` is still in beta.
+Python's `loads` takes an `allowed_objects` list because loading a file rebuilds real Python objects from whatever the file names. Allowing only `PromptTemplate` means a tampered file can't make your app build anything else. It also prints a warning that `loads` is still in beta, meaning not yet in its final form.
 
 ### 3. Templates plug into chains
 
-`PromptTemplate` is a LangChain **runnable**, just like the model. So instead of invoking the template and then invoking the model, you can join them into a **chain** with `|` (`.pipe()` in JavaScript) and invoke once. Chains get a post of their own later; for now, the point is that a plain string can't be part of a chain, and a template can.
+`PromptTemplate` is a LangChain **runnable**, just like the model. A runnable is any LangChain object you can run with `.invoke()`; because they all work the same way, they can be snapped together. So instead of invoking the template and then invoking the model, you can join them into a **chain** with `|` (`.pipe()` in JavaScript) and invoke once. Chains get a post of their own later; for now, the point is that a plain string can't be part of a chain, and a template can.
 
 ## The Dynamic Research Tool
 
@@ -540,7 +540,7 @@ Multiplying the larger number (2) by 10 gives:
 
 `invoke` accepts a list as well as a single string, and now the model gets 20 right. But look at the stored history. Nothing in it says who wrote which line. LangChain has to send the model *something*, so it turns each plain string into a message from the user. The model therefore sees four user turns, including "2 is greater than 0", a line it wrote itself. In a two-question chat it copes; in a long conversation, losing track of who said what leads to confused answers. You'd want every entry labelled: `user: ...`, `ai: ...`, `user: ...`.
 
-There's also a cost to sending the whole history, one that grows quietly. Every request now carries every earlier message, so each request is bigger than the last: the size of a request grows linearly with the length of the conversation, and the total tokens you pay for over the whole chat grow roughly with its square. A long enough conversation also stops fitting in the model's context window. Real apps trim or summarize old messages, which the [components post](/genai-langchain/ch2-langchain-components) showed with LangChain's summarization middleware.
+There's also a cost to sending the whole history, one that grows quietly. Every request now carries every earlier message, so each request is bigger than the last: the size of a request grows steadily with the length of the conversation, and the total tokens you pay for over the whole chat grow much faster. If every turn adds one message, turn 1 sends 1 message, turn 2 sends 2, and so on, so 10 turns send 1+2+...+10 = 55 messages in total, and 100 turns send 5,050. (Mathematically, the total grows with the square of the number of turns.) A long enough conversation also stops fitting in the model's context window. Real apps trim or summarize old messages, which the [components post](/genai-langchain/ch2-langchain-components) showed with LangChain's summarization middleware.
 
 ## Messages: System, Human, and AI
 
@@ -750,7 +750,7 @@ human: Explain in simple terms, what is {topic}
 
 The placeholders were never filled. This isn't a bug, it's how LangChain is designed to work. `ChatPromptTemplate` treats the two kinds of entry differently:
 
-- A **`(role, text)` tuple** (or a plain string) is a *template*. LangChain parses the text, finds `{domain}`, and turns it into a variable to fill.
+- A **`(role, text)` tuple** (a pair of values in parentheses, like `("system", "You are a helpful {domain} expert")`) or a plain string is a *template*. LangChain parses the text, finds `{domain}`, and turns it into a variable to fill.
 - A **message object** is a *finished message*. LangChain passes it through as it is, without looking for placeholders inside it.
 
 The literal behaviour is exactly what you want for text that contains real curly braces: a code snippet like `{"a": 1}`, a JSON example, or a message from your stored history. Parsed as a template, those braces would turn into variables, or break when nothing is passed for them.
@@ -865,7 +865,7 @@ human: Where is my refund
 
 The placeholder worked: the history sits between the system message and today's question. But every entry is labelled `human`. Each line from the file is just a string, and LangChain turns a plain string into a `HumanMessage`, exactly as it did in the chatbot. So the model reads the customer typing, word for word, `AIMessage(content="Your refund request ... has been initiated...")`, Python syntax included, and the bot's own reply is lost as a reply.
 
-The fix is to store the history in a format that keeps each message's role. LangChain can convert messages to plain dictionaries (`messages_to_dict` in Python, `mapChatMessagesToStoredMessages` in JavaScript) that serialize cleanly to JSON:
+The fix is to store the history in a format that keeps each message's role. LangChain can convert messages to plain dictionaries (`messages_to_dict` in Python, `mapChatMessagesToStoredMessages` in JavaScript) that serialize cleanly to JSON. (**Serialize** means turning objects into text that can be saved to a file, and **JSON** is the plain-text format for that: labelled values in curly braces, like `{"type": "human"}`.)
 
 <CodeTabs>
 
