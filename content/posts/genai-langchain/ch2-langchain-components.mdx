@@ -206,6 +206,8 @@ const embeddings = new OpenAIEmbeddings({ model: "text-embedding-3-small" });
 
 </CodeTabs>
 
+> **Why the JavaScript tab looks different.** Python has a shortcut, `init_embeddings`, that reads the text before the colon (`"openai:"`) and picks the right provider class for you. LangChain.js has no such shortcut for embeddings (there is one for chat models, `initChatModel`, which is why that example looks alike in both languages). So in JavaScript you import the provider's class yourself, `OpenAIEmbeddings` from `@langchain/openai`, and create it directly. That means one extra import and a longer line, but the result is the same kind of object, with the same `embed_query` / `embedQuery` and `embed_documents` / `embedDocuments` methods. Python can use the same long form too: `from langchain_openai import OpenAIEmbeddings`, as ch3 does.
+
 LangChain's docs keep a list of every [chat model](https://docs.langchain.com/oss/python/integrations/chat) and [embedding model](https://docs.langchain.com/oss/python/integrations/text_embedding) integration: OpenAI, Anthropic, Google, Mistral AI, Azure, AWS Bedrock, Hugging Face, Ollama, IBM, and many more. The chat model table also tells you which features each one supports, like tool calling (the model can ask your code to run a function, which agents need; covered later in this post), structured or JSON output (replies in a fixed data format, covered in ch5), running locally on your own machine, and multimodal input (accepting images or audio, not just text). It's worth skimming once just to see the landscape.
 
 ## 2. Prompts
