@@ -418,6 +418,16 @@ for (const model of models) {
 
 </CodeTabs>
 
+Expected output (not run here, since OpenAI and Anthropic need paid keys and Gemini needs a Google key). Each model prints its own wording, but each one prints plain text, because `.text` always returns the answer as a string:
+
+```
+The capital of India is New Delhi.
+The capital of India is New Delhi.
+The capital of India is New Delhi.
+```
+
+The three lines come from three different models. Their wording will differ from run to run (one may add "It is also the seat of the government"); what stays the same is the shape: a string.
+
 Each class needs its own key: OpenAI and Anthropic require paid credit, while Google's Gemini API has a free tier you can get from [Google AI Studio](https://aistudio.google.com/apikey). [Claude](https://www.anthropic.com/claude) comes from Anthropic, Gemini from Google, and both are as common in industry as OpenAI's models, so the company you work for might use any of the three. Each also accepts `temperature` and a max-tokens parameter, just like `ChatGroq` above.
 
 Two things here differ from older tutorials:
@@ -593,6 +603,12 @@ console.log(result);
 
 </CodeTabs>
 
+Expected output (not run here, since it needs a paid OpenAI key). One list of 32 decimal numbers, usually small values between -1 and 1; the exact numbers will differ:
+
+```
+[-0.0213, 0.0841, -0.1102, 0.0377, 0.0659, ..., -0.0482]   # 32 numbers in total
+```
+
 `dimensions=32` asks for a 32-number vector. `embed_query` embeds a single text and returns one list of numbers.
 
 To embed several documents at once, use `embed_documents`:
@@ -636,6 +652,16 @@ console.log(result);
 ```
 
 </CodeTabs>
+
+Expected output (not run here, since it needs a paid OpenAI key). A list holding three lists, one per document, each with 32 numbers:
+
+```
+[
+  [-0.0213, 0.0841, -0.1102, ..., -0.0482],   # "Delhi is the capital of India"
+  [ 0.0517, 0.0129, -0.0934, ...,  0.0268],   # "Kolkata is the capital of West Bengal"
+  [-0.0396, 0.0702, -0.0288, ...,  0.0115],   # "Paris is the capital of France"
+]
+```
 
 This returns a **list of lists**: one 32-dimensional vector per document, three in total.
 
@@ -775,6 +801,14 @@ console.log("similarity score is:", score);
 ```
 
 </CodeTabs>
+
+Expected output (not run here, since it needs a paid OpenAI key). The score will differ from the one below, which only shows the format:
+
+```
+tell me about bumrah
+Jasprit Bumrah is an Indian fast bowler known for his unorthodox action and yorkers.
+similarity score is: 0.62
+```
 
 Step by step:
 
