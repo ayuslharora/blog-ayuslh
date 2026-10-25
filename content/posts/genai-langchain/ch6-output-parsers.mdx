@@ -1,0 +1,531 @@
+---
+title: "Ch.6: Output Parsers in LangChain: String, JSON, and Pydantic"
+description: "Turning a model's raw reply into something your code can use: why parsers exist, StrOutputParser for chaining steps, JsonOutputParser and format instructions, giving the JSON a shape, and PydanticOutputParser for validation, with the legacy parser that no longer exists in LangChain 1.x."
+date: "2026-10-31T19:02:00+05:30"
+tags: ["generative-ai", "langchain", "llm", "output-parsers", "pydantic", "chains"]
+subtopic: "LangChain Fundamentals"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=Op6PbJZ5b2Q)
+
+## What an Output Parser Is
+
+The [previous post](/genai-langchain/ch5-structured-output) showed how to get data instead of prose from a model, using `with_structured_output`. It ended with a model that couldn't do it: `allam-2-7b` refused both tool calling and JSON schema mode, and its JSON mode answers sometimes broke the schema.
+
+For models like that, there is another way. You **ask for the format in the prompt**, let the model reply with plain text, and then a small helper class turns that text into the shape you want. That helper is an **output parser**.
+
+An output parser does two jobs:
+
+1. **Before the call:** it can tell you what to add to the prompt so the model knows the format ("return a JSON object with these keys"). These words are called **format instructions**.
+2. **After the call:** it takes the model's reply and converts it: into a plain string, a dictionary, or a validated object.
+
+Output parsers also work with models that *do* support structured output. They're just a different tool, and one of them (the string parser) is used in almost every LangChain program you will write.
+
+This post covers three parsers, from simplest to strictest:
+
+| Parser | Gives you | Checks the shape? | Checks the types and rules? |
+|---|---|---|---|
+| `StrOutputParser` | a plain string | not needed | not needed |
+| `JsonOutputParser` | a dictionary | no (or only guides the model) | no |
+| `PydanticOutputParser` | a validated object | yes | yes |
+
+**Setup.** Same as the last post: Groq's free tier running `openai/gpt-oss-20b`, with `GROQ_API_KEY` in `.env`. All three parsers live in `langchain-core`, which is installed together with LangChain, so there is nothing new to install. These examples ran on LangChain 1.4.7 (langchain-core 1.7.3, langchain-groq 1.1.3, Pydantic 2.14) and LangChain.js with @langchain/core 1.3.2.
+
+> **A parser that no longer exists.** Older tutorials use a fourth parser, `StructuredOutputParser` with `ResponseSchema`, imported from `langchain.output_parsers`. In LangChain 1.x that import is gone from Python; the class survives only in a separate legacy package. This course doesn't use legacy code, and you won't miss it: its job (describe the fields you want) is done by `JsonOutputParser` with a Pydantic class, and by `PydanticOutputParser`, both below.
+
+## `StrOutputParser`: Just the Text
+
+Every time you call a chat model, you get back an **AIMessage** object, not a string. The reply text is inside it, in the `.content` attribute, next to a pile of metadata: token counts, the model name, why the model stopped. You have seen this in earlier posts and pulled the text out with `result.content`.
+
+The string output parser does exactly that: it takes the AIMessage and gives you only the text as a string. That's all it does. So why does it exist, when `result.content` is one line?
+
+Because of **chains**. A **chain** is a pipeline: the output of one step becomes the input of the next. In LangChain you build one with the `|` symbol (in JavaScript, with `.pipe()`). To see why the parser matters, take a two-step job:
+
+1. Ask the model for a detailed report on a topic.
+2. Send that report back to the model and ask for a 5 line summary.
+
+### Without a parser
+
+You do every hand-off yourself:
+
+<CodeTabs>
+
+```python
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+template1 = PromptTemplate(
+    template="Write a detailed report on {topic}",
+    input_variables=["topic"],
+)
+template2 = PromptTemplate(
+    template="Write a 5 line summary on the following text.\n{text}",
+    input_variables=["text"],
+)
+
+prompt1 = template1.invoke({"topic": "black hole"})
+result1 = model.invoke(prompt1)
+print(type(result1))
+print(result1.content[:80].replace("\n", " "), "...")
+
+prompt2 = template2.invoke({"text": result1.content})
+result2 = model.invoke(prompt2)
+print(result2.content)
+```
+
+```js
+import "dotenv/config";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+const template1 = new PromptTemplate({
+  template: "Write a detailed report on {topic}",
+  inputVariables: ["topic"],
+});
+const template2 = new PromptTemplate({
+  template: "Write a 5 line summary on the following text.\n{text}",
+  inputVariables: ["text"],
+});
+
+const prompt1 = await template1.invoke({ topic: "black hole" });
+const result1 = await model.invoke(prompt1);
+console.log(result1.constructor.name);
+console.log(result1.content.slice(0, 80).replace(/\n/g, " "), "...");
+
+const prompt2 = await template2.invoke({ text: result1.content });
+const result2 = await model.invoke(prompt2);
+console.log(result2.content);
+```
+
+</CodeTabs>
+
+```
+<class 'langchain_core.messages.ai.AIMessage'>
+# Black Holes – A Comprehensive Report  **Prepared for:** [Name/Institution]   * ...
+Black holes are regions of spacetime predicted by General Relativity where gravity is so strong that nothing, not even light, can escape once it crosses the event horizon.
+Their theoretical description begins with the Schwarzschild solution and expands to rotating (Kerr) and charged (Reissner–Nordström) metrics, ...
+...
+```
+
+(The JavaScript version prints `AIMessage` on the first line instead of the Python class path.) It works, but look at the manual steps: build prompt 1, call the model, dig `.content` out of the result, build prompt 2 with it, call the model again, dig `.content` out again.
+
+### With a parser and a chain
+
+Add `StrOutputParser` after each model call, and the whole thing becomes one chain:
+
+<CodeTabs>
+
+```python
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="openai/gpt-oss-20b")
+parser = StrOutputParser()
+
+template1 = PromptTemplate(
+    template="Write a detailed report on {topic}",
+    input_variables=["topic"],
+)
+template2 = PromptTemplate(
+    template="Write a 5 line summary on the following text.\n{text}",
+    input_variables=["text"],
+)
+
+chain = template1 | model | parser | template2 | model | parser
+result = chain.invoke({"topic": "black hole"})
+print(isinstance(result, str))
+print(result)
+```
+
+```js
+import "dotenv/config";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+const parser = new StringOutputParser();
+
+const template1 = new PromptTemplate({
+  template: "Write a detailed report on {topic}",
+  inputVariables: ["topic"],
+});
+const template2 = new PromptTemplate({
+  template: "Write a 5 line summary on the following text.\n{text}",
+  inputVariables: ["text"],
+});
+
+const chain = template1
+  .pipe(model)
+  .pipe(parser)
+  .pipe((text) => ({ text })) // wrap the string so template2 can fill {text}
+  .pipe(template2)
+  .pipe(model)
+  .pipe(parser);
+
+const result = await chain.invoke({ topic: "black hole" });
+console.log(typeof result);
+console.log(result);
+```
+
+</CodeTabs>
+
+```
+True
+Black holes are regions of spacetime where gravity prevents any escape, confirmed by observations from X‑ray binaries to supermassive black holes at galactic centers.
+...
+```
+
+Read the Python chain from left to right as a pipeline:
+
+1. `template1` fills the topic into the first prompt.
+2. `model` writes the report. Its reply is an AIMessage.
+3. `parser` pulls the text out of the AIMessage, so what flows forward is a plain string.
+4. `template2` puts that string into the second prompt.
+5. `model` writes the summary, and `parser` returns it as a string.
+
+The parser in the middle is what makes this possible. Without it, the second prompt would get a whole AIMessage, metadata and all, instead of just the report text. With it, one `chain.invoke(...)` call replaces all the manual steps.
+
+Two details differ in JavaScript:
+
+- **The extra `.pipe((text) => ({ text }))` step.** A JavaScript prompt template always wants an object like `{ text: "..." }`. Python is relaxed: if a template has exactly one variable, it accepts a bare string. In JavaScript you wrap the string yourself with a small function. Any plain function can be a step in a chain.
+- **`StringOutputParser`.** The JavaScript class has a slightly longer name than Python's `StrOutputParser`. Same job.
+
+> **This works with any model.** Swap `ChatGroq` for OpenAI, Anthropic, Gemini, or a model running on your own machine, and the chain stays the same. The parser only looks at the AIMessage, and every chat model returns one.
+
+## `JsonOutputParser`: Getting a Dictionary
+
+The JSON parser does two things: it adds the words "return a JSON object" to your prompt (the format instructions), and it converts the reply into a **dictionary** (Python) or **object** (JavaScript) you can read with `result["name"]`.
+
+The format instructions go into the prompt through a **partial variable**. A normal template variable like `{topic}` is filled in when you call `invoke`. A partial variable is filled in *earlier*, when you build the template, because its value is already known. The parser knows its own format instructions, so that fits.
+
+<CodeTabs>
+
+```python
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="openai/gpt-oss-20b")
+parser = JsonOutputParser()
+
+template = PromptTemplate(
+    template="Give me 3 facts about {topic}.\n{format_instructions}",
+    input_variables=["topic"],
+    partial_variables={"format_instructions": parser.get_format_instructions()},
+)
+
+print(template.invoke({"topic": "black hole"}).to_string())
+
+chain = template | model | parser
+result = chain.invoke({"topic": "black hole"})
+print(type(result))
+print(result)
+```
+
+```js
+import "dotenv/config";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { JsonOutputParser } from "@langchain/core/output_parsers";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+const parser = new JsonOutputParser();
+
+// In JavaScript this parser returns no format instructions (the string is empty),
+// so we write the instruction in the prompt ourselves.
+const template = new PromptTemplate({
+  template: "Give me 3 facts about {topic}.\nReturn a JSON object.",
+  inputVariables: ["topic"],
+});
+
+const chain = template.pipe(model).pipe(parser);
+const result = await chain.invoke({ topic: "black hole" });
+console.log(typeof result);
+console.log(result);
+```
+
+</CodeTabs>
+
+```
+Give me 3 facts about black hole.
+Return a JSON object.
+<class 'dict'>
+{'facts': ['Black holes are formed when massive stars collapse under their own gravity, creating a singularity surrounded by an event horizon.', "The size of a black hole's event horizon, known as the Schwarzschild radius, is directly proportional to its mass: r_s = 2GM/c^2.", 'Hawking radiation predicts that black holes emit thermal radiation, which implies they can gradually evaporate over astronomical timescales.']}
+```
+
+The first two lines are the real prompt that was sent, so you can see where the format instructions landed: "Return a JSON object." was added by `get_format_instructions()`. The JavaScript run printed `object` and a result with the same shape, a `facts` key holding a list.
+
+Notice the **shape** the model chose: one key, `facts`, holding a list of three strings. You never asked for that. This is the weakness of the plain JSON parser: **it makes the model return JSON, but it can't say what the JSON looks like**. If you wanted `fact_1`, `fact_2`, `fact_3` as separate keys, writing it in the prompt only asks nicely. Run it twice and the keys may differ, and your code that reads `result["fact_1"]` breaks.
+
+### Giving the JSON a shape
+
+In Python, the fix is to hand the parser a **Pydantic class** that describes the fields you want. (Pydantic was introduced in the previous post: a class that declares fields and their types.) The parser puts the class's schema into the format instructions, so the model sees exactly which keys to use:
+
+<CodeTabs>
+
+```python
+from pydantic import BaseModel, Field
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+class Facts(BaseModel):
+    fact_1: str = Field(description="Fact 1 about the topic")
+    fact_2: str = Field(description="Fact 2 about the topic")
+    fact_3: str = Field(description="Fact 3 about the topic")
+
+parser = JsonOutputParser(pydantic_object=Facts)
+
+template = PromptTemplate(
+    template="Give me 3 facts about {topic}.\n{format_instructions}",
+    input_variables=["topic"],
+    partial_variables={"format_instructions": parser.get_format_instructions()},
+)
+
+chain = template | model | parser
+print(chain.invoke({"topic": "black hole"}))
+```
+
+```js
+import "dotenv/config";
+import * as z from "zod";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StructuredOutputParser } from "@langchain/core/output_parsers";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+const Facts = z.object({
+  fact_1: z.string().describe("Fact 1 about the topic"),
+  fact_2: z.string().describe("Fact 2 about the topic"),
+  fact_3: z.string().describe("Fact 3 about the topic"),
+});
+
+const parser = StructuredOutputParser.fromZodSchema(Facts);
+
+const template = new PromptTemplate({
+  template: "Give me 3 facts about {topic}.\n{format_instructions}",
+  inputVariables: ["topic"],
+  partialVariables: { format_instructions: parser.getFormatInstructions() },
+});
+
+const chain = template.pipe(model).pipe(parser);
+console.log(await chain.invoke({ topic: "black hole" }));
+```
+
+</CodeTabs>
+
+```
+{'fact_1': "A black hole's gravity is so strong that not even light can escape once it crosses the event horizon.", 'fact_2': 'The size of a black hole is described by its Schwarzschild radius, which is proportional to its mass.', 'fact_3': 'Black holes can emit Hawking radiation, a theoretical process that allows them to lose mass over time.'}
+```
+
+Now the keys are exactly the ones you declared. The JavaScript run gave the same three keys.
+
+The two tabs use different classes, on purpose. JavaScript's `JsonOutputParser` takes no schema at all, so the JavaScript tool for "JSON with a shape" is `StructuredOutputParser.fromZodSchema`, which takes a Zod schema (Zod is JavaScript's Pydantic, from the last post). That one also *checks* the reply against the schema, which is the next idea.
+
+The Python version above still doesn't check anything. `JsonOutputParser(pydantic_object=Facts)` only uses the class to write better instructions. If the model ignored them, you'd still get whatever dictionary it produced. For checking, you need the last parser.
+
+## `PydanticOutputParser`: Validating the Reply
+
+Describing a shape doesn't guarantee the model follows it. A model can return an age as `"35 years"` where you wanted the number `35`, or a number that breaks your rules. **Validation** means checking the reply against your rules, and refusing it if it doesn't fit. Pydantic is built for exactly that, and `PydanticOutputParser` brings it to model replies.
+
+The task: a fictional person with a `name`, an `age`, and a `city`, where the age must be an integer **greater than 18**.
+
+<CodeTabs>
+
+```python
+from pydantic import BaseModel, Field
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import PydanticOutputParser
+from dotenv import load_dotenv
+
+load_dotenv()
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+class Person(BaseModel):
+    name: str = Field(description="Name of the person")
+    age: int = Field(gt=18, description="Age of the person")
+    city: str = Field(description="Name of the city the person belongs to")
+
+parser = PydanticOutputParser(pydantic_object=Person)
+
+template = PromptTemplate(
+    template="Generate the name, age and city of a fictional {place} person.\n{format_instructions}",
+    input_variables=["place"],
+    partial_variables={"format_instructions": parser.get_format_instructions()},
+)
+
+print(template.invoke({"place": "Sri Lankan"}).to_string())
+
+chain = template | model | parser
+result = chain.invoke({"place": "Sri Lankan"})
+print(type(result).__name__)
+print(result)
+print(result.name, result.age, result.city)
+```
+
+```js
+import "dotenv/config";
+import * as z from "zod";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StructuredOutputParser } from "@langchain/core/output_parsers";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+const Person = z.object({
+  name: z.string().describe("Name of the person"),
+  age: z.number().int().gt(18).describe("Age of the person"),
+  city: z.string().describe("Name of the city the person belongs to"),
+});
+
+const parser = StructuredOutputParser.fromZodSchema(Person);
+
+const template = new PromptTemplate({
+  template: "Generate the name, age and city of a fictional {place} person.\n{format_instructions}",
+  inputVariables: ["place"],
+  partialVariables: { format_instructions: parser.getFormatInstructions() },
+});
+
+console.log((await template.invoke({ place: "Sri Lankan" })).toString());
+
+const chain = template.pipe(model).pipe(parser);
+const result = await chain.invoke({ place: "Sri Lankan" });
+console.log(typeof result);
+console.log(result);
+console.log(result.name, result.age, result.city);
+```
+
+</CodeTabs>
+
+````
+Generate the name, age and city of a fictional Sri Lankan person.
+The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"name": {"description": "Name of the person", "title": "Name", "type": "string"}, "age": {"description": "Age of the person", "exclusiveMinimum": 18, "title": "Age", "type": "integer"}, "city": {"description": "Name of the city the person belongs to", "title": "City", "type": "string"}}, "required": ["name", "age", "city"]}
+```
+Person
+name='Lakshman Perera' age=34 city='Colombo'
+Lakshman Perera 34 Colombo
+````
+
+The printed prompt is worth reading once, because it is everything the model gets. Your sentence comes first. Then the parser adds a block explaining what JSON Schema is, with a tiny example, and finally the **schema of your `Person` class**: three fields, their descriptions, `"required"`, and your rule as `"exclusiveMinimum": 18`. The model reads all of this and tries to answer in that shape.
+
+What comes back is a real `Person` object in Python, so `result.age` is an `int`. In JavaScript it is a plain object, and the JavaScript run printed `object` with the same three fields. The JavaScript prompt wording differs a little, but the idea is identical.
+
+### What validation looks like when the reply is wrong
+
+A well-behaved model rarely breaks a rule it can read, so to see validation work you can hand the parsers a bad reply directly. Here is a reply with `"age": 16`, which breaks the rule `age > 18`:
+
+<CodeTabs>
+
+```python
+from pydantic import BaseModel, Field
+from langchain_core.output_parsers import JsonOutputParser, PydanticOutputParser
+
+class Person(BaseModel):
+    name: str = Field(description="Name of the person")
+    age: int = Field(gt=18, description="Age of the person")
+    city: str = Field(description="Name of the city the person belongs to")
+
+bad_reply = '{"name": "Ravi", "age": 16, "city": "Pune"}'
+
+print(JsonOutputParser(pydantic_object=Person).parse(bad_reply))
+
+try:
+    PydanticOutputParser(pydantic_object=Person).parse(bad_reply)
+except Exception as e:
+    print(type(e).__name__)
+    print(e)
+```
+
+```js
+import * as z from "zod";
+import { JsonOutputParser, StructuredOutputParser } from "@langchain/core/output_parsers";
+
+const Person = z.object({
+  name: z.string(),
+  age: z.number().int().gt(18),
+  city: z.string(),
+});
+
+const badReply = '{"name": "Ravi", "age": 16, "city": "Pune"}';
+
+console.log(await new JsonOutputParser().parse(badReply));
+
+try {
+  await StructuredOutputParser.fromZodSchema(Person).parse(badReply);
+} catch (e) {
+  console.log(e.constructor.name);
+  console.log(e.message);
+}
+```
+
+</CodeTabs>
+
+```
+{'name': 'Ravi', 'age': 16, 'city': 'Pune'}
+OutputParserException
+Failed to parse Person from completion {"name": "Ravi", "age": 16, "city": "Pune"}. Got: 1 validation error for Person
+age
+  Input should be greater than 18 [type=greater_than, input_value=16, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.14/v/greater_than
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langchain/errors/OUTPUT_PARSING_FAILURE
+```
+
+The JSON parser happily returns the dictionary with an age of 16. The Pydantic parser refuses it and raises an **`OutputParserException`** that says exactly which field broke which rule. That is the point: bad data stops at the parser instead of travelling into your database. (The JavaScript run raised the same `OutputParserException`, with a Zod message saying the number is too small.)
+
+A word of caution about small models. This post's demos use `gpt-oss-20b`. When the same Pydantic example was run on `allam-2-7b`, the model from the end of the last post, Python worked in both runs, but the JavaScript version failed in all four runs: the model copied the *schema* from the instructions back into its reply instead of filling it in, and the parser rejected that. Parsers can only convert what the model sends. A weak model plus a strict parser means more exceptions, and that's the correct behaviour.
+
+## Which Parser to Use
+
+| Situation | Use |
+|---|---|
+| You want the reply as text, or you are chaining steps | `StrOutputParser` |
+| You want JSON quickly and don't mind the model choosing the shape | `JsonOutputParser` |
+| You want JSON with fixed keys (Python), nudging the model but not checking | `JsonOutputParser(pydantic_object=...)` |
+| You want fixed keys **and** type and rule checks | `PydanticOutputParser` (Python), `StructuredOutputParser.fromZodSchema` (JavaScript) |
+| The model supports structured output and you want the least code | `with_structured_output` from the last post |
+
+On modern models, `with_structured_output` is usually the better choice for structured data, because the provider enforces the format on its side. Parsers earn their place in three cases: **string output in chains** (very common), **models that can't do structured output**, and any time you want to see and control exactly what goes into the prompt.
+
+Parsers are written in the same style as everything else in a chain, so you can swap one for another without touching the rest of the pipeline: `template | model | parser`.
+
+LangChain has more parsers in `langchain-core` than the three here, for example `CommaSeparatedListOutputParser`, `MarkdownListOutputParser`, `NumberedListOutputParser` and `XMLOutputParser`. They all follow the same pattern (format instructions in, converted data out), so once you know these three, the rest are easy to pick up from the documentation.
+
+## Summary
+
+| Topic | What to remember |
+|---|---|
+| **Output parser** | A class that turns a model's text reply into something usable, and can supply the format instructions for the prompt |
+| **Format instructions** | Words added to the prompt that describe the format. `parser.get_format_instructions()` writes them; add them with a partial variable |
+| **Partial variable** | A template variable filled in when the template is built, not when it's invoked |
+| **`StrOutputParser`** | AIMessage in, plain string out. Its real use is inside chains, so the next step receives text. JavaScript: `StringOutputParser`, and a one-variable template needs `{ text }` wrapping |
+| **Chains** | `template \| model \| parser` runs the steps in order (JavaScript: `.pipe()`). Always call `chain.invoke({...})` with a dictionary, even an empty one |
+| **`JsonOutputParser`** | Returns a dictionary. The model chooses the shape unless you pass a Pydantic class (Python), which only guides it. The JavaScript version adds no format instructions, so write them yourself |
+| **`PydanticOutputParser`** | Checks the reply against a Pydantic class: types, rules like `gt=18`. A bad reply raises `OutputParserException`. JavaScript: `StructuredOutputParser.fromZodSchema` |
+| **Legacy parser** | `StructuredOutputParser` + `ResponseSchema` from `langchain.output_parsers` is gone in Python 1.x; use the Pydantic classes instead |
+| **When to use parsers** | Chains of text steps, models without structured output, or full control of the prompt. Otherwise `with_structured_output` |
