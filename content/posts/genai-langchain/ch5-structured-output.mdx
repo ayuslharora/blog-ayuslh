@@ -69,7 +69,18 @@ These examples were run on LangChain 1.4.7 (langchain-core 1.7.1, langchain-groq
 The workflow from the earlier posts barely changes. Before, you called `model.invoke(...)`. Now you first call `model.with_structured_output(schema)`, passing a description of the data format you want, and invoke what it returns:
 
 ```python
-structured_model = model.with_structured_output(Review)   # Review describes the format
+from typing import TypedDict
+from langchain.chat_models import init_chat_model
+
+class Review(TypedDict):          # Review describes the format
+    """Structured analysis of a product review."""
+    summary: str
+    sentiment: str
+
+model = init_chat_model("groq:openai/gpt-oss-20b")
+review_text = "The phone is fast and the camera is great."
+
+structured_model = model.with_structured_output(Review)
 result = structured_model.invoke(review_text)              # result follows that format
 ```
 
