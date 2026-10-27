@@ -33,7 +33,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const categories = getAllCategories();
 
-  // Theme init script to prevent FOUC
+  // Theme init script to prevent FOUC. Also restores the reader's
+  // Python/JavaScript choice for <CodeTabs> blocks, for the same reason.
   const themeInitScript = `
     (function() {
       try {
@@ -41,6 +42,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         var isDark = localTheme === 'dark' || (!localTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
         if (isDark) {
           document.documentElement.classList.add('dark');
+        }
+        var codeLang = window.localStorage.getItem('code-lang');
+        if (codeLang) {
+          document.documentElement.setAttribute('data-code-lang', codeLang);
         }
       } catch (e) {}
     })();

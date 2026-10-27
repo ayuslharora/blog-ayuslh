@@ -92,6 +92,7 @@ import DbscanExplorer from '../../../components/DbscanExplorer';
 import TableOfContents from '../../../components/TableOfContents';
 import RelatedPosts from '../../../components/RelatedPosts';
 import MdxImage from '../../../components/MdxImage';
+import CodeTabs from '../../../components/CodeTabs';
 import KatexCopyFix from '../../../components/KatexCopyFix';
 
 // Chapters with this many H2 sections or more get an in-page table of
@@ -215,6 +216,7 @@ export default async function PostPage({
             MtuMssDiagram,
             RequestFlowDiagram,
             PdfChatFlowDiagram,
+            CodeTabs,
             DatabaseArchitectureDiagram,
             LoadBalancerDiagram,
             DatabaseReplicationDiagram,
