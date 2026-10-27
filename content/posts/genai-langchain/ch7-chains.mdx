@@ -1,0 +1,782 @@
+---
+title: "Ch.7: Chains in LangChain: Sequential, Parallel, and Conditional"
+description: "Connecting prompt, model, and parser into one pipeline: why chains exist, the simple chain with the pipe operator, a sequential chain with two model calls, a parallel chain with RunnableParallel, and a conditional chain with RunnableBranch, including why a classifier's output must be structured and why the branch needs the original text too."
+date: "2026-11-01T03:50:00+05:30"
+tags: ["generative-ai", "langchain", "llm", "chains", "runnables", "lcel"]
+subtopic: "LangChain Fundamentals"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=5hjrPILA3-8)
+
+## Why Chains Exist
+
+So far this course has covered three building blocks: **models** (talking to an AI model), **prompts** (the input you send it), and **parsers** (turning its reply into something usable). Each one worked on its own. But a real application is made of several of these steps, one after another.
+
+Take the smallest chat app you can imagine:
+
+1. Ask the user for a topic and fill it into a prompt.
+2. Send that prompt to the model.
+3. Take the model's reply and show it to the user.
+
+Even this has three steps. And so far you have been doing every hand-off yourself: call the template's `invoke`, take the result and pass it to `model.invoke`, dig the text out of the reply, print it. That is manual work, and it grows with every step you add.
+
+A **chain** removes the manual work. You connect the steps into a **pipeline**, and the output of each step automatically becomes the input of the next:
+
+```
+input → step 1 → step 2 → step 3 → final output
+```
+
+Once the pipeline is built, you give input to the first step only and trigger it. Step 1 runs, its output flows into step 2, step 2's output flows into step 3, and you get the last output back. You never touch the steps in between.
+
+That is the first benefit. The second is that a chain doesn't have to be a straight line. This post builds four chains, from simple to complex:
+
+| Chain | Shape | Example in this post |
+|---|---|---|
+| **Simple** | one straight line | topic → prompt → model → parser |
+| **Sequential** | a longer straight line, with several model calls | topic → report → summary of the report |
+| **Parallel** | the line splits, runs both branches at the same time, then joins | text → (notes + quiz at once) → merged document |
+| **Conditional** | the line forks, and only one of the paths runs | feedback → positive or negative? → matching reply |
+
+If you can build these four, you can assemble almost any LLM application out of them.
+
+**Setup.** Same as the last posts: Groq's free tier with `GROQ_API_KEY` in `.env`, and `openai/gpt-oss-20b` as the main model. The parallel example also uses a second model, `openai/gpt-oss-120b`. Everything here lives in `langchain-core`, which comes with LangChain, so nothing new is needed to install, except one small package (`grandalf`) if you want to draw a chain as text in Python (explained below). These examples ran on LangChain 1.4.7 (langchain-core 1.7.3, langchain-groq 1.1.3) and LangChain.js with @langchain/core 1.3.2.
+
+## The Simple Chain
+
+The [previous post](/genai-langchain/ch6-output-parsers) used a chain briefly to show why `StrOutputParser` matters. Here is the idea on its own. The app: the user gives a topic, and the model returns five interesting facts about it.
+
+You already have all three parts: a prompt template, a model, and a string parser (it turns the model's reply object into plain text). Connect them with the **pipe** symbol `|`:
+
+<CodeTabs>
+
+```python
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from dotenv import load_dotenv
+
+load_dotenv()
+
+prompt = PromptTemplate(
+    template="Generate 5 interesting facts about {topic}",
+    input_variables=["topic"],
+)
+model = ChatGroq(model="openai/gpt-oss-20b")
+parser = StrOutputParser()
+
+chain = prompt | model | parser
+
+result = chain.invoke({"topic": "cricket"})
+print(result)
+```
+
+```js
+import "dotenv/config";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+
+const prompt = new PromptTemplate({
+  template: "Generate 5 interesting facts about {topic}",
+  inputVariables: ["topic"],
+});
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+const parser = new StringOutputParser();
+
+const chain = prompt.pipe(model).pipe(parser);
+
+const result = await chain.invoke({ topic: "cricket" });
+console.log(result);
+```
+
+</CodeTabs>
+
+```
+Here are five intriguing nuggets about cricket (the sport):
+
+1. **The Ashes’ Origin**
+   After England’s shocking 1882 loss to Australia at The Oval, ...
+...
+```
+
+(The JavaScript run printed a different set of facts, because the model answers differently each time. The shape is the same.)
+
+The single line `chain = prompt | model | parser` is the whole chain. Read it left to right: the prompt is filled, its result goes to the model, the model's reply goes to the parser, and the parser's string comes out. When you call `chain.invoke({"topic": "cricket"})`, you pass only what the **first** step needs (the prompt needs a `topic`). Compare this with the manual way: no separate prompt call, no separate model call, no digging the text out of the reply. All of it happens inside that one `invoke`.
+
+This way of connecting pieces with `|` has a name: the **LangChain Expression Language**, or **LCEL**. You will see that name in docs and older tutorials. The next post explains how it works under the hood. For now, `|` means "send my output to the next step".
+
+### Looking at the chain
+
+You can ask a chain to draw itself. This is handy later when chains get bigger:
+
+<CodeTabs>
+
+```python
+chain.get_graph().print_ascii()
+```
+
+```js
+console.log((await chain.getGraph()).drawMermaid());
+```
+
+</CodeTabs>
+
+```
+     +-------------+
+     | PromptInput |
+     +-------------+
+            *
+            *
+            *
+    +----------------+
+    | PromptTemplate |
+    +----------------+
+            *
+            *
+            *
+      +----------+
+      | ChatGroq |
+      +----------+
+            *
+            *
+            *
+   +-----------------+
+   | StrOutputParser |
+   +-----------------+
+            *
+            *
+            *
++-----------------------+
+| StrOutputParserOutput |
++-----------------------+
+```
+
+Python draws boxes in the terminal. This needs a small extra package, `grandalf` (`pip install grandalf`), which does the drawing layout. JavaScript has no text-box drawer, so `drawMermaid()` prints the chain in **Mermaid**, a text format for diagrams that many tools (including GitHub) can render. The JavaScript output is a list of the same nodes and arrows, not shown here.
+
+The labels are the steps in order: the input, the prompt template, the model (`ChatGroq`), the parser, and the output.
+
+## The Sequential Chain
+
+A **sequential chain** is the same idea with more steps, including more than one model call. The app: the user gives a topic, the model writes a detailed report on it, and then the model reads its own report and boils it down to five key points.
+
+This is the same two-call job as in the last post. It needs two prompts, because the second one takes the first one's result as its input:
+
+<CodeTabs>
+
+```python
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from dotenv import load_dotenv
+
+load_dotenv()
+
+prompt1 = PromptTemplate(
+    template="Generate a detailed report on {topic}",
+    input_variables=["topic"],
+)
+prompt2 = PromptTemplate(
+    template="Generate a 5 pointer summary from the following text \n {text}",
+    input_variables=["text"],
+)
+model = ChatGroq(model="openai/gpt-oss-20b")
+parser = StrOutputParser()
+
+chain = prompt1 | model | parser | prompt2 | model | parser
+
+result = chain.invoke({"topic": "Unemployment in India"})
+print(result)
+```
+
+```js
+import "dotenv/config";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+
+const prompt1 = new PromptTemplate({
+  template: "Generate a detailed report on {topic}",
+  inputVariables: ["topic"],
+});
+const prompt2 = new PromptTemplate({
+  template: "Generate a 5 pointer summary from the following text \n {text}",
+  inputVariables: ["text"],
+});
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+const parser = new StringOutputParser();
+
+const chain = prompt1
+  .pipe(model)
+  .pipe(parser)
+  .pipe((text) => ({ text })) // wrap the string so prompt2 can fill {text}
+  .pipe(prompt2)
+  .pipe(model)
+  .pipe(parser);
+
+const result = await chain.invoke({ topic: "Unemployment in India" });
+console.log(result);
+```
+
+</CodeTabs>
+
+```
+**5‑Point Summary – India’s 2024 Unemployment Landscape**
+
+1. **National Trend** – The seasonally‑adjusted unemployment rate has eased to ...
+2. **Youth & Gender Gap** – ...
+3. **Informality Dominance** – ...
+4. **Regional Disparities** – ...
+5. **Drivers & Policy Levers** – ...
+```
+
+Follow the data through the six steps:
+
+1. `prompt1` fills in the topic.
+2. `model` writes the detailed report.
+3. `parser` turns the reply into a plain string. This step matters: without it, `prompt2` would receive a whole reply object with metadata instead of the report text.
+4. `prompt2` puts that report text into the summary prompt. Its variable is `text`.
+5. `model` runs a second time and writes the summary.
+6. `parser` turns that reply into the final string.
+
+The same `model` and `parser` objects appear twice in the line. That is fine: a step is just a worker, and you can place it at several points of the pipeline. (JavaScript needs the small `.pipe((text) => ({ text }))` step again, for the reason explained in the last post: a JavaScript template wants an object, not a bare string.)
+
+You can keep adding `| prompt | model | parser` for as many rounds as you need. That is all "a long sequential chain" means. The chain drawing for this one is just the simple chain's boxes repeated twice.
+
+## The Parallel Chain
+
+Sometimes two jobs don't depend on each other. If both start from the same input, there is no reason to wait for one before starting the other. You can run them **in parallel**, meaning at the same time, and then combine the results.
+
+The app: the user pastes a long text (we will use a short passage about Support Vector Machines, a machine learning algorithm). From that one text we want two things:
+
+- **Notes** on the text.
+- A **quiz** of five short question-and-answer pairs.
+
+Then a third step **merges** the notes and quiz into a single document. The architecture:
+
+```
+            ┌→ prompt 1 → model 1 → parser ─ notes ┐
+text ───────┤                                      ├→ prompt 3 → model → parser → document
+            └→ prompt 2 → model 2 → parser ─ quiz ─┘
+```
+
+A chain can mix models, even from different providers. Here the two branches use two different Groq models, `gpt-oss-20b` for the notes and the bigger `gpt-oss-120b` for the quiz. If you have keys for other providers, swap in `ChatOpenAI`, `ChatAnthropic`, or any other chat model; the chain's shape doesn't change. (Check the provider's current model names in its docs; a wrong name is the most common error when copying one from an old tutorial.)
+
+### What `RunnableParallel` is
+
+The tool for running chains side by side is `RunnableParallel`. You haven't met the word **runnable** yet, so here is the short version: a **runnable** is anything LangChain can run with `invoke`, and anything that is a runnable can be connected with `|`. Prompt templates, models, and parsers are all runnables, and so are chains. `RunnableParallel` is a runnable whose job is to run several runnables at once. The next post covers runnables properly.
+
+You give it a dictionary. Each **key** is a name, and each **value** is a chain. It runs all the chains on the same input and returns a dictionary with the same keys, holding each chain's result:
+
+<CodeTabs>
+
+```python
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnableParallel
+from dotenv import load_dotenv
+
+load_dotenv()
+
+model1 = ChatGroq(model="openai/gpt-oss-20b")
+model2 = ChatGroq(model="openai/gpt-oss-120b")
+
+prompt1 = PromptTemplate(
+    template="Generate short and simple notes from the following text \n {text}",
+    input_variables=["text"],
+)
+prompt2 = PromptTemplate(
+    template="Generate 5 short question answers from the following text \n {text}",
+    input_variables=["text"],
+)
+prompt3 = PromptTemplate(
+    template="Merge the provided notes and quiz into a single document \n notes -> {notes} and quiz -> {quiz}",
+    input_variables=["notes", "quiz"],
+)
+parser = StrOutputParser()
+
+parallel_chain = RunnableParallel({
+    "notes": prompt1 | model1 | parser,
+    "quiz": prompt2 | model2 | parser,
+})
+merge_chain = prompt3 | model1 | parser
+chain = parallel_chain | merge_chain
+
+text = """
+Support Vector Machine (SVM) is a supervised machine learning algorithm used for classification and regression.
+It finds the hyperplane that separates the classes with the widest possible margin. The points closest to the
+hyperplane are called support vectors, and only they decide where the boundary goes. When the classes cannot be
+separated by a straight line, SVM uses a kernel to map the data into a higher dimension where a separating
+hyperplane exists. The parameter C controls the trade-off between a wide margin and misclassified training points.
+SVMs work well on high-dimensional data and small datasets, but training gets slow on very large datasets.
+"""
+
+parts = parallel_chain.invoke({"text": text})
+print(list(parts))
+print(parts["notes"][:150].replace("\n", " "), "...")
+print(parts["quiz"][:150].replace("\n", " "), "...")
+
+print("=" * 40)
+result = chain.invoke({"text": text})
+print(result)
+```
+
+```js
+import "dotenv/config";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { RunnableParallel } from "@langchain/core/runnables";
+
+const model1 = new ChatGroq({ model: "openai/gpt-oss-20b" });
+const model2 = new ChatGroq({ model: "openai/gpt-oss-120b" });
+
+const prompt1 = new PromptTemplate({
+  template: "Generate short and simple notes from the following text \n {text}",
+  inputVariables: ["text"],
+});
+const prompt2 = new PromptTemplate({
+  template: "Generate 5 short question answers from the following text \n {text}",
+  inputVariables: ["text"],
+});
+const prompt3 = new PromptTemplate({
+  template: "Merge the provided notes and quiz into a single document \n notes -> {notes} and quiz -> {quiz}",
+  inputVariables: ["notes", "quiz"],
+});
+const parser = new StringOutputParser();
+
+const parallelChain = RunnableParallel.from({
+  notes: prompt1.pipe(model1).pipe(parser),
+  quiz: prompt2.pipe(model2).pipe(parser),
+});
+const mergeChain = prompt3.pipe(model1).pipe(parser);
+const chain = parallelChain.pipe(mergeChain);
+
+const text = `
+Support Vector Machine (SVM) is a supervised machine learning algorithm used for classification and regression.
+It finds the hyperplane that separates the classes with the widest possible margin. The points closest to the
+hyperplane are called support vectors, and only they decide where the boundary goes. When the classes cannot be
+separated by a straight line, SVM uses a kernel to map the data into a higher dimension where a separating
+hyperplane exists. The parameter C controls the trade-off between a wide margin and misclassified training points.
+SVMs work well on high-dimensional data and small datasets, but training gets slow on very large datasets.
+`;
+
+const parts = await parallelChain.invoke({ text });
+console.log(Object.keys(parts));
+
+const result = await chain.invoke({ text });
+console.log(result);
+```
+
+</CodeTabs>
+
+```
+['notes', 'quiz']
+**Key Points – Support Vector Machine (SVM)**    - **Purpose**: Supervised learning for classification & regression.   - **Goal**: Find the hyperplane ...
+**1. What type of learning algorithm is SVM?**   *Answer:* A supervised machine‑learning algorithm used for classification and regression. **2. What  ...
+========================================
+# Support Vector Machine (SVM) – Consolidated Overview & Quiz
+
+---
+...
+```
+
+Three things in this code deserve a closer look.
+
+**The keys are not decoration.** `parallel_chain.invoke(...)` returns a dictionary `{"notes": "...", "quiz": "..."}`. That dictionary flows into `merge_chain`, whose first step is `prompt3`, and `prompt3` has two variables named `notes` and `quiz`. The names match, so the template fills itself. If you named the keys `a` and `b`, the merge prompt would fail with a missing-variable error. This is how a chain passes **several** values to the next step: as a dictionary whose keys are the next template's variable names.
+
+**Both branches get the same input.** The text goes into both `prompt1` and `prompt2`, and you give it once, as `{"text": text}`.
+
+**The two branches really run at the same time.** The total wait is about as long as the slower branch, not the sum of both. That is the point of using a parallel chain instead of two sequential steps.
+
+### Drawing it
+
+`chain.get_graph().print_ascii()` shows the fork and the join:
+
+```
+          +---------------------------+
+          | Parallel<notes,quiz>Input |
+          +---------------------------+
+                ***             ***
+              **                   **
+            **                       **
++----------------+              +----------------+
+| PromptTemplate |              | PromptTemplate |
++----------------+              +----------------+
+          *                             *
+          *                             *
+          *                             *
+    +----------+                  +----------+
+    | ChatGroq |                  | ChatGroq |
+    +----------+                  +----------+
+          *                             *
+          *                             *
+          *                             *
++-----------------+            +-----------------+
+| StrOutputParser |            | StrOutputParser |
++-----------------+            +-----------------+
+                ***             ***
+                   **         **
+                     **     **
+          +----------------------------+
+          | Parallel<notes,quiz>Output |
+          +----------------------------+
+                         *
+                         *
+                         *
+                +----------------+
+                | PromptTemplate |
+                +----------------+
+                         *
+                         *
+                         *
+                   +----------+
+                   | ChatGroq |
+                   +----------+
+                         *
+                         *
+                         *
+                +-----------------+
+                | StrOutputParser |
+                +-----------------+
+                         *
+                         *
+                         *
+            +-----------------------+
+            | StrOutputParserOutput |
+            +-----------------------+
+```
+
+Two lanes split at `Parallel<notes,quiz>Input`, each with its own prompt, model, and parser, then join at `Parallel<notes,quiz>Output`, and the merge chain continues from there. The labels also show your key names, `notes` and `quiz`.
+
+## The Conditional Chain
+
+The last shape: a **fork where only one path runs**. Parallel runs every branch. Conditional runs exactly one, decided by a condition, like `if` / `elif` / `else` in ordinary code.
+
+The app: a customer leaves feedback on a product. You first work out its **sentiment** (is it positive or negative?), then write a reply that fits:
+
+- positive feedback gets a "thank you for your kind words" style reply,
+- negative feedback gets an apologetic reply that offers help.
+
+```
+                         ┌→ (positive?) → prompt → model → parser ┐
+feedback → classifier ───┤                                        ├→ reply
+                         └→ (negative?) → prompt → model → parser ┘
+```
+
+You can see why this is not parallel: sending a thank-you note to an angry customer, in addition to the apology, would be wrong. Exactly one branch must run.
+
+> **A note on how far this goes.** A real support system would do more than write text. Positive feedback could trigger a "please rate us five stars" form, and negative feedback could email a support person automatically. That needs an **agent** that can use **tools**, which this course reaches later. For now the two branches only write a reply.
+
+### Step 1: the classifier, and why its output must be structured
+
+The first part of the chain is a classifier: feedback in, one word out (`positive` or `negative`). The natural first try:
+
+<CodeTabs>
+
+```python
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from dotenv import load_dotenv
+
+load_dotenv()
+
+prompt = PromptTemplate(
+    template="What is the sentiment of the following feedback text, positive or negative? \n {feedback}",
+    input_variables=["feedback"],
+)
+chain = prompt | ChatGroq(model="openai/gpt-oss-20b") | StrOutputParser()
+
+for feedback in [
+    "This is a terrible smartphone",
+    "The phone is okay, but the battery is awful",
+    "Not bad at all!",
+]:
+    print(repr(chain.invoke({"feedback": feedback})))
+```
+
+```js
+import "dotenv/config";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+
+const prompt = new PromptTemplate({
+  template: "What is the sentiment of the following feedback text, positive or negative? \n {feedback}",
+  inputVariables: ["feedback"],
+});
+const chain = prompt.pipe(new ChatGroq({ model: "openai/gpt-oss-20b" })).pipe(new StringOutputParser());
+
+for (const feedback of ["This is a terrible smartphone", "The phone is okay, but the battery is awful", "Not bad at all!"]) {
+  console.log(JSON.stringify(await chain.invoke({ feedback })));
+}
+```
+
+</CodeTabs>
+
+```
+'Negative.'
+'Negative.'
+'Positive.'
+```
+
+It classified all three correctly. But look at the exact strings: `'Negative.'` with a capital letter and a full stop. The next step will test the sentiment with something like `sentiment == "negative"`, and `"Negative."` is not equal to `"negative"`. Both branches would be skipped.
+
+The root cause: **you have no control over the exact words an LLM replies with.** Today it says `Negative.`, tomorrow `The sentiment is negative`, on another day `NEGATIVE`. The branch below depends on getting exactly one of two values, so the classifier's output has to be **structured**: forced into a fixed shape.
+
+The [structured output post](/genai-langchain/ch5-structured-output) gave you the tool: `with_structured_output` with a Pydantic class. Here the class has one field, whose type is a `Literal`, which means "only these exact values are allowed":
+
+<CodeTabs>
+
+```python
+from typing import Literal
+from pydantic import BaseModel, Field
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from dotenv import load_dotenv
+
+load_dotenv()
+
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+class Feedback(BaseModel):
+    sentiment: Literal["positive", "negative"] = Field(
+        description="Give the sentiment of the feedback"
+    )
+
+prompt1 = PromptTemplate(
+    template="Classify the sentiment of the following feedback text into positive or negative \n {feedback}",
+    input_variables=["feedback"],
+)
+
+classifier_chain = (
+    prompt1
+    | model.with_structured_output(Feedback)
+    | (lambda result: result.sentiment)
+)
+
+print(classifier_chain.invoke({"feedback": "This is a terrible smartphone"}))
+```
+
+```js
+import "dotenv/config";
+import * as z from "zod";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+const Feedback = z.object({
+  sentiment: z.enum(["positive", "negative"]).describe("Give the sentiment of the feedback"),
+});
+
+const prompt1 = new PromptTemplate({
+  template: "Classify the sentiment of the following feedback text into positive or negative \n {feedback}",
+  inputVariables: ["feedback"],
+});
+
+const classifierChain = prompt1
+  .pipe(model.withStructuredOutput(Feedback))
+  .pipe((result) => result.sentiment);
+
+console.log(await classifierChain.invoke({ feedback: "This is a terrible smartphone" }));
+```
+
+</CodeTabs>
+
+```
+negative
+```
+
+Now the answer is always exactly `positive` or `negative`, never a sentence. Two small details:
+
+- **The last step, `lambda result: result.sentiment`, is a plain function used as a chain step.** `with_structured_output` returns a `Feedback` object, and this step pulls out just the word. LangChain wraps a plain function into a runnable for you when it sits next to a runnable in a `|` chain.
+- **Output parsers can do this too.** The previous post's `PydanticOutputParser` achieves the same by writing the format into the prompt. `with_structured_output` is the shorter route on models that support it, which `gpt-oss-20b` does.
+
+### Step 2: the branches, and `RunnableBranch`
+
+Each branch is a small chain of its own: a prompt written for that sentiment, then the model, then the parser:
+
+```python
+prompt2 = PromptTemplate(
+    template="Write an appropriate response to this positive feedback \n {feedback}",
+    input_variables=["feedback"],
+)
+prompt3 = PromptTemplate(
+    template="Write an appropriate response to this negative feedback \n {feedback}",
+    input_variables=["feedback"],
+)
+```
+
+To choose between them, use **`RunnableBranch`**. You give it a list of `(condition, chain)` pairs. It checks the conditions **in order**, and runs the chain of the **first** one that is true. After the pairs comes one last item with no condition: the **default**, which runs if none of the conditions matched. This is `if` / `elif` / `else`, written as data:
+
+```python
+branch_chain = RunnableBranch(
+    (lambda x: x["sentiment"] == "positive", prompt2 | model | parser),
+    (lambda x: x["sentiment"] == "negative", prompt3 | model | parser),
+    RunnableLambda(lambda x: "could not find sentiment"),
+)
+```
+
+Each condition is a small function that gets the branch's input (`x`) and returns true or false. Here `x` is a dictionary and the condition reads its `sentiment` key.
+
+**Why the default is wrapped in `RunnableLambda`.** Every part of a chain has to be a runnable, and a bare function sitting alone in the tuple isn't one yet. `RunnableLambda` turns a plain function into a runnable. This default does no AI work; it just returns a fixed message. (With the structured classifier it can't actually be reached, but a branch always needs a default, and it is a good safety net.)
+
+### Step 3: don't lose the original feedback
+
+Here is a trap that is easy to miss. The classifier outputs only the word `negative`. But the branch's prompts need `{feedback}`, the customer's original text, to write a reply to. After the classifier runs, the original text is gone: only the word is left.
+
+The fix is to run the classifier and also **carry the original input along**. `RunnablePassthrough.assign` does exactly that: it passes its input through unchanged, and adds new keys computed from it.
+
+```python
+chain = RunnablePassthrough.assign(sentiment=classifier_chain) | branch_chain
+```
+
+Given `{"feedback": "..."}`, this produces `{"feedback": "...", "sentiment": "negative"}`: the original text **and** the classifier's verdict. The branch then reads `sentiment` to choose a path, and the chosen prompt reads `feedback` to write the reply. (Extra keys in the dictionary are ignored by a template that doesn't use them.)
+
+Putting it all together:
+
+<CodeTabs>
+
+```python
+from typing import Literal
+from pydantic import BaseModel, Field
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnableBranch, RunnableLambda, RunnablePassthrough
+from dotenv import load_dotenv
+
+load_dotenv()
+
+model = ChatGroq(model="openai/gpt-oss-20b")
+parser = StrOutputParser()
+
+class Feedback(BaseModel):
+    sentiment: Literal["positive", "negative"] = Field(
+        description="Give the sentiment of the feedback"
+    )
+
+prompt1 = PromptTemplate(
+    template="Classify the sentiment of the following feedback text into positive or negative \n {feedback}",
+    input_variables=["feedback"],
+)
+prompt2 = PromptTemplate(
+    template="Write an appropriate response to this positive feedback \n {feedback}",
+    input_variables=["feedback"],
+)
+prompt3 = PromptTemplate(
+    template="Write an appropriate response to this negative feedback \n {feedback}",
+    input_variables=["feedback"],
+)
+
+classifier_chain = (
+    prompt1
+    | model.with_structured_output(Feedback)
+    | (lambda result: result.sentiment)
+)
+
+branch_chain = RunnableBranch(
+    (lambda x: x["sentiment"] == "positive", prompt2 | model | parser),
+    (lambda x: x["sentiment"] == "negative", prompt3 | model | parser),
+    RunnableLambda(lambda x: "could not find sentiment"),
+)
+
+chain = RunnablePassthrough.assign(sentiment=classifier_chain) | branch_chain
+
+print(chain.invoke({"feedback": "This is a beautiful phone"}))
+print("-" * 40)
+print(chain.invoke({"feedback": "This is a terrible smartphone"}))
+```
+
+```js
+import "dotenv/config";
+import * as z from "zod";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { RunnableBranch, RunnableLambda, RunnablePassthrough } from "@langchain/core/runnables";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+const parser = new StringOutputParser();
+
+const Feedback = z.object({
+  sentiment: z.enum(["positive", "negative"]).describe("Give the sentiment of the feedback"),
+});
+
+const prompt1 = new PromptTemplate({
+  template: "Classify the sentiment of the following feedback text into positive or negative \n {feedback}",
+  inputVariables: ["feedback"],
+});
+const prompt2 = new PromptTemplate({
+  template: "Write an appropriate response to this positive feedback \n {feedback}",
+  inputVariables: ["feedback"],
+});
+const prompt3 = new PromptTemplate({
+  template: "Write an appropriate response to this negative feedback \n {feedback}",
+  inputVariables: ["feedback"],
+});
+
+const classifierChain = prompt1
+  .pipe(model.withStructuredOutput(Feedback))
+  .pipe((result) => result.sentiment);
+
+const branchChain = RunnableBranch.from([
+  [(x) => x.sentiment === "positive", prompt2.pipe(model).pipe(parser)],
+  [(x) => x.sentiment === "negative", prompt3.pipe(model).pipe(parser)],
+  RunnableLambda.from(() => "could not find sentiment"),
+]);
+
+const chain = RunnablePassthrough.assign({ sentiment: classifierChain }).pipe(branchChain);
+
+console.log(await chain.invoke({ feedback: "This is a beautiful phone" }));
+console.log("-".repeat(40));
+console.log(await chain.invoke({ feedback: "This is a terrible smartphone" }));
+```
+
+</CodeTabs>
+
+```
+Thank you so much for your kind words! We're thrilled to hear you love the phone. If you have any questions or need further assistance, feel free to let us know. Enjoy your new device!
+----------------------------------------
+Hi there,
+
+Thank you for taking the time to share your experience. I’m really sorry to hear that the phone hasn’t met your expectations. ...
+
+Again, I apologize for the inconvenience and appreciate your patience as we work to resolve this.
+
+Best regards,
+
+[Your Name]
+Customer Support Team
+[Company Name]
+```
+
+The positive feedback got a short thank-you; the negative feedback got an apology with follow-up questions. The same chain, two different paths. (The exact words differ run to run; the path chosen does not.)
+
+The JavaScript differences are small: `RunnableBranch.from([...])` takes a list instead of separate arguments, the pairs are two-item arrays, and `RunnablePassthrough.assign` takes an object.
+
+`chain.get_graph().print_ascii()` shows the branch as a single `Branch` box after the `Parallel<sentiment>` step that runs the classifier alongside the passthrough. That picture hides what is inside the branch, which is one reason bigger conditional workflows eventually move to a tool made for graphs of steps (next section).
+
+## Where Chains Stop
+
+The branch you just built is simple on purpose: a fixed pipeline with a fixed fork. Chains are the right tool when you know the steps in advance. When the steps depend on what happens along the way (loops, retries, agents deciding which tool to call), LangChain's current answer is **LangGraph**, the library under `create_agent` from the earlier posts. This course reaches it later; for now it is enough to know that chains are the simple, fixed-shape end of the same family.
+
+## Summary
+
+| Topic | What to remember |
+|---|---|
+| **Chain** | Steps connected so each step's output becomes the next step's input. Build it once, `invoke` it with only the first step's input |
+| **Pipe `\|`** | Connects steps (JavaScript: `.pipe()`). The style is called LCEL, the LangChain Expression Language |
+| **Simple chain** | `prompt \| model \| parser`: one straight line |
+| **Sequential chain** | A longer line with several model calls. A `StrOutputParser` between calls hands the next prompt plain text, not a reply object |
+| **`get_graph()`** | Draws a chain's steps. Python: `.print_ascii()` (needs `grandalf`). JavaScript: `.drawMermaid()` |
+| **Runnable** | Anything LangChain can `invoke` and connect with `\|`: prompts, models, parsers, chains. Explained fully next post |
+| **`RunnableParallel`** | Takes a dictionary of chains, runs them on the same input at the same time, returns a dictionary with the same keys. Those keys become the next template's variable names |
+| **Conditional chain** | Exactly one path runs, chosen by a condition |
+| **Structured classifier** | A router needs exact values. LLM text like `Negative.` breaks `== "negative"`, so force the output with `with_structured_output` and a `Literal` |
+| **`RunnableBranch`** | `(condition, chain)` pairs checked in order, then a default. It is `if / elif / else` |
+| **`RunnableLambda`** | Turns a plain function into a runnable, e.g. for the default branch |
+| **`RunnablePassthrough.assign`** | Keeps the original input and adds new keys, so a later step can use both the original text and the classifier's result |
