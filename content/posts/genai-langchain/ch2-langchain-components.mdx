@@ -25,7 +25,7 @@ This post zooms in on *how* the framework is organized. Almost all of LangChain 
 
 Understand these six and you understand most of LangChain, because every feature in the library belongs to one of them. They're also the roadmap for the rest of this series: each one gets its own detailed post later. So this post stays at the level of "what problem does this solve, and what does it look like," with small code examples to make each idea concrete.
 
-One note on versions. These six are the classic way LangChain was organized, and the ideas behind them are unchanged. In LangChain 1.x some of them live under different names (indexes are now documented as **retrieval**, memory lives inside an agent's state), and the code below uses the current APIs. Where a name has changed, the section says so.
+One note on versions. These six are the classic way LangChain was organized, and the ideas behind them are unchanged. In LangChain 1.x some of them live under different names (indexes are now documented as **retrieval**, memory lives inside an agent's state), and the code below uses the current APIs. Where a name has changed, the section says so. Every code sample comes in Python and JavaScript: pick one with the tabs above any sample and the choice sticks across posts.
 
 ## 1. Models
 
@@ -44,6 +44,8 @@ That problem was solved with **APIs**. Companies like OpenAI and Google keep the
 
 Which leaves one more problem: **every provider wrote its API differently.** Here's the same question sent to OpenAI and to Anthropic using each company's own SDK:
 
+<CodeTabs>
+
 ```python
 # OpenAI's SDK
 from openai import OpenAI
@@ -52,6 +54,19 @@ client = OpenAI()
 response = client.responses.create(model="gpt-5.5", input="What is the capital of India?")
 print(response.output_text)
 ```
+
+```js
+// OpenAI's SDK
+import OpenAI from "openai";
+
+const client = new OpenAI();
+const response = await client.responses.create({ model: "gpt-5.5", input: "What is the capital of India?" });
+console.log(response.output_text);
+```
+
+</CodeTabs>
+
+<CodeTabs>
 
 ```python
 # Anthropic's SDK
@@ -66,6 +81,21 @@ response = client.messages.create(
 print(response.content[0].text)
 ```
 
+```js
+// Anthropic's SDK
+import Anthropic from "@anthropic-ai/sdk";
+
+const client = new Anthropic();
+const response = await client.messages.create({
+  model: "claude-sonnet-5-5",
+  max_tokens: 1024,
+  messages: [{ role: "user", content: "What is the capital of India?" }],
+});
+console.log(response.content[0].text);
+```
+
+</CodeTabs>
+
 Different client classes, different method names, different required arguments (Anthropic insists on `max_tokens`), and the answer comes back in a differently shaped object (`output_text` versus `content[0].text`). Now imagine:
 
 - Your application uses both models for different tasks: you write and maintain two styles of code.
@@ -77,6 +107,8 @@ Multiply that by Gemini, Mistral, and every other provider, and **standardizatio
 
 LangChain's idea was: what if there were a single interface that could talk to *any* company's model in the same way? That interface is the models component.
 
+<CodeTabs>
+
 ```python
 from langchain.chat_models import init_chat_model
 
@@ -87,7 +119,19 @@ result = model.invoke("What is the capital of India?")
 print(result.content)
 ```
 
-Switching from OpenAI to Claude is the commented-out line: change the model string, install the matching integration package (`langchain-openai`, `langchain-anthropic`), and nothing else moves. The call is the same `.invoke()`, and the reply comes back in the same shape for every provider: an `AIMessage` whose text is in `.content`. That second part matters as much as the first. Because responses are standardized too, the code that *parses* the model's output doesn't change either.
+```js
+import { initChatModel } from "langchain";
+
+const model = await initChatModel("openai:gpt-5.5");
+// const model = await initChatModel("anthropic:claude-sonnet-5-5");
+
+const result = await model.invoke("What is the capital of India?");
+console.log(result.content);
+```
+
+</CodeTabs>
+
+Switching from OpenAI to Claude is the commented-out line: change the model string, install the matching integration package (`langchain-openai` and `langchain-anthropic` in Python, `@langchain/openai` and `@langchain/anthropic` in JavaScript), and nothing else moves. The call is the same `.invoke()`, and the reply comes back in the same shape for every provider: an `AIMessage` whose text is in `.content`. That second part matters as much as the first. Because responses are standardized too, the code that *parses* the model's output doesn't change either.
 
 ### Language models vs embedding models
 
@@ -96,11 +140,22 @@ LangChain can talk to two kinds of AI model:
 - **Language models** (LLMs and chat models) work on a **text in, text out** basis. You send "How are you today?" and get back "I'm good, how about you?". Chatbots, agents, and most of what this series builds run on these.
 - **Embedding models** take **text in and return a vector**: a list of numbers representing the text's meaning. Their main use is **semantic search**, which the previous post walked through. Embedding models have the same kind of unified entry point:
 
+<CodeTabs>
+
 ```python
 from langchain.embeddings import init_embeddings
 
 embeddings = init_embeddings("openai:text-embedding-3-small")
 ```
+
+```js
+import { OpenAIEmbeddings } from "@langchain/openai";
+
+// JS has no initEmbeddings; each provider's embeddings class shares one interface
+const embeddings = new OpenAIEmbeddings({ model: "text-embedding-3-small" });
+```
+
+</CodeTabs>
 
 LangChain's docs keep a list of every [chat model](https://docs.langchain.com/oss/python/integrations/chat) and [embedding model](https://docs.langchain.com/oss/python/integrations/text_embedding) integration: OpenAI, Anthropic, Google, Mistral AI, Azure, AWS Bedrock, Hugging Face, Ollama, IBM, and many more. The chat model table also tells you which features each one supports, like tool calling (needed for agents), structured or JSON output, running locally on your own machine, and multimodal input. It's worth skimming once just to see the landscape.
 
@@ -116,6 +171,8 @@ Since LangChain exists to build LLM-powered applications, and LLMs depend this h
 
 You don't know in advance which topic a user wants summarized, or in what tone. So instead of hard-coding the prompt, you write it once with **placeholders** and fill them in at runtime:
 
+<CodeTabs>
+
 ```python
 from langchain_core.prompts import PromptTemplate
 
@@ -124,6 +181,17 @@ template = PromptTemplate.from_template("Summarize {topic} in a {emotion} tone."
 print(template.invoke({"topic": "cricket", "emotion": "fun"}).to_string())
 print(template.invoke({"topic": "biology", "emotion": "serious"}).to_string())
 ```
+
+```js
+import { PromptTemplate } from "@langchain/core/prompts";
+
+const template = PromptTemplate.fromTemplate("Summarize {topic} in a {emotion} tone.");
+
+console.log((await template.invoke({ topic: "cricket", emotion: "fun" })).toString());
+console.log((await template.invoke({ topic: "biology", emotion: "serious" })).toString());
+```
+
+</CodeTabs>
 
 ```
 Summarize cricket in a fun tone.
@@ -135,6 +203,8 @@ One template, reused for every user; only the values change.
 ### Role-based prompts
 
 Chat models accept messages with roles. A **system** message sets up who the model should be; a **human** message is what the user asks. Both can have placeholders:
+
+<CodeTabs>
 
 ```python
 from langchain_core.prompts import ChatPromptTemplate
@@ -148,6 +218,22 @@ for m in chat_template.invoke({"profession": "doctor", "topic": "viral fever"}).
     print(f"{m.type}: {m.content}")
 ```
 
+```js
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+
+const chatTemplate = ChatPromptTemplate.fromMessages([
+  ["system", "Hi, you are an experienced {profession}."],
+  ["human", "Tell me about {topic}."],
+]);
+
+const prompt = await chatTemplate.invoke({ profession: "doctor", topic: "viral fever" });
+for (const m of prompt.toChatMessages()) {
+  console.log(`${m.type}: ${m.content}`);
+}
+```
+
+</CodeTabs>
+
 ```
 system: Hi, you are an experienced doctor.
 human: Tell me about viral fever.
@@ -158,6 +244,8 @@ You're guiding the model: answer as an experienced doctor would. The next user m
 ### Few-shot prompts
 
 In **few-shot prompting** you show the LLM some solved examples first, then ask your real question. Suppose you're building a customer-support system that sorts incoming tickets into categories. You show the model a few past tickets with their correct labels, then hand it the new one:
+
+<CodeTabs>
 
 ```python
 from langchain_core.prompts import PromptTemplate, FewShotPromptTemplate
@@ -181,6 +269,32 @@ few_shot = FewShotPromptTemplate(
 
 print(few_shot.invoke({"user_input": "I am unable to connect to the internet using your service."}).to_string())
 ```
+
+```js
+import { PromptTemplate, FewShotPromptTemplate } from "@langchain/core/prompts";
+
+const examples = [
+  { ticket: "I was charged twice for my subscription this month.", category: "Billing Issue" },
+  { ticket: "The app crashes every time I try to log in.", category: "Technical Problem" },
+  { ticket: "Can you explain how to upgrade my plan?", category: "General Inquiry" },
+];
+
+const examplePrompt = PromptTemplate.fromTemplate("Ticket: {ticket}\nCategory: {category}");
+
+const fewShot = new FewShotPromptTemplate({
+  examples,
+  examplePrompt,
+  prefix:
+    "Classify the following customer support tickets into one of the categories: " +
+    "'Billing Issue', 'Technical Problem', or 'General Inquiry'.",
+  suffix: "Ticket: {user_input}\nCategory:",
+  inputVariables: ["user_input"],
+});
+
+console.log((await fewShot.invoke({ user_input: "I am unable to connect to the internet using your service." })).toString());
+```
+
+</CodeTabs>
 
 ```
 Classify the following customer support tickets into one of the categories: 'Billing Issue', 'Technical Problem', or 'General Inquiry'.
@@ -217,7 +331,9 @@ flowchart LR
 
 Without chains, you'd orchestrate it by hand: take the user's input, call the first LLM with a translation prompt, pull the Hindi text out of its response, build a second prompt around it, call the second LLM, pull the summary out of *that* response. At every stage you're manually extracting the output and feeding it into the next stage's input.
 
-Chains remove that work. Their defining feature: **the output of one stage automatically becomes the input of the next.** In current LangChain you build a chain by joining components with the `|` operator:
+Chains remove that work. Their defining feature: **the output of one stage automatically becomes the input of the next.** In current LangChain you build a chain by joining components with the `|` operator (`.pipe()` in JavaScript):
+
+<CodeTabs>
 
 ```python
 from langchain.chat_models import init_chat_model
@@ -236,13 +352,39 @@ english_text = open("article.txt").read()   # ~1,000 words of English
 print(chain.invoke({"text": english_text}))
 ```
 
-`StrOutputParser` turns the model's `AIMessage` into a plain string, and that string flows straight into the `summarize` template's single placeholder. You call the chain once with the English text, and everything else happens behind the scenes. Run on a short paragraph describing LangChain, it returned:
+```js
+import { readFileSync } from "node:fs";
+import { initChatModel } from "langchain";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+
+const model = await initChatModel("openai:gpt-5.5");
+const parser = new StringOutputParser();
+
+const translate = PromptTemplate.fromTemplate("Translate this text into Hindi:\n\n{text}");
+const summarize = PromptTemplate.fromTemplate("Summarize this Hindi text in Hindi, in under 100 words:\n\n{hindi_text}");
+
+const chain = translate
+  .pipe(model)
+  .pipe(parser)
+  .pipe((hindiText) => ({ hindi_text: hindiText })) // JS prompts take an object, not a bare string
+  .pipe(summarize)
+  .pipe(model)
+  .pipe(parser);
+
+const englishText = readFileSync("article.txt", "utf8"); // ~1,000 words of English
+console.log(await chain.invoke({ text: englishText }));
+```
+
+</CodeTabs>
+
+`StrOutputParser` (`StringOutputParser` in JavaScript) turns the model's `AIMessage` into a plain string, and that string flows into the `summarize` template's single placeholder. Python fills a lone placeholder from a bare string automatically; JavaScript prompts only take an object, hence the extra one-line step. You call the chain once with the English text, and everything else happens behind the scenes. Run on a short paragraph describing LangChain, it returned:
 
 ```
 लैंगचेन एक ओपन‑सोर्स फ्रेमवर्क है जो बड़े भाषा मॉडलों से चलने वाले एप्लिकेशन बनाता है। यह मॉडल, प्रॉम्प्ट, रिट्रीवल, मेमोरी और एजेंट्स के लिए एकसमान इंटरफ़ेस देता है, जिससे डेवलपर बिना अतिरिक्त कोड के घटकों को पाइपलाइन में जोड़ सकते हैं। ...
 ```
 
-This `|` syntax is called the **LangChain Expression Language (LCEL)**. Older tutorials build the same thing with classes like `LLMChain` and `SequentialChain`; those are gone from LangChain 1.x.
+This `|` (or `.pipe()`) syntax is called the **LangChain Expression Language (LCEL)**. Older tutorials build the same thing with classes like `LLMChain` and `SequentialChain`; those are gone from LangChain 1.x.
 
 ### Parallel chains
 
@@ -257,6 +399,8 @@ flowchart LR
     C --> R[Final report]
 ```
 
+<CodeTabs>
+
 ```python
 from langchain_core.runnables import RunnableParallel
 
@@ -270,7 +414,22 @@ parallel_chain = RunnableParallel(a=report_a, b=report_b) | combine
 parallel_chain.invoke({"topic": "the 9/11 attacks"})
 ```
 
-`RunnableParallel` sends the same input to both branches and collects their outputs into a dictionary (`{"a": ..., "b": ...}`), which is exactly what the `combine` template needs.
+```js
+import { RunnableParallel } from "@langchain/core/runnables";
+
+const reportA = PromptTemplate.fromTemplate("Write a short factual report on {topic}.").pipe(model).pipe(parser);
+const reportB = PromptTemplate.fromTemplate("Write a short report on the causes and aftermath of {topic}.").pipe(model).pipe(parser);
+const combine = PromptTemplate.fromTemplate(
+  "Merge these two reports into one, without repetition:\n\n1. {a}\n\n2. {b}"
+).pipe(model).pipe(parser);
+
+const parallelChain = RunnableParallel.from({ a: reportA, b: reportB }).pipe(combine);
+await parallelChain.invoke({ topic: "the 9/11 attacks" });
+```
+
+</CodeTabs>
+
+`RunnableParallel` (`RunnableParallel.from` in JavaScript) sends the same input to both branches and collects their outputs into a dictionary (`{"a": ..., "b": ...}`), which is exactly what the `combine` template needs.
 
 ### Conditional chains
 
@@ -282,6 +441,8 @@ flowchart LR
     S -->|positive| T[Say thank you]
     S -->|negative| E[Email the support team]
 ```
+
+<CodeTabs>
 
 ```python
 from langchain_core.runnables import RunnableBranch
@@ -301,12 +462,32 @@ print(conditional_chain.invoke({"feedback": "Loved the quick delivery!"}))
 print(conditional_chain.invoke({"feedback": "My order arrived broken and nobody replied."}))
 ```
 
+```js
+import { RunnableBranch } from "@langchain/core/runnables";
+
+const classify = PromptTemplate.fromTemplate(
+  "Is this feedback positive or negative? Answer with one word.\n\n{feedback}"
+).pipe(model).pipe(parser);
+
+const branch = RunnableBranch.from([
+  [(x) => x.sentiment.toLowerCase().includes("positive"), () => "Thank you for your feedback!"],
+  (x) => `Emailing support team about: ${x.feedback}`,
+]);
+
+const conditionalChain = RunnableParallel.from({ sentiment: classify, feedback: (x) => x.feedback }).pipe(branch);
+
+console.log(await conditionalChain.invoke({ feedback: "Loved the quick delivery!" }));
+console.log(await conditionalChain.invoke({ feedback: "My order arrived broken and nobody replied." }));
+```
+
+</CodeTabs>
+
 ```
 Thank you for your feedback!
 Emailing support team about: My order arrived broken and nobody replied.
 ```
 
-`RunnableBranch` checks each `(condition, action)` pair in order and runs the first action whose condition is true, falling back to the last one. (The "email" here is a stand-in string; a real system would call an email service at that point.) Sequential, parallel, and conditional pieces can be combined into pipelines of almost any complexity, and chains get their own detailed post later.
+`RunnableBranch` (`RunnableBranch.from` in JavaScript) checks each `(condition, action)` pair in order and runs the first action whose condition is true, falling back to the last one. (The "email" here is a stand-in string; a real system would call an email service at that point.) Sequential, parallel, and conditional pieces can be combined into pipelines of almost any complexity, and chains get their own detailed post later.
 
 ## 4. Indexes
 
@@ -339,10 +520,19 @@ Start with this statement: **LLM API calls are stateless.** It's a very importan
 
 Here's a model asked two questions, one after the other, as two separate calls:
 
+<CodeTabs>
+
 ```python
 model.invoke("Who is Narendra Modi? Answer in one sentence.").content
 model.invoke("How old is he?").content
 ```
+
+```js
+console.log((await model.invoke("Who is Narendra Modi? Answer in one sentence.")).content);
+console.log((await model.invoke("How old is he?")).content);
+```
+
+</CodeTabs>
 
 ```
 Narendra Modi is the Indian politician serving as the country’s Prime Minister since 2014, formerly Gujarat’s chief minister and a leading member of the Bharatiya Janata Party (BJP).
@@ -367,6 +557,8 @@ There are many approaches, but four come up most often:
 
 The `ConversationBufferMemory`-style classes are gone from LangChain 1.x. Memory now lives in the agent's **state**: the conversation is saved by a **checkpointer**, and every call with the same `thread_id` continues the same conversation.
 
+<CodeTabs>
+
 ```python
 from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
@@ -379,11 +571,25 @@ result = agent.invoke({"messages": [{"role": "user", "content": "How old is he?"
 print(result["messages"][-1].content)
 ```
 
+```js
+import { createAgent } from "langchain";
+import { MemorySaver } from "@langchain/langgraph";
+
+const agent = createAgent({ model: "openai:gpt-5.5", checkpointer: new MemorySaver() });
+const config = { configurable: { thread_id: "1" } };
+
+await agent.invoke({ messages: [{ role: "user", content: "Who is Narendra Modi? Answer in one sentence." }] }, config);
+const result = await agent.invoke({ messages: [{ role: "user", content: "How old is he?" }] }, config);
+console.log(result.messages.at(-1).content);
+```
+
+</CodeTabs>
+
 ```
 As of 5 October 2026, Narendra Modi is 76 years old (born 17 September 1950).
 ```
 
-Same two questions, but now the second call sees the first, and "he" resolves correctly. (`create_agent` is LangChain's agent builder, covered in the next section; here it's used without any tools, just as a chat model with memory.)
+Same two questions, but now the second call sees the first, and "he" resolves correctly. (`create_agent`, or `createAgent` in JavaScript, is LangChain's agent builder, covered in the next section; here it's used without any tools, just as a chat model with memory.)
 
 Each of the four memory types maps onto this:
 
@@ -391,10 +597,12 @@ Each of the four memory types maps onto this:
 |---|---|
 | Buffer (full history) | The checkpointer on its own: the whole thread is kept and sent |
 | Window (last N messages) | Trim older messages before each model call |
-| Summary | `SummarizationMiddleware`, which replaces older messages with a summary once the history gets long |
+| Summary | `SummarizationMiddleware` (`summarizationMiddleware` in JavaScript), which replaces older messages with a summary once the history gets long |
 | Custom (user facts, preferences) | **Long-term memory**: a store that persists across conversations, not just within one thread |
 
 For example, summary memory is one extra argument:
+
+<CodeTabs>
 
 ```python
 from langchain.agents.middleware import SummarizationMiddleware
@@ -405,6 +613,18 @@ agent = create_agent(
     middleware=[SummarizationMiddleware(model="openai:gpt-5.5", trigger=("messages", 20), keep=("messages", 5))],
 )
 ```
+
+```js
+import { summarizationMiddleware } from "langchain";
+
+const agent = createAgent({
+  model: "openai:gpt-5.5",
+  checkpointer: new MemorySaver(),
+  middleware: [summarizationMiddleware({ model: "openai:gpt-5.5", trigger: { messages: 20 }, keep: { messages: 5 } })],
+});
+```
+
+</CodeTabs>
 
 Once the thread reaches 20 messages, the older ones are summarized into a single message and only the 5 most recent are kept verbatim. Memory is a very practical topic, and it gets a detailed treatment later in the series.
 
@@ -443,6 +663,8 @@ One popular reasoning technique is **chain-of-thought prompting**, where the age
 
 Here's that agent in current LangChain, with the weather API stubbed out to return 25 °C:
 
+<CodeTabs>
+
 ```python
 from langchain.agents import create_agent
 from langchain.tools import tool
@@ -473,6 +695,44 @@ for m in result["messages"]:
         print(f"{m.type}: {m.content}")
 ```
 
+```js
+import { createAgent, tool } from "langchain";
+import * as z from "zod";
+
+const getWeather = tool(
+  ({ city }) => `${city}: 25 degree Celsius`, // stand-in for a real weather API
+  {
+    name: "get_weather",
+    description: "Get today's temperature for a city.",
+    schema: z.object({ city: z.string() }),
+  },
+);
+
+const multiply = tool(({ a, b }) => a * b, {
+  name: "multiply",
+  description: "Multiply two numbers.",
+  schema: z.object({ a: z.number(), b: z.number() }),
+});
+
+const agent = createAgent({ model: "openai:gpt-5.5", tools: [getWeather, multiply] });
+
+const result = await agent.invoke({
+  messages: [{ role: "user", content: "Can you multiply today's temperature of Delhi with 3?" }],
+});
+
+for (const m of result.messages) {
+  if (m.type === "ai" && m.tool_calls?.length) {
+    for (const tc of m.tool_calls) console.log("AI calls tool:", tc.name, tc.args);
+  } else if (m.type === "tool") {
+    console.log("Tool returns:", m.content);
+  } else {
+    console.log(`${m.type}: ${m.content}`);
+  }
+}
+```
+
+</CodeTabs>
+
 The printed trace shows the agent doing exactly what the walkthrough described:
 
 ```
@@ -484,7 +744,7 @@ Tool returns: 75.0
 ai: The product of today’s temperature in Delhi (25 °C) multiplied by 3 is **75**.
 ```
 
-Nobody told it which tool to use first. The model read the docstrings, worked out that it needed the temperature before it could multiply, called the tools in that order, and only then answered. (The `@tool` docstrings matter: they're how the model knows what each tool does.)
+Nobody told it which tool to use first. The model read the tool descriptions, worked out that it needed the temperature before it could multiply, called the tools in that order, and only then answered. (Those descriptions matter, the `@tool` docstring in Python or the `description` field in JavaScript: they're how the model knows what each tool does.)
 
 So the whole difference between an AI agent and a chatbot comes down to **reasoning plus tools**: an agent is an evolved chatbot that can take actions. It's where much of the AI industry is converging right now, and this series builds a full agent later.
 
