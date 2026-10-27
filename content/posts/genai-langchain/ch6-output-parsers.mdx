@@ -512,6 +512,8 @@ A word of caution about small models. This post's demos use `gpt-oss-20b`. When 
 
 On modern models, `with_structured_output` is usually the better choice for structured data, because the provider enforces the format on its side. Parsers earn their place in three cases: **string output in chains** (very common), **models that can't do structured output**, and any time you want to see and control exactly what goes into the prompt.
 
+One limit to know: a chain like `template | model | parser` has **no built-in retry**. If the reply is malformed, the parser raises `OutputParserException` and the chain stops, so wrap the call in your own error handling if that matters. Agents made with `create_agent` can retry on a bad reply (the previous post showed this with `ToolStrategy`), and for chains LangChain's docs recommend `with_structured_output` whenever the provider supports it.
+
 Parsers are written in the same style as everything else in a chain, so you can swap one for another without touching the rest of the pipeline: `template | model | parser`.
 
 LangChain has more parsers in `langchain-core` than the three here, for example `CommaSeparatedListOutputParser`, `MarkdownListOutputParser`, `NumberedListOutputParser` and `XMLOutputParser`. They all follow the same pattern (format instructions in, converted data out), so once you know these three, the rest are easy to pick up from the documentation.
