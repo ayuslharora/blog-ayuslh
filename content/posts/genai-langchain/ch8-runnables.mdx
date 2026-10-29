@@ -1,0 +1,622 @@
+---
+title: "Ch.8: Runnables in LangChain: Why They Exist and How They Work"
+description: "The idea underneath every chain: why LangChain's early components could not be connected cleanly, how too many custom chain classes became a problem, and how one shared interface (the runnable) fixed it. Built from scratch with fake components, then mapped onto the real Runnable class, including invoke, batch, and stream."
+date: "2026-11-05T14:10:00+05:30"
+tags: ["generative-ai", "langchain", "llm", "runnables", "lcel", "abstraction"]
+subtopic: "LangChain Fundamentals"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=u3b-W1NgYa4)
+
+The [last post](/genai-langchain/ch7-chains) built chains with the `|` symbol and used the word **runnable** a few times without explaining it. This post explains it, and the explanation is a story: a design problem LangChain ran into, and the fix that is now the foundation of the whole library.
+
+Most of this post is the *why*. The code is written from scratch with fake components, so you can see the idea working with no API key and no LangChain installed. At the end we map it onto the real thing.
+
+## The Story: How LangChain Got Here
+
+### Step 1: components
+
+Late 2022: ChatGPT arrives, language models go mainstream, and it is clear that many applications will be built on top of them. The LangChain team saw two problems for the developers building those applications.
+
+**Problem one: every provider's API is different.** OpenAI, Anthropic, Google, and Mistral each have their own way of being called. LangChain's first contribution was a set of classes, one per provider, that all look alike from your side. You switch providers by changing one line.
+
+**Problem two: talking to the model is a small part of the application.** Take a "chat with a PDF" app. The model call is one step out of many:
+
+1. Load the document.
+2. Split it into chunks.
+3. Turn each chunk into an embedding (a list of numbers that captures meaning) and store it in a vector database.
+4. When the user asks a question, search the database for the most relevant chunks.
+5. Put the question and those chunks into a prompt, and send it to the model.
+6. Parse the reply and show it.
+
+So LangChain built a **component** for each job: document loaders, text splitters, embedding models, vector stores, retrievers, output parsers, prompt templates. A developer picks the components they need and plugs them together. That is already a good deal: a few lines per step instead of writing each step yourself.
+
+### Step 2: chains
+
+Then the team noticed that the plugging-together itself was repetitive. Almost every app does the same hand-off: fill a prompt template, send the result to the model. Written by hand, it looks like this:
+
+```python
+prompt = template.format({"topic": "India"})   # call the template's method
+result = llm.predict(prompt)                    # call the model's method
+```
+
+What if one object did both steps for you? That is a **chain**: a helper that connects two or more components, so the output of one becomes the input of the next. The simplest one was called `LLMChain`. You gave it a model and a prompt template, and it did the formatting and the model call.
+
+Then they did the same for bigger jobs. The retrieval step in the PDF app (search the database, join the chunks into a prompt, call the model) was also the same in every app, so it became a `RetrievalQA` chain. Soon there was a chain for every common job: one for SQL databases, one for calling web APIs, one for math questions, one for running two `LLMChain`s one after the other (`SimpleSequentialChain`), and many more.
+
+### Step 3: too many chains
+
+This is where it went wrong. With a chain class for every use case:
+
+- **The code base became huge**, and every class had to be maintained.
+- **Learning LangChain became hard.** A newcomer had to find out which of fifty chains fit their job, and when to use which.
+
+The team had set out to make developers' lives easier, and had made the library harder to learn.
+
+### The root cause: no standard
+
+Why did each new use case need a new chain class? Look at how you talked to each component in that era:
+
+| Component | How you used it |
+|---|---|
+| Prompt template | `.format(...)` |
+| Language model | `.predict(...)` |
+| Retriever | `.get_relevant_documents(...)` |
+| Output parser | `.parse(...)` |
+
+Four components, four different method names, four different input and output shapes. They were built separately and never designed to be connected. So to join a template and a model, someone had to write custom glue code (`LLMChain`). To join a retriever, a prompt, and a model, someone had to write more glue (`RetrievalQA`). **Every new combination of components needed new glue, and each piece of glue became a chain class.**
+
+The mistake was not the chains. The mistake was components that did not share a standard. If every component were called the same way, and produced something the next component could accept, you would not need glue at all. You would just connect them.
+
+So the LangChain team rebuilt the components around one shared standard. That standard is the **runnable**.
+
+> **Where this stands today.** The glue classes from this story (`LLMChain`, `RetrievalQA`, `SimpleSequentialChain` and friends) are gone from the current LangChain 1.x packages. Their replacement is not a better chain class. It is the `|` operator from the last post. If you meet those names in an older tutorial, translate them mentally to `prompt | model | parser`.
+
+## What a Runnable Is
+
+A **runnable** is a **unit of work**: it takes an input, does one job, and gives back an output. Four properties define it.
+
+1. **It is a unit of work.** One input in, one output out. A prompt template is a runnable (dictionary in, filled-in prompt out). A model is a runnable (prompt in, reply out). A parser is a runnable (reply in, text out).
+2. **Every runnable follows a common interface**: the same set of method names, on every component. The main ones:
+   - `invoke(input)`: process one input and return the output.
+   - `batch([input1, input2, ...])`: process many inputs.
+   - `stream(input)`: get the output piece by piece as it is produced.
+3. **Because the interface is shared, runnables connect.** If R1 and R2 are runnables, you can join them and the output of R1 automatically becomes the input of R2. Add R3, and R2's output feeds R3. You can build any workflow this way.
+4. **A connected workflow is itself a runnable.** If you join R1, R2, and R3 into a pipeline, that pipeline has `invoke`, `batch`, and `stream` too. So you can connect it to other runnables, or to other pipelines.
+
+The best way to hold this in your head is a **Lego brick**:
+
+- Each brick does one job (a flat plate, a corner, a wedge). That is property 1.
+- Every brick has the same studs on top and holes underneath, whatever its shape. That is the common interface, property 2.
+- So any brick snaps onto any other. That is property 3.
+- And two bricks snapped together form a bigger piece that has studs and holes of its own, so it still snaps onto more. That is property 4.
+
+Property 4 is what makes this powerful. A chain is not a different kind of thing from a component. It is the same kind of thing, built out of smaller ones, so you can nest as deeply as you like.
+
+## Building It From Scratch
+
+Reading about this is not the same as seeing it work. We will rebuild the idea in plain code with fake components: a fake language model and a fake prompt template. They don't call any real AI. They return predictable text, so you can watch the data move.
+
+### Two components, wired by hand
+
+The fake model has a `predict` method (like the old model classes), and the fake prompt template has a `format` method (like the old template classes). The model returns a dictionary with its text under the key `"response"`, which is also how early model wrappers behaved.
+
+<CodeTabs>
+
+```python
+class FakeLLM:
+    def __init__(self):
+        print("LLM created")
+
+    def predict(self, prompt):
+        return {"response": f"[fake LLM reply to: {prompt}]"}
+
+
+class FakePromptTemplate:
+    def __init__(self, template, input_variables):
+        self.template = template
+        self.input_variables = input_variables
+
+    def format(self, input_dict):
+        return self.template.format(**input_dict)
+
+
+template = FakePromptTemplate(
+    template="Write a {length} poem about {topic}",
+    input_variables=["length", "topic"],
+)
+llm = FakeLLM()
+
+prompt = template.format({"length": "short", "topic": "India"})
+result = llm.predict(prompt)
+print(result["response"])
+```
+
+```js
+class FakeLLM {
+  constructor() {
+    console.log("LLM created");
+  }
+  predict(prompt) {
+    return { response: `[fake LLM reply to: ${prompt}]` };
+  }
+}
+
+class FakePromptTemplate {
+  constructor(template) {
+    this.template = template;
+  }
+  format(inputDict) {
+    return this.template.replace(/\{(\w+)\}/g, (_, key) => inputDict[key]);
+  }
+}
+
+const template = new FakePromptTemplate("Write a {length} poem about {topic}");
+const llm = new FakeLLM();
+
+const prompt = template.format({ length: "short", topic: "India" });
+const result = llm.predict(prompt);
+console.log(result.response);
+```
+
+</CodeTabs>
+
+```
+LLM created
+[fake LLM reply to: Write a short poem about India]
+```
+
+This is "step 1" of the story: you, the developer, calling `format` and then `predict` by hand.
+
+### A chain class that hides the hand-off
+
+Now play the LangChain team. Write a class that does both steps, so the developer doesn't have to:
+
+<CodeTabs>
+
+```python
+class FakeLLMChain:
+    def __init__(self, llm, prompt):
+        self.llm = llm
+        self.prompt = prompt
+
+    def run(self, input_dict):
+        final_prompt = self.prompt.format(input_dict)
+        result = self.llm.predict(final_prompt)
+        return result["response"]
+
+
+chain = FakeLLMChain(llm, template)
+print(chain.run({"length": "short", "topic": "India"}))
+```
+
+```js
+class FakeLLMChain {
+  constructor(llm, prompt) {
+    this.llm = llm;
+    this.prompt = prompt;
+  }
+  run(inputDict) {
+    const finalPrompt = this.prompt.format(inputDict);
+    return this.llm.predict(finalPrompt).response;
+  }
+}
+
+const chain = new FakeLLMChain(llm, template);
+console.log(chain.run({ length: "short", topic: "India" }));
+```
+
+</CodeTabs>
+
+```
+[fake LLM reply to: Write a short poem about India]
+```
+
+It works, and the developer now makes one call instead of two. But look at what this class is: **hard-wired glue for exactly one shape**, prompt then model. Now suppose you want a two-step job: write a joke, then explain the joke. That needs the model called twice, with a prompt in between. `FakeLLMChain` cannot do it. You would write a second class for it (`SimpleSequentialChain` is exactly that), and a third class for the next shape, and so on. That is the explosion from the story.
+
+The cause is visible in the code: `FakeLLMChain.run` has to know that templates are called with `format` and models with `predict`. Glue code has to know each component's private vocabulary.
+
+### The fix: one shared interface
+
+The fix is to make every component speak the same language. In object-oriented programming, the tool for forcing that is an **abstract class**: a class that declares methods every child class *must* provide, and refuses to let you create an object from a child that skips one.
+
+We'll make an abstract class called `Runnable` with a single required method, `invoke`:
+
+<CodeTabs>
+
+```python
+from abc import ABC, abstractmethod
+
+
+class Runnable(ABC):
+    @abstractmethod
+    def invoke(self, input_data):
+        pass
+```
+
+```js
+class Runnable {
+  constructor() {
+    if (new.target === Runnable) throw new TypeError("Runnable is abstract");
+    if (this.invoke === Runnable.prototype.invoke) {
+      throw new TypeError(`${new.target.name} must implement invoke`);
+    }
+  }
+  invoke(input) {
+    throw new Error("not implemented");
+  }
+}
+```
+
+</CodeTabs>
+
+(`ABC` stands for Abstract Base Class, and `@abstractmethod` marks a method as "children must write this". JavaScript has no `abstract` keyword, so the JavaScript version checks by hand in the constructor.)
+
+Now make every component a child of `Runnable`. The model's `predict` becomes `invoke`, and the template's `format` becomes `invoke`. We'll also add a third component, a parser that pulls the text out of the model's dictionary:
+
+<CodeTabs>
+
+```python
+class FakeLLM(Runnable):
+    def invoke(self, prompt):
+        return {"response": f"[fake LLM reply to: {prompt}]"}
+
+
+class FakePromptTemplate(Runnable):
+    def __init__(self, template, input_variables):
+        self.template = template
+        self.input_variables = input_variables
+
+    def invoke(self, input_dict):
+        return self.template.format(**input_dict)
+
+
+class FakeStrOutputParser(Runnable):
+    def invoke(self, input_data):
+        return input_data["response"]
+```
+
+```js
+class FakeLLM extends Runnable {
+  invoke(prompt) {
+    return { response: `[fake LLM reply to: ${prompt}]` };
+  }
+}
+
+class FakePromptTemplate extends Runnable {
+  constructor(template) {
+    super();
+    this.template = template;
+  }
+  invoke(inputDict) {
+    return this.template.replace(/\{(\w+)\}/g, (_, key) => inputDict[key]);
+  }
+}
+
+class FakeStrOutputParser extends Runnable {
+  invoke(input) {
+    return input.response;
+  }
+}
+```
+
+</CodeTabs>
+
+Try to skip the method and Python stops you right away:
+
+```python
+class Broken(Runnable):
+    pass
+
+Broken()
+```
+
+```
+TypeError: Can't instantiate abstract class Broken with abstract method invoke
+```
+
+That error is the whole point. The abstract class **forces** every component to have `invoke`. Nobody can add a component that doesn't fit.
+
+A note on what the original team did with the old method names: they did not delete `predict` and `format` the same day, because that would break every existing user's code. They kept them for a while and had them print a warning ("this will be removed, use `invoke`"). That is the normal way to retire a method in a library people depend on.
+
+### The universal glue: one connector
+
+Now that every component has `invoke`, you need only **one** piece of glue, ever. It takes a list of runnables, passes the input to the first one, passes that output to the second, and so on:
+
+<CodeTabs>
+
+```python
+class RunnableConnector(Runnable):
+    def __init__(self, runnable_list):
+        self.runnable_list = runnable_list
+
+    def invoke(self, input_data):
+        for runnable in self.runnable_list:
+            input_data = runnable.invoke(input_data)
+        return input_data
+```
+
+```js
+class RunnableConnector extends Runnable {
+  constructor(runnableList) {
+    super();
+    this.runnableList = runnableList;
+  }
+  invoke(input) {
+    for (const runnable of this.runnableList) {
+      input = runnable.invoke(input);
+    }
+    return input;
+  }
+}
+```
+
+</CodeTabs>
+
+The loop is the entire idea. `input_data` starts as what you pass in, and after each runnable it is replaced by that runnable's output. The next runnable receives the previous one's output. That is "output of one becomes input of the next". Notice that `RunnableConnector` has no idea what a template or a model is. It only knows they have `invoke`.
+
+Use it on the same job as before, now with the parser added:
+
+<CodeTabs>
+
+```python
+template = FakePromptTemplate("Write a {length} poem about {topic}", ["length", "topic"])
+llm = FakeLLM()
+parser = FakeStrOutputParser()
+
+chain = RunnableConnector([template, llm, parser])
+print(chain.invoke({"length": "short", "topic": "India"}))
+```
+
+```js
+const template = new FakePromptTemplate("Write a {length} poem about {topic}");
+const llm = new FakeLLM();
+const parser = new FakeStrOutputParser();
+
+const chain = new RunnableConnector([template, llm, parser]);
+console.log(chain.invoke({ length: "short", topic: "India" }));
+```
+
+</CodeTabs>
+
+```
+[fake LLM reply to: Write a short poem about India]
+```
+
+Same result as `FakeLLMChain`, but now adding a parser to the line was just adding an item to a list. No new class.
+
+### A chain of chains
+
+Property 4 says a connected workflow is itself a runnable. `RunnableConnector` is a `Runnable` (it extends the class, and has `invoke`). So a connector can be an item in another connector's list.
+
+Build the two-step job that `FakeLLMChain` could not do. Chain 1 writes a joke. Chain 2 explains it. A third connector joins them:
+
+<CodeTabs>
+
+```python
+llm = FakeLLM()
+
+joke_template = FakePromptTemplate("Write a joke about {topic}", ["topic"])
+explain_template = FakePromptTemplate("Explain the following joke: {response}", ["response"])
+
+chain1 = RunnableConnector([joke_template, llm])
+chain2 = RunnableConnector([explain_template, llm, parser])
+
+final_chain = RunnableConnector([chain1, chain2])
+print(final_chain.invoke({"topic": "cricket"}))
+```
+
+```js
+const llm = new FakeLLM();
+
+const chain1 = new RunnableConnector([new FakePromptTemplate("Write a joke about {topic}"), llm]);
+const chain2 = new RunnableConnector([
+  new FakePromptTemplate("Explain the following joke: {response}"),
+  llm,
+  parser,
+]);
+
+const finalChain = new RunnableConnector([chain1, chain2]);
+console.log(finalChain.invoke({ topic: "cricket" }));
+```
+
+</CodeTabs>
+
+```
+[fake LLM reply to: Explain the following joke: [fake LLM reply to: Write a joke about cricket]]
+```
+
+Read the output from the inside out and you can watch the data travel. The innermost text, `Write a joke about cricket`, is the first prompt. Chain 1 ends with the model, so it outputs a dictionary `{"response": "[fake LLM reply to: Write a joke about cricket]"}`. Chain 2's template has a variable named `response`, so that dictionary fills it directly, which is why chain 2's prompt contains the whole fake joke. Then the model runs again and the parser extracts the text.
+
+(A fake model that echoes its prompt is deliberate. A real model gives you a different joke each time, which hides the plumbing. An echo makes every hand-off visible.)
+
+The whole machine, from nothing: **a shared interface, one connector, and nesting.** That is the entire runnable idea.
+
+## The Real Thing
+
+LangChain's `Runnable` is this same design, with more methods. Check it yourself:
+
+<CodeTabs>
+
+```python
+from dotenv import load_dotenv
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import Runnable
+
+load_dotenv()
+
+prompt = PromptTemplate.from_template("Write a one-line joke about {topic}")
+model = ChatGroq(model="openai/gpt-oss-20b")
+parser = StrOutputParser()
+
+for part in (prompt, model, parser):
+    print(type(part).__name__, isinstance(part, Runnable))
+
+chain = prompt | model | parser
+print(type(chain).__name__, isinstance(chain, Runnable))
+```
+
+```js
+import "dotenv/config";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { Runnable } from "@langchain/core/runnables";
+
+const prompt = PromptTemplate.fromTemplate("Write a one-line joke about {topic}");
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+const parser = new StringOutputParser();
+
+for (const part of [prompt, model, parser]) {
+  console.log(part.constructor.name, part instanceof Runnable);
+}
+
+const chain = prompt.pipe(model).pipe(parser);
+console.log(chain.constructor.name, chain instanceof Runnable);
+```
+
+</CodeTabs>
+
+```
+PromptTemplate True
+ChatGroq True
+StrOutputParser True
+RunnableSequence True
+```
+
+All three components are runnables, and so is the chain you get from joining them. Its type is `RunnableSequence`: that is LangChain's own `RunnableConnector`. The `|` operator is the shortcut for building one. (The next post covers `RunnableSequence` and the other building blocks directly.)
+
+And because the chain is a runnable, it has the full shared interface. The other two methods from property 2 work on it with no extra code:
+
+<CodeTabs>
+
+```python
+print(chain.invoke({"topic": "cricket"}))
+print(chain.batch([{"topic": "cricket"}, {"topic": "chess"}]))
+
+for chunk in chain.stream({"topic": "tea"}):
+    if chunk:
+        print(chunk, end="|")
+```
+
+```js
+console.log(await chain.invoke({ topic: "cricket" }));
+console.log(await chain.batch([{ topic: "cricket" }, { topic: "chess" }]));
+
+for await (const chunk of await chain.stream({ topic: "tea" })) {
+  if (chunk) process.stdout.write(chunk + "|");
+}
+```
+
+</CodeTabs>
+
+```
+Why did the cricket team bring a ladder? Because the stakes were high.
+['Cricket: the only sport where you can hit a six and still be out for a duck.', 'Chess is the only game where a pawn can become a queen, but the queen can’t become a pawn.']
+I| tried| to| make| a| tea| joke|,| but| it| was| too| steep|ed| in| clichés|.|
+```
+
+- `invoke` ran one input and returned one answer.
+- `batch` ran two inputs and returned a list of two answers.
+- `stream` handed back the answer in small chunks as the model produced them, which is how chat apps show text appearing word by word. (The `if chunk` check skips a few empty chunks at the start of the stream.)
+
+Python runnables also have async versions of each (`ainvoke`, `abatch`, `astream`); in JavaScript everything is already async.
+
+### Your own runnable
+
+The scratch build was not a toy: the real `Runnable` works the same way, and you can make your own. In Python, `Runnable` is an abstract class with exactly one required method, `invoke`. Check it:
+
+```python
+print(Runnable.__abstractmethods__)
+```
+
+```
+frozenset({'invoke'})
+```
+
+Write a class that provides `invoke`, and it plugs straight into a chain:
+
+<CodeTabs>
+
+```python
+from langchain_core.runnables import Runnable
+
+
+class WordCounter(Runnable):
+    def invoke(self, input, config=None, **kwargs):
+        return {"text": input, "words": len(input.split())}
+
+
+wc = WordCounter()
+print(wc.invoke("one two three"))
+print(wc.batch(["a b", "c d e"]))
+print(list(wc.stream("x y z")))
+
+chain = prompt | model | parser | WordCounter()
+print(type(chain).__name__)
+print(chain.invoke({"topic": "cricket"}))
+```
+
+```js
+import { Runnable } from "@langchain/core/runnables";
+
+class WordCounter extends Runnable {
+  lc_namespace = ["blog", "demo"]; // LangChain.js needs a namespace label on custom runnables
+  async invoke(input) {
+    return { text: input, words: input.split(/\s+/).filter(Boolean).length };
+  }
+}
+
+const wc = new WordCounter();
+console.log(await wc.invoke("one two three"));
+console.log(await wc.batch(["a b", "c d e"]));
+
+const chain2 = prompt.pipe(model).pipe(parser).pipe(wc);
+console.log(chain2.constructor.name);
+console.log(await chain2.invoke({ topic: "cricket" }));
+```
+
+</CodeTabs>
+
+```
+{'text': 'one two three', 'words': 3}
+[{'text': 'a b', 'words': 2}, {'text': 'c d e', 'words': 3}]
+[{'text': 'x y z', 'words': 3}]
+RunnableSequence
+{'text': 'Why did the cricket team bring a ladder to the game? Because they heard the wickets were high...', 'words': 24}
+```
+
+Here is the payoff of the shared interface. We wrote `invoke` and nothing else, yet `batch` and `stream` work, and the class slots into a `|` chain after the parser. `batch` and `stream` come from the base class, which builds them on top of your `invoke`. (The default `stream` here yields the whole answer as one piece, since our code doesn't produce partial results.) You get the whole interface by providing the one required method.
+
+(In day-to-day code you rarely subclass `Runnable` yourself. The next post shows `RunnableLambda`, which wraps a plain function into a runnable in one line. Subclassing is for when you want a reusable, configurable component.)
+
+## Where This Leaves Chains
+
+Go back to the story. The explosion of chain classes came from components that could not be connected without custom glue. Runnables removed the need for glue:
+
+| Before | After |
+|---|---|
+| Each component has its own method name (`format`, `predict`, `parse`, ...) | Every component has `invoke` (and `batch`, `stream`) |
+| A new chain class for every combination | One connector (`RunnableSequence`, written with `\|`) for every combination |
+| A chain is a different kind of object from a component | A chain is a runnable too, so chains nest |
+| Fifty chain classes to learn | A handful of building blocks (next post) |
+
+This is also why the previous post could build sequential, parallel, and conditional chains out of the same few parts. The parts were all runnables.
+
+## Summary
+
+| Topic | What to remember |
+|---|---|
+| **Components** | LangChain's building blocks: models, prompt templates, parsers, retrievers, loaders, and so on |
+| **The old problem** | Components had different method names and shapes (`format`, `predict`, `parse`), so connecting any two needed custom glue code |
+| **Chain classes** | The glue became one chain class per use case (`LLMChain`, `RetrievalQA`, ...). Too many classes made the library heavy and hard to learn. These are gone from LangChain 1.x; use `\|` instead |
+| **Runnable** | A unit of work (input in, output out) that follows a common interface |
+| **Common interface** | `invoke` (one input), `batch` (many inputs), `stream` (output in pieces), plus async versions in Python |
+| **Connectable** | Because the interface is shared, any runnable's output can feed any other's input |
+| **Nestable** | A connected workflow is itself a runnable, so workflows connect to workflows. Think Lego bricks |
+| **Abstract class** | A base class that forces every child to implement certain methods. `Runnable` requires only `invoke` |
+| **`RunnableSequence`** | LangChain's connector: runs runnables in order, passing each output to the next. `prompt \| model \| parser` builds one |
+| **Custom runnable** | Subclass `Runnable`, write `invoke`, and `batch` and `stream` come free |
