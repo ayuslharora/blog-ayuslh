@@ -66,6 +66,24 @@ console.log(response.output_text);
 
 </CodeTabs>
 
+Expected output (not run here, since it needs a paid OpenAI key). The printed text is just the answer; the full `response` object behind it looks roughly like this, trimmed:
+
+```
+The capital of India is New Delhi.
+
+Response(
+    id='resp_...',
+    model='gpt-5.5',
+    output=[ResponseOutputMessage(
+        role='assistant',
+        content=[ResponseOutputText(text='The capital of India is New Delhi.', type='output_text')],
+    )],
+    usage=ResponseUsage(input_tokens=14, output_tokens=10, total_tokens=24),
+)
+```
+
+The shortcut `response.output_text` digs the text out of `output[0].content[0].text` for you.
+
 <CodeTabs>
 
 ```python
@@ -95,6 +113,23 @@ console.log(response.content[0].text);
 ```
 
 </CodeTabs>
+
+Expected output (not run here, since it needs a paid Anthropic key). Again the printed text is only the answer; the `response` object is shaped differently from OpenAI's, trimmed:
+
+```
+The capital of India is New Delhi.
+
+Message(
+    id='msg_...',
+    model='claude-sonnet-5-5',
+    role='assistant',
+    content=[TextBlock(text='The capital of India is New Delhi.', type='text')],
+    stop_reason='end_turn',
+    usage=Usage(input_tokens=14, output_tokens=10),
+)
+```
+
+Here the text sits in a list of content blocks, which is why you write `content[0].text`.
 
 Different client classes, different method names, different required arguments (Anthropic insists on `max_tokens`), and the answer comes back in a differently shaped object (`output_text` versus `content[0].text`). Now imagine:
 
@@ -130,6 +165,20 @@ console.log(result.content);
 ```
 
 </CodeTabs>
+
+Expected output (not run here, since it needs a paid key). The printed text is the same for any provider, and `result` itself is the same `AIMessage` shape whichever one you pick:
+
+```
+The capital of India is New Delhi.
+
+AIMessage(
+    content='The capital of India is New Delhi.',
+    response_metadata={'model_name': 'gpt-5.5', 'finish_reason': 'stop', ...},
+    usage_metadata={'input_tokens': 14, 'output_tokens': 10, 'total_tokens': 24},
+)
+```
+
+With Claude, the metadata values change (`model_name`, token counts) but the fields stay the same, which is the whole point of the standard interface. Ch3 shows a real `AIMessage` from a live run.
 
 Switching from OpenAI to Claude is the commented-out line: change the model string, install the matching integration package (a small add-on that teaches LangChain to talk to one company's models: `langchain-openai` and `langchain-anthropic` in Python, `@langchain/openai` and `@langchain/anthropic` in JavaScript), and nothing else moves. The call is the same `.invoke()`, and the reply comes back in the same shape for every provider: an `AIMessage` whose text is in `.content`. That second part matters as much as the first. Because responses are standardized too, the code that *parses* the model's output doesn't change either.
 
