@@ -1,0 +1,528 @@
+---
+title: "Ch.9: Runnable Primitives and LCEL: Sequence, Parallel, Passthrough, Lambda, Branch"
+description: "The five building blocks behind every LangChain workflow: RunnableSequence, RunnableParallel, RunnablePassthrough, RunnableLambda, and RunnableBranch, each with a job it solves and a worked example, plus how the pipe operator (LCEL) became the shorthand for sequences."
+date: "2026-11-05T14:30:00+05:30"
+tags: ["generative-ai", "langchain", "llm", "runnables", "lcel", "chains"]
+subtopic: "LangChain Fundamentals"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=47nc0n-e4_w)
+
+The [last post](/genai-langchain/ch8-runnables) explained *why* runnables exist: one shared interface (`invoke`, `batch`, `stream`) so that any component connects to any other. This post is the practical half: the specific runnables LangChain gives you for connecting things, and when to reach for each.
+
+**Setup.** Same as before: Groq's free tier with `GROQ_API_KEY` in `.env`, model `openai/gpt-oss-20b`. Everything imports from `langchain-core`. These examples ran on LangChain 1.4.9 (langchain-core 1.7.6, langchain-groq 1.1.3) and LangChain.js with @langchain/core 1.3.4. Tutorials from the 0.x era import these classes from `langchain.schema.runnable`; that path no longer exists. The current home is `langchain_core.runnables` (Python) and `@langchain/core/runnables` (JavaScript).
+
+## Two Kinds of Runnables
+
+LangChain's runnables fall into two groups.
+
+**Task-specific runnables** are the components you already know, converted to runnables so they can be connected: `ChatGroq` (a model), `PromptTemplate`, `StrOutputParser`, and later the retrievers. Each has its own purpose (talk to a model, build a prompt, clean a reply) and also follows the runnable interface.
+
+**Runnable primitives** have no AI purpose of their own. They exist to *connect* task-specific runnables in different ways: in a line, side by side, or in a fork. They are the plumbing.
+
+| Primitive | What it does |
+|---|---|
+| `RunnableSequence` | Runs runnables one after another |
+| `RunnableParallel` | Runs runnables at the same time on the same input |
+| `RunnablePassthrough` | Returns its input unchanged |
+| `RunnableLambda` | Turns a plain function into a runnable |
+| `RunnableBranch` | Runs one of several runnables, chosen by a condition |
+
+With these five you can build any workflow. One shared setup for the examples below:
+
+<CodeTabs>
+
+```python
+from dotenv import load_dotenv
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
+load_dotenv()
+
+model = ChatGroq(model="openai/gpt-oss-20b")
+parser = StrOutputParser()
+```
+
+```js
+import "dotenv/config";
+import { ChatGroq } from "@langchain/groq";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+const parser = new StringOutputParser();
+```
+
+</CodeTabs>
+
+## RunnableSequence: One After Another
+
+`RunnableSequence` takes any number of runnables and connects them in order. The first one's output becomes the second one's input, and so on. This is exactly the `RunnableConnector` we wrote from scratch in the last post.
+
+The example: write a joke about a topic, then explain the joke.
+
+<CodeTabs>
+
+```python
+from langchain_core.runnables import RunnableSequence
+
+prompt1 = PromptTemplate.from_template("Write a joke about {topic}")
+prompt2 = PromptTemplate.from_template("Explain the following joke - {text}")
+
+chain = RunnableSequence(prompt1, model, parser, prompt2, model, parser)
+print(chain.invoke({"topic": "AI"}))
+```
+
+```js
+import { RunnableSequence, RunnableLambda } from "@langchain/core/runnables";
+
+const prompt1 = PromptTemplate.fromTemplate("Write a joke about {topic}");
+const prompt2 = PromptTemplate.fromTemplate("Explain the following joke - {text}");
+
+// a JavaScript template wants an object, so wrap the joke string as { text: joke }
+const toText = RunnableLambda.from((joke) => ({ text: joke }));
+
+const chain = RunnableSequence.from([prompt1, model, parser, toText, prompt2, model, parser]);
+console.log(await chain.invoke({ topic: "AI" }));
+```
+
+</CodeTabs>
+
+```
+**What’s going on in the joke?**
+
+1. **The AI’s “apology” is a literal, mechanical one.**
+   In the world of programming, an AI can be told to say “I’m sorry” as a canned response ...
+...
+In short, the joke hinges on the AI’s mechanical view of apologies clashing with the human’s emotional reality ...
+```
+
+Six runnables, in this order: template, model, parser, template, model, parser. Only the explanation is printed, because the last step's output is the chain's output. The joke was produced in the middle and passed along. (That detail matters in a moment.)
+
+The JavaScript version needs one extra step for the reason from the [chains post](/genai-langchain/ch7-chains): a JavaScript template wants an object (`{ text: ... }`), not a bare string, so `RunnableLambda.from((joke) => ({ text: joke }))` does the wrapping. Python's single-variable templates accept a bare string directly.
+
+There is no limit on how many runnables go in. And you will rarely write `RunnableSequence(...)` by hand. The LCEL section at the end shows the shorter way, which builds exactly the same object.
+
+## RunnableParallel: Side by Side
+
+`RunnableParallel` runs several runnables at the same time. Three rules:
+
+1. Each branch gets **the same input**.
+2. The branches run **independently**, in parallel.
+3. The result is a **dictionary**: your keys, each holding that branch's output.
+
+The example: from one topic, write a tweet and a LinkedIn post at the same time. Each branch is itself a `RunnableSequence`, which is allowed because a sequence is a runnable (property 4 from the last post):
+
+<CodeTabs>
+
+```python
+from langchain_core.runnables import RunnableSequence, RunnableParallel
+
+prompt1 = PromptTemplate.from_template("Generate a tweet about {topic}")
+prompt2 = PromptTemplate.from_template("Generate a LinkedIn post about {topic}")
+
+parallel_chain = RunnableParallel({
+    "tweet": RunnableSequence(prompt1, model, parser),
+    "linkedin": RunnableSequence(prompt2, model, parser),
+})
+
+result = parallel_chain.invoke({"topic": "AI"})
+print(list(result))
+print(result["tweet"])
+print(result["linkedin"])
+```
+
+```js
+import { RunnableSequence, RunnableParallel } from "@langchain/core/runnables";
+
+const prompt1 = PromptTemplate.fromTemplate("Generate a tweet about {topic}");
+const prompt2 = PromptTemplate.fromTemplate("Generate a LinkedIn post about {topic}");
+
+const parallelChain = RunnableParallel.from({
+  tweet: RunnableSequence.from([prompt1, model, parser]),
+  linkedin: RunnableSequence.from([prompt2, model, parser]),
+});
+
+const result = await parallelChain.invoke({ topic: "AI" });
+console.log(Object.keys(result));
+console.log(result.tweet);
+console.log(result.linkedin);
+```
+
+</CodeTabs>
+
+```
+['tweet', 'linkedin']
+🤖✨ AI isn’t just a tech trend ... From composing music to diagnosing diseases, it’s reshaping our world. What’s your favorite AI breakthrough? #AI #FutureTech
+🚀 **AI: The Catalyst for Tomorrow’s Business Landscape** 🚀
+
+As we navigate the 2026 digital frontier, Artificial Intelligence isn’t just a buzzword ...
+```
+
+The two branches could use different models, even from different providers (a model tuned for short punchy text for the tweet, another for the longer post). Here both use the same model to keep it simple. The same idea was used in the [chains post](/genai-langchain/ch7-chains) to merge notes and a quiz; the result dictionary's keys are the names you chose, so a later template can use them as variable names.
+
+## RunnablePassthrough: Keep What You Had
+
+`RunnablePassthrough` does nothing to its input and returns it as it is:
+
+<CodeTabs>
+
+```python
+from langchain_core.runnables import RunnablePassthrough
+
+passthrough = RunnablePassthrough()
+print(passthrough.invoke(2))
+print(passthrough.invoke({"name": "Asha"}))
+```
+
+```js
+import { RunnablePassthrough } from "@langchain/core/runnables";
+
+const passthrough = new RunnablePassthrough();
+console.log(await passthrough.invoke(2));
+console.log(await passthrough.invoke({ name: "Asha" }));
+```
+
+</CodeTabs>
+
+```
+2
+{'name': 'Asha'}
+```
+
+An identity step sounds pointless, so here is where it earns its place. Go back to the joke-and-explanation chain. The final output was only the explanation, and the joke was lost. What if you want **both** in the result?
+
+You can do it with a parallel step where one branch passes the joke through untouched and the other explains it:
+
+```
+topic → prompt → model → parser ──→ joke ─┬→ passthrough ──────────────── joke
+                                          └→ prompt2 → model → parser ──→ explanation
+```
+
+<CodeTabs>
+
+```python
+prompt1 = PromptTemplate.from_template("Write a joke about {topic}")
+prompt2 = PromptTemplate.from_template("Explain the following joke - {text}")
+
+joke_gen_chain = RunnableSequence(prompt1, model, parser)
+
+parallel_chain = RunnableParallel({
+    "joke": RunnablePassthrough(),
+    "explanation": RunnableSequence(prompt2, model, parser),
+})
+
+final_chain = RunnableSequence(joke_gen_chain, parallel_chain)
+
+result = final_chain.invoke({"topic": "cricket"})
+print(list(result))
+print("JOKE:", result["joke"])
+print("EXPLANATION:", result["explanation"])
+```
+
+```js
+const toText = RunnableLambda.from((joke) => ({ text: joke }));
+
+const jokeGenChain = RunnableSequence.from([prompt1, model, parser]);
+
+const parallelChain = RunnableParallel.from({
+  joke: new RunnablePassthrough(),
+  explanation: RunnableSequence.from([toText, prompt2, model, parser]),
+});
+
+const finalChain = RunnableSequence.from([jokeGenChain, parallelChain]);
+
+const result = await finalChain.invoke({ topic: "cricket" });
+console.log(Object.keys(result));
+console.log("JOKE:", result.joke);
+console.log("EXPLANATION:", result.explanation);
+```
+
+</CodeTabs>
+
+```
+['joke', 'explanation']
+JOKE: Why did the cricket team bring a ladder to the match?
+
+Because they heard the wickets were *high*!
+EXPLANATION: **Short answer**
+
+The joke hinges on a literal‑vs‑figurative misunderstanding of the cricket phrase “high wicket.” ...
+```
+
+Trace it. The joke chain outputs the joke string. That string goes into the parallel step, where **both** branches receive it. The passthrough branch returns it unchanged as `joke`. The other branch builds the explanation prompt, calls the model, and returns `explanation`. The dictionary holds both.
+
+So `RunnablePassthrough` is the tool for **carrying a value past a step that would otherwise replace it**. It is the same problem as the original-feedback trap in the chains post, where `RunnablePassthrough.assign` kept the customer's text alongside the classifier's verdict. `assign` is the version for when the data is already a dictionary: it keeps all existing keys and adds new ones.
+
+## RunnableLambda: Any Function Becomes a Runnable
+
+Real workflows need steps that are not AI at all: cleaning text, counting, reformatting, calling your own code. `RunnableLambda` turns any ordinary function into a runnable, so it can sit anywhere in a chain.
+
+A typical use: your app sends customer reviews to a model for sentiment analysis, but the raw reviews are messy (HTML tags, emojis, stray punctuation). You write a `clean_text` function and make it the first step. Once wrapped, preprocessing is just another link in the chain.
+
+Here is a smaller example we can verify. After the model writes a joke, we want the joke **and** its word count. We could ask the model to count, but models are unreliable at counting, and counting is something code does perfectly. So we use a function:
+
+<CodeTabs>
+
+```python
+from langchain_core.runnables import RunnableSequence, RunnableParallel, RunnablePassthrough, RunnableLambda
+
+def word_count(text):
+    return len(text.split())
+
+word_counter = RunnableLambda(word_count)
+print(word_counter.invoke("Why did the chicken cross the road"))
+```
+
+```js
+import { RunnableLambda } from "@langchain/core/runnables";
+
+const wordCount = (text) => text.split(/\s+/).filter(Boolean).length;
+
+const wordCounter = RunnableLambda.from(wordCount);
+console.log(await wordCounter.invoke("Why did the chicken cross the road"));
+```
+
+</CodeTabs>
+
+```
+7
+```
+
+`word_counter` now has `invoke`, `batch`, and `stream` like everything else. Put it in a parallel step next to a passthrough:
+
+<CodeTabs>
+
+```python
+prompt = PromptTemplate.from_template("Write a joke about {topic}")
+
+joke_gen_chain = RunnableSequence(prompt, model, parser)
+
+parallel_chain = RunnableParallel({
+    "joke": RunnablePassthrough(),
+    "word_count": RunnableLambda(word_count),
+})
+
+final_chain = RunnableSequence(joke_gen_chain, parallel_chain)
+
+result = final_chain.invoke({"topic": "AI"})
+print(f"{result['joke']}\nword count - {result['word_count']}")
+```
+
+```js
+const prompt = PromptTemplate.fromTemplate("Write a joke about {topic}");
+
+const jokeGenChain = RunnableSequence.from([prompt, model, parser]);
+
+const parallelChain = RunnableParallel.from({
+  joke: new RunnablePassthrough(),
+  word_count: RunnableLambda.from(wordCount),
+});
+
+const finalChain = RunnableSequence.from([jokeGenChain, parallelChain]);
+
+const result = await finalChain.invoke({ topic: "AI" });
+console.log(`${result.joke}\nword count - ${result.word_count}`);
+```
+
+</CodeTabs>
+
+```
+Why did the AI go to therapy?
+
+Because it had too many unresolved *neural* feelings!
+word count - 15
+```
+
+The joke is passed through unchanged, and a function counts its words, both from the same input. The name `RunnableLambda` comes from Python's `lambda` keyword: for a one-liner you can skip `def` and write `RunnableLambda(lambda x: len(x.split()))`, which does the same thing.
+
+Whenever you need custom logic in the middle of a chain, this is the tool.
+
+## RunnableBranch: If / Else
+
+`RunnableBranch` picks one runnable to run, based on a condition. The [chains post](/genai-langchain/ch7-chains) used it to route feedback by sentiment. Here is the same tool on a different problem.
+
+Imagine a support inbox where each email is first classified as a complaint, a refund request, or a general question, and each category goes down a different path (complaints forwarded to a human, refunds sent to a database, questions answered by a bot). The classifier decides the category; the branch routes on it.
+
+Our example is smaller: write a report on a topic. If the report is longer than 500 words, summarize it. Otherwise return it as it is.
+
+A branch is a list of `(condition, runnable)` pairs checked in order, plus a **default** at the end that runs if no condition matched. The default here is a `RunnablePassthrough`: "do nothing, send the report on".
+
+<CodeTabs>
+
+```python
+from langchain_core.runnables import RunnableSequence, RunnablePassthrough, RunnableBranch
+
+prompt1 = PromptTemplate.from_template("Write a detailed report on {topic}")
+prompt2 = PromptTemplate.from_template("Summarize the following text in 3 sentences\n{text}")
+
+report_gen_chain = prompt1 | model | parser
+
+branch_chain = RunnableBranch(
+    (lambda x: len(x.split()) > 500, prompt2 | model | parser),
+    RunnablePassthrough(),
+)
+
+final_chain = RunnableSequence(report_gen_chain, branch_chain)
+```
+
+```js
+import { RunnableSequence, RunnablePassthrough, RunnableBranch, RunnableLambda } from "@langchain/core/runnables";
+
+const wordCount = (text) => text.split(/\s+/).filter(Boolean).length;
+const toText = RunnableLambda.from((report) => ({ text: report }));
+
+const prompt1 = PromptTemplate.fromTemplate("Write a detailed report on {topic}");
+const prompt2 = PromptTemplate.fromTemplate("Summarize the following text in 3 sentences\n{text}");
+
+const reportGenChain = RunnableSequence.from([prompt1, model, parser]);
+
+const branchChain = RunnableBranch.from([
+  [(x) => wordCount(x) > 500, RunnableSequence.from([toText, prompt2, model, parser])],
+  new RunnablePassthrough(),
+]);
+
+const finalChain = RunnableSequence.from([reportGenChain, branchChain]);
+```
+
+</CodeTabs>
+
+The condition is a function that receives the branch's input, here the report text (the parser's output), and returns true or false. We count words with `len(x.split())`.
+
+Before spending model calls on a whole report, test the branch on its own with text where we know the length. A short text should pass through, and a 600-word text should be summarized:
+
+<CodeTabs>
+
+```python
+print(branch_chain.invoke("Short reports pass through unchanged."))
+
+long_text = "The report keeps growing. " * 150   # 600 words
+summary = branch_chain.invoke(long_text)
+print(len(long_text.split()), "->", len(summary.split()), "words")
+print(summary)
+```
+
+```js
+console.log(await branchChain.invoke("Short reports pass through unchanged."));
+
+const longText = "The report keeps growing. ".repeat(150); // 600 words
+const summary = await branchChain.invoke(longText);
+console.log(wordCount(longText), "->", wordCount(summary), "words");
+console.log(summary);
+```
+
+</CodeTabs>
+
+```
+Short reports pass through unchanged.
+600 -> 44 words
+The passage repeats the phrase “The report keeps growing” over and over. It emphasizes the continual expansion of a report, suggesting that its size or scope is increasing without pause. The repetition underscores a sense of frustration or urgency about the report’s ongoing growth.
+```
+
+Both paths work: short text came back untouched (the passthrough), long text came back summarized. Now the full chain:
+
+<CodeTabs>
+
+```python
+result = final_chain.invoke({"topic": "Russia vs Ukraine"})
+print(len(result.split()), "words")
+print(result)
+```
+
+```js
+const result = await finalChain.invoke({ topic: "Russia vs Ukraine" });
+console.log(wordCount(result), "words");
+console.log(result);
+```
+
+</CodeTabs>
+
+```
+134 words
+The war erupted with Russia’s full‑scale invasion of Ukraine in February 2022, driven by Moscow’s aim to reassert influence over former Soviet territory ...
+```
+
+**A word of caution about testing this one.** The first stage, the report, is written by a model, so its length changes from run to run. In our runs, `gpt-oss-20b` usually wrote reports of 1,000 words or more, which triggered the summary. But one run produced a report of about 330 words, which passed through unchanged, with the very same code. Neither behaviour is a bug. That is why the direct test above, with text of a known length, is the reliable way to check that a branch works.
+
+If you want to see the other path in the full chain, change the number: with `> 5000` the report passes through, and with `> 500` it gets summarized.
+
+## LCEL: The Pipe Shortcut
+
+Look back at every example in this post. Which primitive appeared most often? `RunnableSequence`. It was the outer wrapper in the parallel example, inside each branch, around the passthrough, around the lambda. Sequences are the most common shape by far.
+
+The LangChain team noticed the same and added a shorter way to write them: the **pipe operator** `|` (in JavaScript, `.pipe()`). These two lines build the exact same object:
+
+```python
+chain = RunnableSequence(prompt1, model, parser, prompt2, model, parser)
+chain = prompt1 | model | parser | prompt2 | model | parser
+```
+
+```js
+const chain = RunnableSequence.from([prompt1, model, parser, toText, prompt2, model, parser]);
+// same thing, written with pipe:
+const sameChain = prompt1.pipe(model).pipe(parser).pipe(toText).pipe(prompt2).pipe(model).pipe(parser);
+```
+
+Both have type `RunnableSequence`. The pipe version reads like a sentence, left to right: "prompt, then model, then parser". This style of writing a chain is called the **LangChain Expression Language (LCEL)**, and it is why the chains in the last two posts used `|`. It's called *declarative* because you describe the chain's shape and LangChain handles running it. From here on, the course writes sequences with `|`.
+
+### What LCEL covers beyond sequences
+
+The pipe also quietly converts two common things into runnables, so you don't have to wrap them yourself. Inside a `|` chain:
+
+- a **dictionary** of runnables becomes a `RunnableParallel`,
+- a **plain function** becomes a `RunnableLambda`.
+
+<CodeTabs>
+
+```python
+prompt = PromptTemplate.from_template("Write a joke about {topic}")
+
+chain = (
+    prompt | model | parser
+    | {"joke": RunnablePassthrough(), "word_count": lambda joke: len(joke.split())}
+)
+
+print(type(chain).__name__, [type(step).__name__ for step in chain.steps])
+print(chain.invoke({"topic": "cricket"}))
+```
+
+```js
+const chain = prompt.pipe(model).pipe(parser).pipe({
+  joke: new RunnablePassthrough(),
+  word_count: (joke) => wordCount(joke),
+});
+
+console.log(chain.constructor.name);
+console.log(await chain.invoke({ topic: "cricket" }));
+```
+
+</CodeTabs>
+
+```
+RunnableSequence ['PromptTemplate', 'ChatGroq', 'StrOutputParser', 'RunnableParallel']
+{'joke': 'Why did the cricket bring a ladder to the match?  \nBecause it heard the wickets were *high* and wanted to stay on top!', 'word_count': 23}
+```
+
+This is the joke-plus-word-count example from the lambda section, with no `RunnableParallel(...)` or `RunnableLambda(...)` written out. The step list proves what happened: the dictionary was wrapped into a `RunnableParallel` for us. The lambda inside it was wrapped too.
+
+The shorthand does not cover everything. `RunnableBranch` has no symbol or shorthand, so it is still written out in full, as in the branch section. And while you will see the pipe in nearly all LangChain code you read, the explicit classes are worth knowing: they are what's underneath, and they are what you reach for when a chain gets complicated enough that spelling it out helps.
+
+## Where to Go From Here
+
+You now have the building blocks the rest of the course uses. The next topics (document loaders, text splitters, vector stores, retrievers) are all new task-specific runnables, and a retrieval-based app is built by connecting them with the primitives from this post.
+
+## Summary
+
+| Topic | What to remember |
+|---|---|
+| **Task-specific runnable** | A component with its own purpose that also follows the runnable interface: models, prompt templates, parsers, retrievers |
+| **Runnable primitive** | A runnable whose purpose is connecting others: sequence, parallel, passthrough, lambda, branch |
+| **Import path** | `langchain_core.runnables` / `@langchain/core/runnables`. The old `langchain.schema.runnable` path is gone |
+| **`RunnableSequence`** | Runs runnables in order; each output is the next input. Most common primitive by far |
+| **`RunnableParallel`** | Takes a dictionary of runnables, gives each the same input, runs them in parallel, returns a dictionary with your keys |
+| **`RunnablePassthrough`** | Returns its input unchanged. Use it to carry a value past a step (e.g. keep the joke while also explaining it). `.assign` does this for dictionaries |
+| **`RunnableLambda`** | Wraps any function as a runnable, for non-AI steps like cleaning, counting, or reformatting. Use code for what code does well (counting), not the model |
+| **`RunnableBranch`** | `(condition, runnable)` pairs checked in order, then a default. The `if / elif / else` of chains. Test it on inputs of known length, since model output varies |
+| **LCEL** | The pipe operator `\|` (`.pipe()` in JS). Builds a `RunnableSequence`. In a pipe, a dictionary becomes a `RunnableParallel` and a function becomes a `RunnableLambda` |
