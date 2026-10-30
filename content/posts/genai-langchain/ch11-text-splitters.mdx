@@ -1,0 +1,425 @@
+---
+title: "Ch.11: Text Splitters in LangChain: Length, Structure, Code and Semantic Splitting"
+description: "Why long documents must be cut into chunks, and the four ways to do it: by length, by text structure (RecursiveCharacterTextSplitter, traced by hand), by document type (code and Markdown), and by meaning, with what chunk overlap buys you and where each method breaks."
+date: "2026-11-09T15:17:00+05:30"
+tags: ["generative-ai", "langchain", "rag", "text-splitters", "chunking", "llm"]
+subtopic: "RAG Components"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=SEWS9P4ODmc)
+
+[Document loaders](/genai-langchain/ch10-document-loaders) get your data into LangChain as `Document` objects. Often those documents are far too big to use as they are: a page can be a few thousand characters and a book can be a few million. The second RAG component, the **text splitter**, cuts big documents into small **chunks**.
+
+**Setup.** Python examples ran on LangChain 1.4.9 with `langchain-text-splitters` 1.1.3; the JavaScript ones use `@langchain/textsplitters` 1.0.2. Old tutorials import splitters from `langchain.text_splitter`; the current home is the separate `langchain_text_splitters` package (Python) and `@langchain/textsplitters` (JavaScript).
+
+## Why Split at All
+
+Suppose you have a PDF with a hundred thousand words and want an LLM to work with it. Four separate problems push you to split.
+
+**1. Context limits.** A model accepts only so much input at once (its *context window*). If the model's limit is smaller than your document, the document simply does not fit. Splitting it into pieces that do fit is the only way to process it. (We treat a token as roughly a word here; they differ slightly, but the idea is the same.)
+
+**2. Embedding quality.** An *embedding* turns text into a list of numbers (a vector) that captures its meaning. Squeezing a whole long text into one vector blurs its meaning: the vector for a document about three IPL teams, one paragraph each, ends up as a vague average of all three. Embed each paragraph separately and each vector represents one team sharply.
+
+**3. Semantic search.** Search works by comparing the question's vector to your chunks' vectors. Ask which IPL team Virat Kohli plays for: with sharp per-team chunk vectors, the RCB chunk comes out clearly closest. With one blurry vector for everything, the match is weak and imprecise.
+
+**4. Summarization and cost.** Models given a very large text tend to drift off topic or invent details that are not in it; summaries of smaller pieces hold up better. Smaller chunks also need less memory and can be processed in parallel.
+
+So splitting is a quality step, not only a workaround for size limits. The question is where to cut. There are four strategies, from simplest to smartest.
+
+## 1. Length-Based Splitting
+
+Decide a chunk size (in characters or tokens), walk through the text, and cut every time you hit that size. With size 100, the first 100 characters are chunk 1, the next 100 are chunk 2, and so on. It is simple and very fast.
+
+<CodeTabs>
+
+```python
+from langchain_text_splitters import CharacterTextSplitter
+
+text = """Space exploration has led to incredible scientific discoveries. From landing on the Moon to exploring Mars, humanity continues to push the boundaries of what is possible beyond our planet.
+
+These missions have not only expanded our knowledge of the universe but have also contributed to advancements in technology here on Earth. Satellite communications, GPS, and even certain medical imaging techniques trace their roots back to innovations driven by space programs."""
+
+splitter = CharacterTextSplitter(chunk_size=100, chunk_overlap=0, separator="")
+chunks = splitter.split_text(text)
+
+print(len(chunks))
+print(repr(chunks[0]))
+print(repr(chunks[1]))
+```
+
+```js
+import { CharacterTextSplitter } from "@langchain/textsplitters";
+
+const text = `Space exploration has led to incredible scientific discoveries. From landing on the Moon to exploring Mars, humanity continues to push the boundaries of what is possible beyond our planet.
+
+These missions have not only expanded our knowledge of the universe but have also contributed to advancements in technology here on Earth. Satellite communications, GPS, and even certain medical imaging techniques trace their roots back to innovations driven by space programs.`;
+
+const splitter = new CharacterTextSplitter({ chunkSize: 100, chunkOverlap: 0, separator: "" });
+const chunks = await splitter.splitText(text);
+
+console.log(chunks.length);
+console.log(JSON.stringify(chunks[0]));
+console.log(JSON.stringify(chunks[1]));
+```
+
+</CodeTabs>
+
+```
+5
+'Space exploration has led to incredible scientific discoveries. From landing on the Moon to explorin'
+'g Mars, humanity continues to push the boundaries of what is possible beyond our planet.\n\nThese miss'
+```
+
+`separator=""` means "no special separator: cut at exactly the size". Look at the cut: *explorin* | *g Mars*. The splitter does not look at words, sentences or meaning, only the count. A word is sliced in half, and so is a paragraph; a chunk that starts mid-word and a paragraph spread across two chunks are bad inputs for embeddings.
+
+Everything on a splitter works on text, so you split a plain string with `split_text`. To split loaded `Document` objects, use `split_documents`, which returns a list of `Document`s: each chunk keeps its parent's metadata (source file, page number), so you can always trace a chunk back to where it came from.
+
+<CodeTabs>
+
+```python
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+docs = PyPDFLoader("curriculum.pdf").load()
+splitter = RecursiveCharacterTextSplitter(chunk_size=20, chunk_overlap=0)
+chunks = splitter.split_documents(docs)
+
+print(len(docs), len(chunks))
+print(chunks[0].page_content, chunks[0].metadata["page"])
+```
+
+```js
+import { Document } from "@langchain/core/documents";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+
+const docs = [1, 2, 3].map(
+  (n) => new Document({ pageContent: `Deep learning curriculum, page ${n}`, metadata: { page: n - 1 } })
+);
+const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 20, chunkOverlap: 0 });
+const chunks = await splitter.splitDocuments(docs);
+
+console.log(docs.length, chunks.length);
+console.log(chunks[0].pageContent, chunks[0].metadata.page);
+```
+
+</CodeTabs>
+
+```
+3 6
+Deep learning 0
+```
+
+Three one-line pages became six chunks, and each chunk still knows which page it came from. (This used the recursive splitter from the next section; `split_documents` works the same on any splitter.)
+
+### Chunk Overlap
+
+The cutting problem has a partial fix: **chunk overlap**. Each new chunk starts a little *before* where the previous one ended, so the two share some characters.
+
+```python
+splitter = CharacterTextSplitter(chunk_size=100, chunk_overlap=20, separator="")
+chunks = splitter.split_text(text)
+
+print(len(chunks))                # 6
+print(repr(chunks[0][-30:]))      # 'anding on the Moon to explorin'
+print(repr(chunks[1][:30]))       # 'the Moon to exploring Mars, hu'
+```
+
+The end of chunk 1 (`...the Moon to explorin`) reappears at the start of chunk 2 (`the Moon to exploring...`). If a cut lands mid-thought, the thought is at least whole in one of the two chunks, so less context is lost. The cost is more chunks (5 became 6 here), so more to embed and store. So overlap is a trade-off: none and you lose context at the seams, too much and you pay for duplicated text. A common rule of thumb for RAG is **10 to 20% of the chunk size**: for 100-character chunks, an overlap of 10 to 20 characters, scaling up as chunks grow.
+
+Length-based splitting is conceptually trivial and fast. Its weakness is that it ignores language completely.
+
+## 2. Text-Structure-Based Splitting
+
+Text has built-in structure: paragraphs, made of sentences, made of words, made of characters. Instead of cutting blindly at a count, we can cut at the *largest* natural boundary that still fits.
+
+That is what `RecursiveCharacterTextSplitter` does. It has an ordered list of separators, biggest first: a blank line (paragraph break), a newline, a space (between words), and finally nothing (any character). The algorithm:
+
+1. Split the text on the first separator (paragraph breaks).
+2. Any piece still longer than the chunk size is split again using the *next* separator, and so on down the list.
+3. Tiny neighbouring pieces are **merged back together** as long as the result stays within the chunk size, so you do not end up with a crowd of two-word chunks.
+
+The splitter only drops to a smaller unit when a piece is too big to fit. Work through it by hand on this text, whose paragraph break is the blank line (character counts in brackets):
+
+```
+My name is Nitish          (17)
+I am 35 years old          (17)
+                           <- blank line: paragraph break
+I live in Gurgaon          (17)
+How are you                (11)
+```
+
+**Chunk size 10.** Paragraph split gives two paragraphs of 34 and 28 characters, both over 10. Split each on newlines: four lines of 17, 17, 17 and 11, all still over 10. Split on spaces to get single words (`My`, `name`, `is`, `Nitish`, ...), all under 10. Now merge neighbours while they fit: `My` + `name` + `is` makes `My name is` (10 characters, exactly the limit); adding `Nitish` would make 16, so it stays alone. The same happens in every line. Final result:
+
+```
+['My name is', 'Nitish', 'I am 35', 'years old', 'I live in', 'Gurgaon', 'How are', 'you']
+```
+
+It was forced all the way down to words, but never cut a word in half.
+
+**Chunk size 25.** The two paragraphs (34 and 28) are too big; split on newlines to four lines (17, 17, 17, 11), all under 25. Merging any two would exceed 25 (17 + 17 = 34, and 17 + 11 = 28). So each line is a chunk:
+
+```
+['My name is Nitish', 'I am 35 years old', 'I live in Gurgaon', 'How are you']
+```
+
+**Chunk size 50.** The two paragraphs (34 and 28) both fit and cannot be merged (34 + 28 is too big). Each paragraph is a chunk:
+
+```
+['My name is Nitish\nI am 35 years old', 'I live in Gurgaon\nHow are you']
+```
+
+These are the real outputs of the code below. Same text, three chunk sizes, three levels of granularity, and the splitter always picks the largest boundary that fits.
+
+<CodeTabs>
+
+```python
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+t = "My name is Nitish\nI am 35 years old\n\nI live in Gurgaon\nHow are you"
+
+for size in (10, 25, 50):
+    splitter = RecursiveCharacterTextSplitter(chunk_size=size, chunk_overlap=0)
+    print(size, splitter.split_text(t))
+```
+
+```js
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+
+const t = "My name is Nitish\nI am 35 years old\n\nI live in Gurgaon\nHow are you";
+
+for (const size of [10, 25, 50]) {
+  const splitter = new RecursiveCharacterTextSplitter({ chunkSize: size, chunkOverlap: 0 });
+  console.log(size, await splitter.splitText(t));
+}
+```
+
+</CodeTabs>
+
+On the space text from earlier, `chunk_size=300` produces 2 chunks, exactly the two paragraphs; `chunk_size=100` produces 5 chunks that break between sentences or words where they must; `chunk_size=800` produces 1. This is the splitter you will use most often. Pick a chunk size and it keeps paragraphs intact when they fit and degrades gracefully when they do not.
+
+## 3. Document-Structure-Based Splitting
+
+Source code and Markdown are text, but not text organized into paragraphs and sentences. Code is organized into classes, functions, loops. Markdown into headings and lists. Splitting a Python file on blank lines and spaces would cut a function in half.
+
+The idea is the same recursive algorithm with a different separator list: for Python, "split at `class `, then at `def `, then at blank lines, then lines, then words". LangChain ships these lists for many languages. You pick one with `from_language`.
+
+<CodeTabs>
+
+```python
+from langchain_text_splitters import RecursiveCharacterTextSplitter, Language
+
+code = '''class Student:
+    def __init__(self, name, marks):
+        self.name = name
+        self.marks = marks
+
+    def has_passed(self):
+        return self.marks >= 40
+
+s = Student("Asha", 72)
+if s.has_passed():
+    print("Passed")
+else:
+    print("Failed")
+'''
+
+splitter = RecursiveCharacterTextSplitter.from_language(
+    language=Language.PYTHON, chunk_size=150, chunk_overlap=0
+)
+for chunk in splitter.split_text(code):
+    print("---")
+    print(chunk)
+```
+
+```js
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+
+const code = `class Student:
+    def __init__(self, name, marks):
+        self.name = name
+        self.marks = marks
+
+    def has_passed(self):
+        return self.marks >= 40
+
+s = Student("Asha", 72)
+if s.has_passed():
+    print("Passed")
+else:
+    print("Failed")
+`;
+
+const splitter = RecursiveCharacterTextSplitter.fromLanguage("python", { chunkSize: 150, chunkOverlap: 0 });
+for (const chunk of await splitter.splitText(code)) {
+  console.log("---");
+  console.log(chunk);
+}
+```
+
+</CodeTabs>
+
+```
+---
+class Student:
+    def __init__(self, name, marks):
+        self.name = name
+        self.marks = marks
+---
+def has_passed(self):
+        return self.marks >= 40
+
+s = Student("Asha", 72)
+if s.has_passed():
+    print("Passed")
+else:
+    print("Failed")
+```
+
+The cut falls between the `__init__` method and the next `def`, not in the middle of a function. The second chunk starts with `def has_passed`, a whole method, followed by the code that uses the class. (Its indentation looks odd because the splitter strips leading whitespace at the cut.)
+
+Markdown works the same way, with headings as boundaries. On a README-style document with four sections, `chunk_size=60`:
+
+<CodeTabs>
+
+```python
+md = """# Project Title
+A short summary.
+
+## Features
+- Fast
+- Simple
+
+## Tech Stack
+Python and LangChain.
+
+## Getting Started
+Run the app.
+"""
+
+splitter = RecursiveCharacterTextSplitter.from_language(
+    language=Language.MARKDOWN, chunk_size=60, chunk_overlap=0
+)
+chunks = splitter.split_text(md)
+print(len(chunks))
+for c in chunks:
+    print("---")
+    print(c)
+```
+
+```js
+const md = `# Project Title
+A short summary.
+
+## Features
+- Fast
+- Simple
+
+## Tech Stack
+Python and LangChain.
+
+## Getting Started
+Run the app.
+`;
+
+const splitter = RecursiveCharacterTextSplitter.fromLanguage("markdown", { chunkSize: 60, chunkOverlap: 0 });
+const chunks = await splitter.splitText(md);
+console.log(chunks.length);
+```
+
+</CodeTabs>
+
+```
+4
+---
+# Project Title
+A short summary.
+---
+## Features
+- Fast
+- Simple
+---
+## Tech Stack
+Python and LangChain.
+---
+## Getting Started
+Run the app.
+```
+
+One chunk per section: exactly what you would want. The chunk size matters a lot here: a size too small shreds the Markdown into many tiny pieces, and a size too large merges sections together. Tune it on a sample of your own documents. The same `from_language` call supports many other languages (JavaScript, Java, HTML, and more); you only have to say which one your text is.
+
+## 4. Semantic-Meaning-Based Splitting
+
+The first three methods decide where to cut using length or format. None looks at what the text *says*, and that fails in one kind of case: a single paragraph that changes topic partway through. Here is one paragraph that talks about three unrelated things (farming, then cricket, then biology):
+
+```
+Farmers in Punjab start sowing wheat as the winter approaches. The soil is prepared weeks in
+advance, and a good monsoon means better yields. Irrigation canals keep the fields green through
+the season. The Indian Premier League is a T20 cricket tournament held every year. Teams like
+Mumbai Indians and Chennai Super Kings have won multiple titles. Fans fill the stadiums to watch
+the batters hit sixes. Photosynthesis is how plants turn sunlight into food. Chlorophyll in the
+leaves absorbs light and converts carbon dioxide and water into glucose. Oxygen is released as a
+by-product.
+```
+
+The ideal split is one chunk per topic. A structure-based splitter has no way to see that: with a big enough chunk size it keeps the paragraph whole, so three topics share one chunk and the embedding is blurry again. The semantic approach looks at meaning:
+
+1. Split the text into sentences.
+2. Embed every sentence.
+3. Compare each sentence's vector to the next one's (with cosine similarity, a score of how alike two vectors are).
+4. Where similarity suddenly **drops**, the topic changed: cut there.
+
+It is a sliding window moving sentence by sentence. The question is how big a drop counts as a topic change, which is the **breakpoint threshold**. `SemanticChunker` offers several rules: `percentile`, `standard_deviation` (a drop of more than N standard deviations from the typical gap), `interquartile` and `gradient`. A larger N tolerates bigger changes before cutting, so you get fewer chunks.
+
+This lives in `langchain-experimental`, and it does what it says: it is experimental. It needs an embedding model, which the usual `Embeddings` objects supply. (This run used the `bge-m3` model through an OpenAI-compatible endpoint.)
+
+```python
+from langchain_experimental.text_splitter import SemanticChunker
+
+splitter = SemanticChunker(
+    embeddings,  # any LangChain Embeddings object
+    breakpoint_threshold_type="standard_deviation",
+    breakpoint_threshold_amount=1,
+)
+chunks = splitter.split_text(text)
+```
+
+On that paragraph:
+
+```
+standard_deviation 1  ->  3 chunks
+  1  Farmers in Punjab start sowing wheat as the winter approaches. The soil is prepared weeks in advance, and a good monsoon means better yields.
+  2  Irrigation canals keep the fields green through the season. The Indian Premier League is a T20 cricket tournament held every year. Teams like Mumbai Indians and Chennai Super Kings have won multiple titles.
+  3  Fans fill the stadiums to watch the batters hit sixes. Photosynthesis is how plants turn sunlight into food. Chlorophyll ... Oxygen is released as a by-product.
+
+standard_deviation 3  ->  1 chunk (everything)
+```
+
+It found the right number of chunks (three topics, three chunks) but put the boundaries in the wrong places. *Irrigation canals keep the fields green* belongs with farming and sits in the cricket chunk; *Fans fill the stadiums* belongs with cricket and sits in the biology chunk. Each boundary is one sentence late. Raising the threshold to 3 standard deviations tolerates every change and returns a single chunk.
+
+That is the honest state of this technique. The idea is sound and may become standard as embedding models improve, but today it needs tuning, is not reliably precise, and costs an embedding call per sentence. **`RecursiveCharacterTextSplitter` remains the default choice**, and the one you will see in most real pipelines.
+
+LangChain.js has no semantic splitter in `@langchain/textsplitters`, so this section is Python-only here. The algorithm above is simple enough to hand-write in JavaScript if you need it.
+
+## Choosing a Splitter
+
+| Method | Cuts at | Strength | Weakness |
+|---|---|---|---|
+| **Length** (`CharacterTextSplitter`) | A fixed size | Simple, very fast | Cuts mid-word and mid-sentence |
+| **Text structure** (`RecursiveCharacterTextSplitter`) | Paragraph, then line, then word, then character | Respects natural boundaries; the default | Does not see topic changes inside a paragraph |
+| **Document structure** (`from_language`) | Class, function, heading, then the above | Keeps code and Markdown units whole | You must say which language |
+| **Semantic** (`SemanticChunker`) | Where meaning shifts | Splits by topic, not by format | Experimental, needs embeddings, boundaries can be off |
+
+## Summary
+
+| Topic | What to remember |
+|---|---|
+| **Why split** | Context limits; sharper embeddings; more precise semantic search; better summaries; less memory and parallelism |
+| **Where it lives** | `langchain_text_splitters` (Python), `@langchain/textsplitters` (JavaScript). The old `langchain.text_splitter` path is gone |
+| **`split_text` vs `split_documents`** | `split_text` takes a string and returns strings. `split_documents` takes `Document`s and returns `Document` chunks that keep their metadata |
+| **Length-based** | `CharacterTextSplitter(chunk_size, chunk_overlap, separator="")`. Fast, blind to words and meaning |
+| **Chunk overlap** | Chunks share some characters so a cut thought stays whole in one of them. Costs more chunks. Rule of thumb: 10 to 20% of chunk size |
+| **Recursive splitting** | Try paragraph, then line, then word, then character; drop down only when a piece is too big; merge small pieces back up to the limit |
+| **Document-based** | `RecursiveCharacterTextSplitter.from_language(Language.PYTHON / MARKDOWN / ...)`: same algorithm, separators suited to the format |
+| **Semantic** | Embed sentences, cut where adjacent similarity drops. `SemanticChunker` in `langchain_experimental`. Python only; promising but unreliable today |
+| **Default choice** | `RecursiveCharacterTextSplitter` |
