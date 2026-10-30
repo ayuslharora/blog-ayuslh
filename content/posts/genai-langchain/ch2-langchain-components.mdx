@@ -456,7 +456,13 @@ flowchart LR
 <CodeTabs>
 
 ```python
+from langchain.chat_models import init_chat_model
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableParallel
+
+model = init_chat_model("openai:gpt-5.5")
+parser = StrOutputParser()
 
 report_a = PromptTemplate.from_template("Write a short factual report on {topic}.") | model | parser
 report_b = PromptTemplate.from_template("Write a short report on the causes and aftermath of {topic}.") | model | parser
@@ -469,7 +475,13 @@ parallel_chain.invoke({"topic": "the 9/11 attacks"})
 ```
 
 ```js
+import { initChatModel } from "langchain";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
 import { RunnableParallel } from "@langchain/core/runnables";
+
+const model = await initChatModel("openai:gpt-5.5");
+const parser = new StringOutputParser();
 
 const reportA = PromptTemplate.fromTemplate("Write a short factual report on {topic}.").pipe(model).pipe(parser);
 const reportB = PromptTemplate.fromTemplate("Write a short report on the causes and aftermath of {topic}.").pipe(model).pipe(parser);
@@ -499,7 +511,13 @@ flowchart LR
 <CodeTabs>
 
 ```python
-from langchain_core.runnables import RunnableBranch
+from langchain.chat_models import init_chat_model
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnableBranch, RunnableParallel
+
+model = init_chat_model("openai:gpt-5.5")
+parser = StrOutputParser()
 
 classify = PromptTemplate.from_template(
     "Is this feedback positive or negative? Answer with one word.\n\n{feedback}"
@@ -517,7 +535,13 @@ print(conditional_chain.invoke({"feedback": "My order arrived broken and nobody 
 ```
 
 ```js
-import { RunnableBranch } from "@langchain/core/runnables";
+import { initChatModel } from "langchain";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { RunnableBranch, RunnableParallel } from "@langchain/core/runnables";
+
+const model = await initChatModel("openai:gpt-5.5");
+const parser = new StringOutputParser();
 
 const classify = PromptTemplate.fromTemplate(
   "Is this feedback positive or negative? Answer with one word.\n\n{feedback}"
@@ -577,11 +601,19 @@ Here's a model asked two questions, one after the other, as two separate calls:
 <CodeTabs>
 
 ```python
-model.invoke("Who is Narendra Modi? Answer in one sentence.").content
-model.invoke("How old is he?").content
+from langchain.chat_models import init_chat_model
+
+model = init_chat_model("openai:gpt-5.5")
+
+print(model.invoke("Who is Narendra Modi? Answer in one sentence.").content)
+print(model.invoke("How old is he?").content)
 ```
 
 ```js
+import { initChatModel } from "langchain";
+
+const model = await initChatModel("openai:gpt-5.5");
+
 console.log((await model.invoke("Who is Narendra Modi? Answer in one sentence.")).content);
 console.log((await model.invoke("How old is he?")).content);
 ```
@@ -659,7 +691,9 @@ For example, summary memory is one extra argument:
 <CodeTabs>
 
 ```python
+from langchain.agents import create_agent
 from langchain.agents.middleware import SummarizationMiddleware
+from langgraph.checkpoint.memory import InMemorySaver
 
 agent = create_agent(
     model="openai:gpt-5.5",
@@ -669,7 +703,8 @@ agent = create_agent(
 ```
 
 ```js
-import { summarizationMiddleware } from "langchain";
+import { createAgent, summarizationMiddleware } from "langchain";
+import { MemorySaver } from "@langchain/langgraph";
 
 const agent = createAgent({
   model: "openai:gpt-5.5",
