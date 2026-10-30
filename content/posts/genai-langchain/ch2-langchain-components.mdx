@@ -265,7 +265,8 @@ chat_template = ChatPromptTemplate.from_messages([
     ("human", "Tell me about {topic}."),
 ])
 
-for m in chat_template.invoke({"profession": "doctor", "topic": "viral fever"}).to_messages():
+prompt = chat_template.invoke({"profession": "doctor", "topic": "viral fever"})
+for m in prompt.to_messages():
     print(f"{m.type}: {m.content}")
 ```
 
