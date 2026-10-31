@@ -1,0 +1,318 @@
+---
+title: "Ch.12: Vector Stores in LangChain: Why They Exist and How to Use Chroma"
+description: "Why keyword matching fails for recommendations, how embeddings plus cosine similarity fix it, the three problems that force you to use a vector store (generating, storing, searching at scale), how indexing speeds up search, vector store vs vector database, and a hands-on Chroma tour: add, get, search, filter, update, delete."
+date: "2026-11-09T15:21:00+05:30"
+tags: ["generative-ai", "langchain", "rag", "vector-stores", "chroma", "embeddings"]
+subtopic: "RAG Components"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=k13WK0bxQP0)
+
+So far in the RAG series: [document loaders](/genai-langchain/ch10-document-loaders) bring data in, and [text splitters](/genai-langchain/ch11-text-splitters) cut it into chunks. Now we need somewhere to put those chunks so we can find the relevant ones fast. That place is a **vector store**. Before the definition, a story that shows why you would ever need one.
+
+## The Problem: Recommending Similar Movies
+
+Imagine you are building a movie website like IMDb. You have a database with a row per movie: id, name, director, actors, genre, release year. Now you want a "movies similar to this one" section at the bottom of each movie's page, because a user who finds a second good movie stays longer.
+
+### Attempt 1: Match Keywords
+
+The obvious idea: two movies are similar if they share a director, actors, genre and release period. It works a little, and it fails in two opposite ways.
+
+**False positive.** Take *My Name Is Khan*. Its top match by keywords is *Kabhi Alvida Naa Kehna*: same director, same lead actor, close release years, both dramas. But the stories have nothing in common.
+
+**False negative.** *Taare Zameen Par* and *A Beautiful Mind* share no director, no actors, no language, no era. Yet they are similar where it counts: a central character struggling with a condition that others misunderstand, while being gifted in another way. Keyword matching can never connect them, because no keyword is shared.
+
+The lesson: similarity of *meaning* is not the same as overlap of *labels*.
+
+### Attempt 2: Compare the Plots
+
+If two movies have similar stories, they are similar movies. So store each movie's plot (a few thousand words of text), and compare plots. But comparing two pieces of text by meaning is hard for a program. This is exactly what **embeddings** solve: an embedding model reads a text and outputs a **vector**, a list of numbers (say 512 or 1024 of them), such that texts with similar meaning get vectors that point in similar directions.
+
+Once every plot is a vector, similarity is geometry. The standard measure is **cosine similarity**, the cosine of the angle between two vectors: 1 means pointing the same way, near 0 means unrelated. A small angle means similar plots.
+
+Here is the idea on real numbers. I embedded one-sentence plots of four movies and computed the cosine similarity of every pair:
+
+| | My Name Is Khan | Kabhi Alvida Naa Kehna | Taare Zameen Par | A Beautiful Mind |
+|---|---|---|---|---|
+| **My Name Is Khan** | 1 | 0.46 | **0.52** | 0.47 |
+| **Kabhi Alvida Naa Kehna** | 0.46 | 1 | 0.50 | 0.50 |
+| **Taare Zameen Par** | 0.52 | 0.50 | 1 | **0.60** |
+| **A Beautiful Mind** | 0.47 | 0.50 | 0.60 | 1 |
+
+*A Beautiful Mind* is the closest match for *Taare Zameen Par* (0.60), the connection keywords could not see. And *My Name Is Khan*'s nearest match is now *Taare Zameen Par* (a character with a condition the world misreads), not *Kabhi Alvida Naa Kehna*, which comes out *least* similar (0.46). One honest note: the gaps are small (0.46 to 0.52), because these were only one-sentence plots on four movies. Real plots are longer and give a clearer spread, but the direction is already right.
+
+So the recommender works: embed all plots once, and for the movie on screen, find the movies with the highest cosine similarity. Building it for real raises three problems.
+
+### Three Problems
+
+1. **Generating** the embeddings: use an embedding model (the [models post](/genai-langchain/ch3-langchain-models) covered these).
+2. **Storing** them. You generate each vector once and reuse it for every future comparison, so it must be stored somewhere durable. A relational database like MySQL is not built for this: it cannot compare vectors by similarity.
+3. **Searching** them fast. To find the 5 most similar movies among 10 lakh (a million) vectors, the naive way computes the similarity to all million and sorts. That is slow per request, and the site becomes unusable.
+
+Problems 2 and 3 are exactly what a vector store handles.
+
+## What a Vector Store Is
+
+A **vector store** is a system for storing vectors (with their associated data) and retrieving them by similarity. It has four key features:
+
+| Feature | What it gives you |
+|---|---|
+| **Storage** | Keeps each vector together with its metadata (movie id, name, any other fields). Either **in memory** (RAM: fast, but gone when the program exits; fine for small apps) or **on disk** (persistent; for real applications) |
+| **Similarity search** | Given a query vector, return the stored vectors closest to it |
+| **Indexing** | A data structure that makes similarity search fast without comparing against everything |
+| **CRUD** | Create, read, update and delete vectors, like any database |
+
+### Indexing, in One Example
+
+Why can a vector store avoid comparing against all million vectors? Here is one simple version of the idea (real stores use more refined variants such as approximate nearest neighbour search).
+
+1. **Cluster** the million vectors into, say, 10 groups of about 100,000 each, and compute each group's average vector (its *centroid*).
+2. For a query, compare it to just the **10 centroids** and find the closest one.
+3. Search only inside that one cluster, about 100,000 vectors.
+
+That is roughly 100,010 comparisons instead of a million: ten times less work, and usually the same answer, because the true nearest neighbour is almost always in the closest cluster. The price is that the result is *approximate*: occasionally the real best match sits in a neighbouring cluster and is missed. That trade, a little accuracy for a lot of speed, is how vector stores stay fast at scale.
+
+Use cases go beyond recommenders: RAG (retrieve the chunks most similar to a question), and searching images or other media by embedding them too.
+
+## Vector Store vs Vector Database
+
+You will see both terms, often used interchangeably. The distinction:
+
+- A **vector store** does the two core jobs, storing vectors and searching them by similarity. Typically lightweight; good for prototyping and smaller apps. FAISS (a library from Facebook) is the classic example.
+- A **vector database** is a vector store *plus* the features you expect from a database: distributed architecture to scale out, backup and restore, durability, transactions, concurrency control, authentication and permissions. Used in production at large scale. Examples: Milvus, Qdrant, Weaviate, Pinecone.
+
+So every vector database is a vector store, but not every vector store is a vector database. Chroma, which we use next, sits in between: lightweight and easy to run locally, with some database features.
+
+## One Interface for Many Stores
+
+LangChain wraps all the major vector stores (FAISS, Pinecone, Chroma, Qdrant, Weaviate, and others) behind one shared interface: the same method names (`add_documents`, `similarity_search`, ...) on every store. Only the class you construct changes. That means you can prototype on one store and swap to another as the app grows, with almost no change to the rest of your code.
+
+## Hands-On with Chroma
+
+Chroma organises data in a hierarchy: a **tenant** (a user or team) has **databases**, a database has **collections** (the equivalent of a table), and a collection holds records, each a vector plus its metadata. In LangChain you mostly deal with one collection.
+
+**Setup.** Python needs `langchain-chroma` (1.1.0 here) and an embeddings package. The JavaScript Chroma integration, in `@langchain/community` (1.1.29), talks to a running Chroma server through the `chromadb` client package, so start one first with `chroma run` (it listens on `localhost:8000` by default; I used port 8011). Python's Chroma runs inside your own process and saves to a folder, so it needs no server.
+
+**Embeddings.** Any LangChain `Embeddings` object works. `OpenAIEmbeddings(model="text-embedding-3-small")` is the standard choice. The outputs below were produced with the open `bge-m3` model through an OpenAI-compatible endpoint, so exact scores will differ with a different model.
+
+We build five documents, one per cricketer, each with the player's IPL team in the metadata. (Recall from [ch10](/genai-langchain/ch10-document-loaders) that a `Document` is `page_content` plus `metadata`.)
+
+<CodeTabs>
+
+```python
+from langchain_chroma import Chroma
+from langchain_core.documents import Document
+from langchain_openai import OpenAIEmbeddings
+
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+
+docs = [
+    Document(page_content="Virat Kohli is one of the most successful and consistent batsmen in IPL history. Known for his aggressive batting and leadership, he has led Royal Challengers Bangalore in multiple seasons.", metadata={"team": "Royal Challengers Bangalore"}),
+    Document(page_content="Rohit Sharma is the most successful captain in IPL history, leading Mumbai Indians to five titles. He is known for his elegant batting and ability to deliver in big matches.", metadata={"team": "Mumbai Indians"}),
+    Document(page_content="MS Dhoni, famously known as Captain Cool, has led Chennai Super Kings to multiple IPL titles. He is renowned for his finishing skills, wicketkeeping and calm leadership.", metadata={"team": "Chennai Super Kings"}),
+    Document(page_content="Jasprit Bumrah is considered one of the best fast bowlers in the world. Playing for Mumbai Indians, he is known for his unorthodox action and yorkers at the death.", metadata={"team": "Mumbai Indians"}),
+    Document(page_content="Ravindra Jadeja is a dynamic all-rounder who contributes with both bat and ball. Representing Chennai Super Kings, he is also an outstanding fielder.", metadata={"team": "Chennai Super Kings"}),
+]
+
+vector_store = Chroma(
+    collection_name="players",
+    embedding_function=embeddings,
+    persist_directory="my_chroma_db",
+)
+```
+
+```js
+import { Chroma } from "@langchain/community/vectorstores/chroma";
+import { Document } from "@langchain/core/documents";
+import { OpenAIEmbeddings } from "@langchain/openai";
+
+const embeddings = new OpenAIEmbeddings({ model: "text-embedding-3-small" });
+
+const docs = [
+  new Document({ pageContent: "Virat Kohli is one of the most successful and consistent batsmen in IPL history. Known for his aggressive batting and leadership, he has led Royal Challengers Bangalore in multiple seasons.", metadata: { team: "Royal Challengers Bangalore" } }),
+  new Document({ pageContent: "Rohit Sharma is the most successful captain in IPL history, leading Mumbai Indians to five titles. He is known for his elegant batting and ability to deliver in big matches.", metadata: { team: "Mumbai Indians" } }),
+  new Document({ pageContent: "MS Dhoni, famously known as Captain Cool, has led Chennai Super Kings to multiple IPL titles. He is renowned for his finishing skills, wicketkeeping and calm leadership.", metadata: { team: "Chennai Super Kings" } }),
+  new Document({ pageContent: "Jasprit Bumrah is considered one of the best fast bowlers in the world. Playing for Mumbai Indians, he is known for his unorthodox action and yorkers at the death.", metadata: { team: "Mumbai Indians" } }),
+  new Document({ pageContent: "Ravindra Jadeja is a dynamic all-rounder who contributes with both bat and ball. Representing Chennai Super Kings, he is also an outstanding fielder.", metadata: { team: "Chennai Super Kings" } }),
+];
+
+const vectorStore = new Chroma(embeddings, {
+  collectionName: "players",
+  url: "http://localhost:8000", // the running Chroma server
+});
+```
+
+</CodeTabs>
+
+Creating the store takes three things: the embedding model (used to turn documents and queries into vectors), a collection name, and where to save (a folder in Python, a server URL in JavaScript). Python saves in SQLite format, so the folder survives restarts: a second `Chroma(...)` with the same arguments reloads the same data.
+
+### Add Documents
+
+<CodeTabs>
+
+```python
+ids = vector_store.add_documents(docs)
+print(len(ids), ids[0][:8])
+```
+
+```js
+const ids = await vectorStore.addDocuments(docs);
+console.log(ids.length);
+```
+
+</CodeTabs>
+
+```
+5 f3f4074c
+```
+
+`add_documents` embeds each document with your embedding model, stores the vector with its text and metadata, and returns one auto-generated unique **id** per document. Keep the ids: you need them to update or delete a record later (you can also pass your own with `ids=[...]`). To inspect what is stored, use `get`:
+
+```python
+got = vector_store.get(include=["documents", "metadatas"])
+print(len(got["ids"]), got["metadatas"][:2])
+```
+
+```
+5 [{'team': 'Royal Challengers Bangalore'}, {'team': 'Mumbai Indians'}]
+```
+
+Add `"embeddings"` to `include` to see the raw vectors too. (JavaScript's `Chroma` class has no `get`; use the search methods below.)
+
+### Similarity Search
+
+<CodeTabs>
+
+```python
+results = vector_store.similarity_search("Who among these is a bowler?", k=2)
+for d in results:
+    print(d.page_content[:45])
+```
+
+```js
+const results = await vectorStore.similaritySearch("Who among these is a bowler?", 2);
+for (const d of results) console.log(d.pageContent.slice(0, 45));
+```
+
+</CodeTabs>
+
+```
+Jasprit Bumrah is considered one of the best
+Virat Kohli is one of the most successful an
+```
+
+`k` is how many results to return. The query is embedded with the same model and compared to every stored vector. Nothing in the query says "Bumrah", yet he comes first, because "fast bowlers" is close in meaning to "a bowler". Notice the second result, though: it is Virat Kohli, a batsman. With only five records, `k=2` forces a second answer even when it is not a good one. To see how good, ask for scores.
+
+### Scores
+
+<CodeTabs>
+
+```python
+for doc, score in vector_store.similarity_search_with_score("Who among these is a bowler?", k=2):
+    print(round(score, 3), doc.page_content[:30])
+```
+
+```js
+const scored = await vectorStore.similaritySearchWithScore("Who among these is a bowler?", 2);
+for (const [doc, score] of scored) console.log(score.toFixed(3), doc.pageContent.slice(0, 30));
+```
+
+</CodeTabs>
+
+```
+0.942 Jasprit Bumrah is considered o
+0.999 Virat Kohli is one of the most
+```
+
+Careful with the direction: Chroma returns a **distance**, so **lower means closer**. (Do not read it as a similarity where higher is better.) Bumrah at 0.942 and Kohli at 0.999 are close to each other, which is the vector store telling you that Kohli is only a barely weaker match. When you build an application, a score threshold, not just `k`, is how you avoid presenting a weak match as an answer.
+
+### Filter by Metadata
+
+Metadata lets you narrow a search to a subset. Pass a `filter` dictionary to a search call:
+
+<CodeTabs>
+
+```python
+results = vector_store.similarity_search(
+    "captain", k=5, filter={"team": "Chennai Super Kings"}
+)
+for d in results:
+    print(d.page_content[:20])
+```
+
+```js
+const results = await vectorStore.similaritySearch("captain", 5, { team: "Chennai Super Kings" });
+for (const d of results) console.log(d.pageContent.slice(0, 20));
+```
+
+</CodeTabs>
+
+```
+MS Dhoni, famously k
+Ravindra Jadeja is a
+```
+
+Only the two Chennai Super Kings players are even considered. If you want *only* the filter, with no semantic query at all, use `vector_store.get(where={"team": "Chennai Super Kings"})` (Python), which looks records up by metadata without embedding anything. That is better than a similarity search with an empty query: with a hosted embedding API an empty string can be rejected outright, and in any case there is nothing to be similar to.
+
+### Update and Delete
+
+Update replaces an existing record, by id:
+
+```python
+new = Document(
+    page_content="Virat Kohli, the former captain of Royal Challengers Bangalore, is renowned for his aggressive leadership and consistency.",
+    metadata={"team": "Royal Challengers Bangalore"},
+)
+vector_store.update_document(ids[0], new)
+print(vector_store.get(ids=[ids[0]])["documents"][0][:60])
+```
+
+```
+Virat Kohli, the former captain of Royal Challengers Bangalo
+```
+
+In JavaScript there is no separate update method: call `addDocuments` again with the same id, which overwrites that record.
+
+```js
+await vectorStore.addDocuments([newDoc], { ids: [ids[0]] });
+```
+
+Delete removes records by id:
+
+<CodeTabs>
+
+```python
+vector_store.delete(ids=[ids[0]])
+print(len(vector_store.get()["ids"]))
+```
+
+```js
+await vectorStore.delete({ ids: [ids[0]] });
+```
+
+</CodeTabs>
+
+```
+4
+```
+
+Four records remain, Kohli's gone. That is the whole life cycle: add, search, filter, update, delete, the same operations you would expect from any database.
+
+**Homework in the same spirit as the original lesson:** repeat this with another store such as FAISS or Pinecone. Because the interface is shared, only the construction line changes.
+
+## Summary
+
+| Topic | What to remember |
+|---|---|
+| **Why keywords fail** | They give false positives (same director, different story) and false negatives (similar story, no shared label). Similarity of meaning is not overlap of labels |
+| **Embedding + cosine similarity** | Turn text into vectors; a smaller angle means more similar meaning. Cosine similarity near 1 is very similar |
+| **Three problems** | Generate embeddings (embedding model), store them (not in a relational DB), search them fast (not by comparing against everything) |
+| **Vector store** | Stores vectors plus metadata (in memory or on disk), searches by similarity, indexes for speed, supports CRUD |
+| **Indexing** | Example: cluster the vectors, compare to centroids, search only the closest cluster. Far fewer comparisons, slightly approximate |
+| **Store vs database** | A vector database is a vector store plus database features (scaling, backup, transactions, auth). Every database is a store, not the reverse |
+| **LangChain interface** | Same methods on every store: `add_documents`, `similarity_search`, `delete`. Swap stores by changing one line |
+| **Chroma** | Tenant, database, collection, records. Python persists to a folder (`persist_directory`); JavaScript uses a running Chroma server |
+| **Scores** | Chroma returns a distance: lower is closer. Use a threshold, not just `k`, so weak matches are not presented as answers |
+| **Filtering** | `filter={"team": ...}` limits search to matching metadata. `get(where=...)` filters with no query |
+| **Update / delete** | Python `update_document(id, doc)`; JavaScript re-adds with the same id. `delete(ids=[...])` removes records |
