@@ -1,0 +1,271 @@
+---
+title: "Ch.14: Retrieval-Augmented Generation (RAG): Why, What and How"
+description: "Why LLMs fail on private, recent and made-up facts, why fine-tuning only half-fixes it, how in-context learning leads to RAG, the four stages of a RAG pipeline (indexing, retrieval, augmentation, generation), and a small working example where the same model hallucinates without context and answers correctly with it."
+date: "2026-11-09T15:32:00+05:30"
+tags: ["generative-ai", "langchain", "rag", "llm", "fine-tuning", "in-context-learning"]
+subtopic: "RAG"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=X0btK9X0Xnk)
+
+The last four posts built RAG's components: [document loaders](/genai-langchain/ch10-document-loaders), [text splitters](/genai-langchain/ch11-text-splitters), [vector stores](/genai-langchain/ch12-vector-stores) and [retrievers](/genai-langchain/ch13-retrievers). This post puts them together, but mostly it answers three questions: **why** RAG was needed, **what** it is, and **how** the pieces fit. The next post builds a full application; this one gives you the picture that makes the code make sense.
+
+## Why: Where an LLM's Knowledge Lives
+
+A large language model is a huge neural network (a transformer) with billions of parameters: numbers called weights and biases. **Pre-training** on enormous amounts of text (a large part of the public internet) adjusts those numbers until the model can predict text well. In the process, a vast amount of knowledge ends up stored *in the parameters*. We call that **parametric knowledge**, and it is why a model with more parameters, such as 70 billion versus 7 billion, can generally know and do more.
+
+To use that knowledge you write a **prompt**. The model reads it and generates an answer word by word, drawing on its parametric knowledge. This works well most of the time. It fails in three situations.
+
+1. **Private data.** You run a course website and a student asks a general chatbot, "what does the teacher explain at minute 42 of this video?" It cannot know: your lectures were never in its training data.
+2. **Recent data.** Every model has a **knowledge cut-off date**, the moment its pre-training stopped. Ask an open-source model for today's biggest news and it has nothing after that date. (Chat products can look things up on the web, which is a retrieval trick of its own; the bare model cannot.)
+3. **Hallucination.** The model is *probabilistic*: it produces plausible text, not verified text. It can state a false fact with complete confidence, such as claiming a famous scientist played football for a national team. The user gets a wrong answer and no warning.
+
+So: how do we get correct answers about private data, recent data, and without invented facts?
+
+## First Attempt: Fine-Tuning
+
+**Fine-tuning** means taking the pre-trained model and training it *again* on a smaller dataset from your domain, so the new knowledge is baked into the parameters.
+
+An analogy: an engineering graduate (the pre-trained model) knows a lot of general material. When they join a company they still get a few months of training on how *this* company works. That onboarding is fine-tuning.
+
+Common variants:
+
+- **Supervised fine-tuning:** you give the model labeled examples as pairs of *prompt* and *desired output* (typically thousands to a million pairs), so it learns how to respond.
+- **Continued pre-training:** you keep training on raw, unlabeled text from your domain (for example, all your lecture transcripts), the same way pre-training worked but on a smaller set.
+- **RLHF** (reinforcement learning from human feedback): humans rate answers and the model is steered toward the ones people prefer.
+- **LoRA / QLoRA:** cheaper ways of doing the training that freeze the original weights and train only a small extra set, instead of retraining everything (*full-parameter* fine-tuning).
+
+The usual process: collect domain data (labeled, for supervised tuning), choose a method (full, or LoRA/QLoRA), train for some epochs, then evaluate (exact-match against desired outputs, factuality, hallucination rate, safety tests).
+
+Does it fix the three problems? To a degree. Private data: train on it, and it becomes parametric knowledge. Recent data: retrain whenever it changes. Hallucination: include tricky prompts in the training set whose desired answer is "I don't know", teaching the model to stay within facts.
+
+But fine-tuning has real costs:
+
+1. **Compute and money.** Even on a small dataset, you are training a very large model.
+2. **Expertise.** You need engineers who know how to do it and evaluate it.
+3. **It must be repeated.** Add a course to your catalog: retrain. Remove one: retrain, because the old information is still in the weights and cannot simply be deleted. If your data changes often, you retrain often.
+
+Is there something cheaper that handles the same three problems?
+
+## Second Idea: In-Context Learning
+
+Researchers noticed something about very large models. If you put **examples inside the prompt**, the model learns the task from them *without any change to its weights*:
+
+```
+Below are examples of texts labeled with their sentiment.
+
+Text: I love this phone, it's so smooth.   Sentiment: positive
+Text: This app crashes a lot.              Sentiment: negative
+Text: The camera is amazing.               Sentiment: positive
+Text: I hate the battery life.             Sentiment:
+```
+
+The model answers `negative`. It picked up how to do sentiment classification from the three examples, and applied it to the fourth text. This is **in-context learning**, and prompting with a few examples is called **few-shot prompting**.
+
+It is an **emergent property**: an ability that nobody programmed, which appears when a system gets large enough. Smaller models like GPT-2 did not do it reliably. GPT-3, with about 175 billion parameters, did, and the paper that reported it was titled *Language Models are Few-Shot Learners*. The authors' point: fine-tuning needs a dataset of thousands to a million examples, while a person can learn a new language task from a handful of examples, and a large enough model, it turns out, can too. Later alignment work (supervised fine-tuning, RLHF) made models even better at it.
+
+## From In-Context Learning to RAG
+
+Few-shot prompting puts *examples of how to do a task* in the prompt. Push the idea one step further: put in the prompt the **information needed to answer this particular question**.
+
+Take the course website. A student, watching a long linear regression lecture, asks a question about gradient descent. We send the model two things in one prompt: the student's question, and the part of the lecture transcript where gradient descent is explained (say minutes 5 to 25). The model reads that text as context and answers from it. We did not teach it a task by example; we handed it the missing knowledge, at the moment of asking.
+
+That is **Retrieval-Augmented Generation (RAG)**: making a language model smarter by giving it extra information at question time. A typical prompt:
+
+```
+You are a helpful assistant. Answer the question only from the provided context.
+If the context is not enough, just say you don't know.
+
+Context:
+<the relevant lecture transcript>
+
+Question:
+<the student's question>
+```
+
+Two parts of that prompt matter: the **context** carries the knowledge the model lacks, and the instruction **"only from the context, else say you don't know"** keeps it from making things up.
+
+## How: The Four Stages of RAG
+
+RAG joins two older ideas: **information retrieval** (finding relevant text in a large collection) and **text generation** (what LLMs do). In practice it has four stages.
+
+```
+INDEXING (once, ahead of time)
+  load documents -> split into chunks -> embed each chunk -> store in a vector store
+
+per question:
+  RETRIEVAL      question -> embed -> find the closest chunks
+  AUGMENTATION   build a prompt from the question + the retrieved chunks
+  GENERATION     send the prompt to the LLM -> answer
+```
+
+### 1. Indexing: Build the Knowledge Base
+
+Indexing prepares your data so it can be searched quickly later. It is done in advance, not for every question. Its four steps are exactly the components from the previous posts:
+
+1. **Document ingestion.** Load the source data into memory with a [document loader](/genai-langchain/ch10-document-loaders): PDFs, web pages, files in cloud storage, transcripts from your server.
+2. **Text chunking.** Cut the large documents into chunks with a [text splitter](/genai-langchain/ch11-text-splitters). Two reasons: models cannot take an entire two-hour transcript in one prompt, and semantic search is far less precise on very long text. The aim is chunks that each cover roughly one idea.
+3. **Embedding.** Turn each chunk into a vector with an embedding model, so that meaning can be compared numerically.
+4. **Storage.** Save each vector together with its original text and metadata in a [vector store](/genai-langchain/ch12-vector-stores) (FAISS or Chroma locally; Pinecone, Weaviate, Milvus or Qdrant in the cloud).
+
+When indexing is done, the vector store *is* your external knowledge base.
+
+### 2. Retrieval: Find the Relevant Chunks
+
+A user asks, "How do we perform the optimization step in gradient descent?" The [retriever](/genai-langchain/ch13-retrievers) finds which chunks help. It:
+
+1. embeds the question, using the **same embedding model** that embedded the chunks (otherwise the vectors are not comparable),
+2. searches the vector store for the closest vectors (plain similarity search, or MMR, or a more advanced strategy),
+3. ranks the results (by cosine similarity, or a re-ranking step),
+4. returns the text of the top few chunks. That text is the **context**.
+
+If the store has chunks about least squares, multiple regression, and two on gradient descent, retrieval picks the two gradient descent chunks and ignores the rest. This is why you do not send a two-hour transcript: you send the 5 minutes that matter.
+
+### 3. Augmentation: Build the Prompt
+
+Now combine the user's question and the retrieved context into a prompt like the one shown earlier. Using a prompt template with `{context}` and `{question}` slots is all this takes. It is called augmentation because you are *adding* knowledge on top of what the model already holds in its parameters.
+
+### 4. Generation: Answer
+
+Send the prompt to the LLM. It reads the context, combines it with its own parametric knowledge, and writes the answer, using in-context learning to follow your instructions.
+
+## Seeing It Work
+
+Here is the whole pipeline on a made-up company with three small policy documents (so the model cannot already know them): refunds, certificates, and support. It is the same pipeline you will build for real in the next post, kept to the minimum.
+
+<CodeTabs>
+
+```python
+from langchain_chroma import Chroma
+from langchain_core.documents import Document
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_groq import ChatGroq
+from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+# 1. INDEXING: load (here, built in memory), split, embed, store
+raw = [
+    Document(page_content="Learnwell Academy refund policy. A student can ask for a full refund within 14 days of buying a course, as long as less than 20 percent of the lectures have been watched. After 14 days no refund is given, but the student may switch to a different course once, paying only the price difference.", metadata={"source": "refunds.txt"}),
+    Document(page_content="Learnwell Academy certificates. A certificate is issued when a student finishes all lectures and scores at least 60 percent in the final quiz. The quiz can be retaken twice, with a gap of 48 hours between attempts. Certificates are emailed as a PDF within 3 working days.", metadata={"source": "certificates.txt"}),
+    Document(page_content="Learnwell Academy support. Doubts can be posted in the course forum, where a teaching assistant replies within 24 hours on working days. Live doubt sessions run every Saturday at 6 PM IST for students of the Data Science track.", metadata={"source": "support.txt"}),
+]
+chunks = RecursiveCharacterTextSplitter(chunk_size=200, chunk_overlap=20).split_documents(raw)
+store = Chroma.from_documents(chunks, embeddings, collection_name="learnwell")
+
+# 2. RETRIEVAL
+retriever = store.as_retriever(search_kwargs={"k": 2})
+
+# 3. AUGMENTATION
+prompt = ChatPromptTemplate.from_template(
+    "You are a helpful assistant. Answer the question only from the provided context. "
+    "If the context is not enough, just say you don't know.\n\n"
+    "Context:\n{context}\n\nQuestion: {question}"
+)
+
+def format_docs(docs):
+    return "\n\n".join(d.page_content for d in docs)
+
+# 4. GENERATION
+rag = {"context": retriever | format_docs, "question": RunnablePassthrough()} | prompt | model | StrOutputParser()
+
+print(rag.invoke("How many days do I have to ask for a refund, and what if I have watched most of the course?"))
+```
+
+```js
+import { Chroma } from "@langchain/community/vectorstores/chroma";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnableLambda, RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { ChatGroq } from "@langchain/groq";
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+
+const embeddings = new OpenAIEmbeddings({ model: "text-embedding-3-small" });
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+// 1. INDEXING: load (here, built in memory), split, embed, store
+const raw = [
+  ["refunds.txt", "Learnwell Academy refund policy. A student can ask for a full refund within 14 days of buying a course, as long as less than 20 percent of the lectures have been watched. After 14 days no refund is given, but the student may switch to a different course once, paying only the price difference."],
+  ["certificates.txt", "Learnwell Academy certificates. A certificate is issued when a student finishes all lectures and scores at least 60 percent in the final quiz. The quiz can be retaken twice, with a gap of 48 hours between attempts. Certificates are emailed as a PDF within 3 working days."],
+  ["support.txt", "Learnwell Academy support. Doubts can be posted in the course forum, where a teaching assistant replies within 24 hours on working days. Live doubt sessions run every Saturday at 6 PM IST for students of the Data Science track."],
+].map(([source, text]) => new Document({ pageContent: text, metadata: { source } }));
+
+const chunks = await new RecursiveCharacterTextSplitter({ chunkSize: 200, chunkOverlap: 20 }).splitDocuments(raw);
+const store = await Chroma.fromDocuments(chunks, embeddings, {
+  collectionName: "learnwell",
+  url: "http://localhost:8000",
+});
+
+// 2. RETRIEVAL
+const retriever = store.asRetriever({ k: 2 });
+
+// 3. AUGMENTATION
+const prompt = ChatPromptTemplate.fromTemplate(
+  "You are a helpful assistant. Answer the question only from the provided context. " +
+    "If the context is not enough, just say you don't know.\n\n" +
+    "Context:\n{context}\n\nQuestion: {question}"
+);
+const formatDocs = RunnableLambda.from((docs) => docs.map((d) => d.pageContent).join("\n\n"));
+
+// 4. GENERATION
+const rag = RunnableSequence.from([
+  { context: retriever.pipe(formatDocs), question: new RunnablePassthrough() },
+  prompt,
+  model,
+  new StringOutputParser(),
+]);
+
+console.log(await rag.invoke("How many days do I have to ask for a refund, and what if I have watched most of the course?"));
+```
+
+</CodeTabs>
+
+The 3 documents became 6 chunks. Three questions, with what the retriever found, what RAG answered, and what the *same model* answered with no context:
+
+| Question | Retrieved from | With RAG | No context |
+|---|---|---|---|
+| How many days for a refund, and what if I watched most of the course? | `refunds.txt` | **14 days**, and only if under 20% of lectures watched; otherwise not eligible, but you may switch courses once | **30 days**, with confident instructions on how to ask (invented) |
+| How many times can I retake the final quiz? | `certificates.txt` | **Two** retakes | "I'm not sure which course or platform you're referring to" |
+| Does Learnwell Academy offer a Rust course? | `support.txt`, `certificates.txt` (nothing relevant) | **"I don't know."** | Hedges about not being aware of a Rust course in the catalog |
+
+The first row is the point. Without context the model produced "30 days", a confident, specific, wrong answer: a hallucination about private data. With the right chunk in the prompt, it answered correctly. The third row shows the instruction doing its job: the retrieved chunks had nothing about Rust, and the model said it did not know instead of guessing. (Notice also that the retriever returned two chunks for that question anyway: `k=2` always returns two, relevant or not, which is why the "say you don't know" instruction matters.)
+
+## How RAG Solves the Three Problems
+
+1. **Private data.** The knowledge base is built from *your* documents, so the context, and therefore the answers, come from your data.
+2. **Recent data.** To make the system aware of something new, add the new documents to the vector store. No retraining. This is where RAG beats fine-tuning most clearly.
+3. **Hallucination.** The model is given exact context and told to answer only from it, else say it does not know. Its answer is *grounded* in the context. That sharply reduces hallucination. It does not remove it: if the retriever fetches the wrong chunks, the model is grounded in the wrong text.
+
+## RAG vs Fine-Tuning
+
+| | Fine-tuning | RAG |
+|---|---|---|
+| **Cost** | Training a very large model, repeatedly | Embed documents and store them |
+| **Expertise** | Needs ML engineers and labeled data | Needs documents and a pipeline |
+| **Updating knowledge** | Retrain when data changes | Add, update or delete documents in the store |
+| **Where knowledge lives** | In the model's parameters | In an external knowledge base, outside the model |
+
+RAG is cheaper and simpler for most applications. This basic version is also only the start: swapping in better retrievers, chunking and prompts is how "advanced RAG" systems are built.
+
+## Summary
+
+| Topic | What to remember |
+|---|---|
+| **Parametric knowledge** | What a model learned in pre-training, stored in its weights. More parameters generally means more of it |
+| **Three failures** | Private data (never seen), recent data (past the cut-off date), hallucination (plausible but invented) |
+| **Fine-tuning** | Further training on domain data. Works to a degree, but expensive, needs expertise, and must be repeated when data changes |
+| **In-context learning** | A large model learns a task from examples *in the prompt*, with no weight changes. Few-shot prompting. An emergent property of scale (seen from GPT-3 on) |
+| **RAG** | Give the model the knowledge at question time: put the *relevant context* in the prompt |
+| **Indexing** | Once, in advance: ingest, chunk, embed, store in a vector store. This is the knowledge base |
+| **Retrieval** | Embed the question with the same model, search for the closest chunks, rank, return their text |
+| **Augmentation** | Build a prompt from the question and the context, including "only from the context, else say you don't know" |
+| **Generation** | The LLM answers from the prompt |
+| **Why it works** | Private data and fresh data come from your knowledge base; the context grounds the answer. Reduces, not removes, hallucination |
+| **RAG vs fine-tuning** | RAG is cheaper, simpler, and updates by editing the knowledge base |
