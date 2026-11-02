@@ -1,0 +1,422 @@
+---
+title: "Ch.13: Retrievers in LangChain: Vector Store, MMR, Multi-Query and Contextual Compression"
+description: "What a retriever is (a runnable from a query to documents), the two ways to classify them, the Wikipedia and vector store retrievers, and three search strategies that fix real weaknesses: MMR for redundant results, multi-query for vague questions, and contextual compression for documents that mix topics, built from plain runnables on LangChain 1.x."
+date: "2026-11-09T15:29:00+05:30"
+tags: ["generative-ai", "langchain", "rag", "retrievers", "mmr", "llm"]
+subtopic: "RAG Components"
+draft: false
+---
+
+*Inspired by:* [YouTube](https://www.youtube.com/watch?v=pJdMxwXBsk0)
+
+This is the fourth and last RAG building block. [Loaders](/genai-langchain/ch10-document-loaders) read data, [splitters](/genai-langchain/ch11-text-splitters) cut it into chunks, and [vector stores](/genai-langchain/ch12-vector-stores) hold the chunk vectors. The **retriever** is the part that answers: given a user's question, which documents are relevant?
+
+## What a Retriever Is
+
+A retriever is a component that takes a **query** (a string) and returns a list of **`Document`** objects relevant to it, searching some data source. As a block diagram, it is simply:
+
+```
+query (string)  ->  [ retriever ]  ->  list of Document objects
+                          |
+                  searches a data source
+```
+
+Three points to hold on to:
+
+1. The data source can be anything: a vector store, Wikipedia, an API.
+2. There is not one retriever but many, each for a different data source or search strategy.
+3. Every retriever is a **runnable** (the [runnables posts](/genai-langchain/ch8-runnables) explained this): it has `.invoke()`, `.batch()` and `.stream()`, and it connects to prompts, models and parsers with the same pipe. That is what lets you drop a retriever into a chain, and swap one retriever for another, without touching the rest.
+
+**Setup.** Python ran on LangChain 1.4.9 (langchain-core 1.7.6, langchain-community 0.4.2, langchain-chroma 1.1.0, langchain-groq 1.1.3, `wikipedia` for the Wikipedia retriever). JavaScript ran on @langchain/core 1.3.5 and @langchain/community 1.1.29, with a local Chroma server as in the last post. Embeddings came from the open `bge-m3` model through an OpenAI-compatible endpoint, and the chat model was `openai/gpt-oss-20b` on Groq. Exact results depend on the models you use.
+
+## Two Ways to Classify Retrievers
+
+LangChain has dozens of retrievers, and they differ in one of two ways:
+
+- **By data source:** what they search. Examples: a Wikipedia retriever (searches Wikipedia), a vector store retriever (searches a vector store), an arXiv retriever (searches research papers).
+- **By search strategy:** how they search. Examples: MMR, multi-query, contextual compression. These typically wrap a simpler retriever and change *how* it is used.
+
+We take two data-source retrievers first, then three strategies.
+
+## Data-Source Retrievers
+
+### Wikipedia Retriever
+
+It sends your query to the Wikipedia API and returns the most relevant articles as `Document`s. (The ranking is done on Wikipedia's side by keyword matching, not by semantic search, so phrase queries with the words the article is likely to use.)
+
+```python
+from langchain_community.retrievers import WikipediaRetriever
+
+retriever = WikipediaRetriever(top_k_results=2, lang="en")
+docs = retriever.invoke("Indian Premier League")
+
+print(len(docs), [d.metadata["title"] for d in docs])
+```
+
+```
+2 ['Indian Premier League', '2026 Indian Premier League']
+```
+
+`top_k_results` says how many articles you want and `lang` the Wikipedia language edition. It is a retriever, not a document loader, even though both hand you documents: a loader reads a source you point at, while a retriever *searches* it with a query and picks the relevant parts.
+
+The JavaScript packages ship a Wikipedia *tool* (`WikipediaQueryRun`) but no Wikipedia retriever, so this one is Python-only here.
+
+### Vector Store Retriever
+
+This is the most common retriever. Any vector store makes one with `.as_retriever()`: it embeds the query, finds the closest stored vectors, and returns their documents. Here five documents about LangChain topics sit in Chroma:
+
+<CodeTabs>
+
+```python
+from langchain_chroma import Chroma
+from langchain_core.documents import Document
+from langchain_openai import OpenAIEmbeddings
+
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+
+docs = [Document(page_content=t) for t in [
+    "LangChain is an open-source framework for building applications powered by large language models.",
+    "Chroma is an open-source vector database used to store embeddings and run similarity search.",
+    "Embeddings are numerical vectors that capture the meaning of text.",
+    "Retrieval-augmented generation (RAG) combines document retrieval with an LLM to ground answers in your data.",
+    "Python is a popular programming language known for its readable syntax.",
+]]
+
+vector_store = Chroma.from_documents(docs, embeddings, collection_name="demo")
+retriever = vector_store.as_retriever(search_kwargs={"k": 2})
+
+for d in retriever.invoke("What is Chroma used for?"):
+    print(d.page_content[:60])
+```
+
+```js
+import { Chroma } from "@langchain/community/vectorstores/chroma";
+import { Document } from "@langchain/core/documents";
+import { OpenAIEmbeddings } from "@langchain/openai";
+
+const embeddings = new OpenAIEmbeddings({ model: "text-embedding-3-small" });
+
+const docs = [
+  "LangChain is an open-source framework for building applications powered by large language models.",
+  "Chroma is an open-source vector database used to store embeddings and run similarity search.",
+  "Embeddings are numerical vectors that capture the meaning of text.",
+  "Retrieval-augmented generation (RAG) combines document retrieval with an LLM to ground answers in your data.",
+  "Python is a popular programming language known for its readable syntax.",
+].map((t) => new Document({ pageContent: t, metadata: { source: "demo" } })); // this Chroma client rejects empty metadata
+
+const vectorStore = await Chroma.fromDocuments(docs, embeddings, {
+  collectionName: "demo",
+  url: "http://localhost:8000",
+});
+const retriever = vectorStore.asRetriever({ k: 2 });
+
+for (const d of await retriever.invoke("What is Chroma used for?")) {
+  console.log(d.pageContent.slice(0, 60));
+}
+```
+
+</CodeTabs>
+
+```
+Chroma is an open-source vector database used to store embeddings and run simi
+LangChain is an open-source framework for building applications powered by la
+```
+
+`from_documents` creates the store and adds the documents in one step. `k` is how many documents to return. Only one document is truly about Chroma, so the second slot goes to the next-nearest.
+
+A natural question: the previous post already did `vector_store.similarity_search(query, k=2)` and got the same two documents. Why add a retriever? Because the vector store does *one* kind of search. A retriever is a runnable with a **swappable strategy**: you can change how it searches (the three strategies below), and you can pipe it into a chain. On the plain case they behave identically; the retriever earns its place once you want anything beyond plain similarity.
+
+## Search Strategy 1: MMR (Maximum Marginal Relevance)
+
+**The problem.** A plain similarity search returns the `k` most similar documents, and those are often near-duplicates of each other. Five documents about climate change:
+
+```
+D1  Climate change is causing glaciers to melt rapidly in the Arctic region.
+D2  Glaciers in the Arctic are melting at an alarming rate due to rising temperatures.
+D3  Deforestation reduces the planet's capacity to absorb carbon dioxide.
+D4  Wildfires are becoming more frequent and intense as the climate warms.
+D5  Rising sea levels threaten coastal cities with flooding.
+```
+
+Ask about the Arctic ice and plain similarity returns D1, D2 (the same fact worded twice) and then D4. Two of your three slots say the same thing, and a prompt built from those results is wasting space.
+
+**The idea.** MMR picks results that are *relevant to the query* **and different from each other**. It picks the most relevant document first; for every next pick it prefers a document that is relevant but unlike what it has already chosen.
+
+**The knob.** A parameter (`lambda_mult` in LangChain) from 0 to 1 sets the balance: `1` means pure relevance (same as plain similarity), `0` means maximum diversity, and in between trades the two.
+
+```python
+climate = [Document(page_content=t) for t in [
+    "Climate change is causing glaciers to melt rapidly in the Arctic region.",
+    "Glaciers in the Arctic are melting at an alarming rate due to rising temperatures.",
+    "Deforestation reduces the planet's capacity to absorb carbon dioxide.",
+    "Wildfires are becoming more frequent and intense as the climate warms.",
+    "Rising sea levels threaten coastal cities with flooding.",
+]]
+vector_store = Chroma.from_documents(climate, embeddings, collection_name="climate")
+
+query = "What is happening to the Arctic ice because of climate change?"
+
+similar = vector_store.as_retriever(search_kwargs={"k": 3})
+mmr = vector_store.as_retriever(
+    search_type="mmr",
+    search_kwargs={"k": 3, "fetch_k": 5, "lambda_mult": 0.5},
+)
+
+for name, r in [("similarity", similar), ("mmr", mmr)]:
+    print(name, [d.page_content[:28] for d in r.invoke(query)])
+```
+
+```
+similarity ['Climate change is causing', 'Glaciers in the Arctic', 'Wildfires are becoming']
+mmr        ['Climate change is causing', 'Deforestation reduces ', 'Rising sea levels thre']
+```
+
+`fetch_k` is how many top candidates MMR fetches first and then re-picks `k` from. Similarity returned both glacier sentences; MMR kept the first glacier sentence and filled the other two slots with deforestation and sea level rise: three different facts instead of two repeats. Setting `lambda_mult=1.0` on the same query gave back exactly the plain similarity result, and `0.2` gave the same three documents as `0.5` here, so on a five-document store the dial has little room to move; with a real collection you tune it per application.
+
+In LangChain.js, the Chroma store does not implement MMR (asking for it raises "does not support max marginal relevance search"), so this is a Python example; some other stores support MMR in JavaScript.
+
+## Search Strategy 2: Multi-Query
+
+**The problem.** Users ask vague questions. "How can I stay healthy?" could mean food, exercise, sleep or stress, and the best documents for each are different. A single embedding of the vague question lands somewhere in the middle and may miss some of those angles.
+
+**The idea.** Use an LLM to rewrite the question into several more specific versions, search with *each*, then merge the results and drop duplicates. One ambiguous question becomes several sharper ones.
+
+```
+"How can I stay healthy?"
+   -> LLM rewrites it into several questions
+   -> each one is sent to the retriever
+   -> results are merged, duplicates removed
+```
+
+**How to build it on LangChain 1.x.** The ready-made `MultiQueryRetriever` class lives only in `langchain-classic` (the package holding old-style pieces) in 1.x, and this series avoids that package. But the pattern is just a chain of the runnables you already know, which is the point of retrievers being runnables:
+
+- a prompt plus model plus parser that turns the question into a list of queries,
+- `RunnableParallel` / `RunnablePassthrough` to keep the original question next to the rewrites,
+- `retriever.map()`, which runs the retriever on every query in a list,
+- a `RunnableLambda` to merge and de-duplicate.
+
+<CodeTabs>
+
+```python
+from langchain_groq import ChatGroq
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda, RunnableParallel, RunnablePassthrough
+
+model = ChatGroq(model="openai/gpt-oss-20b")
+
+base = health_store.as_retriever(search_kwargs={"k": 3})  # a Chroma store of health + some unrelated docs
+
+rewrite = (
+    ChatPromptTemplate.from_template(
+        "Write 3 different, more specific versions of this question. "
+        "One per line, no numbering, no extra text.\n\nQuestion: {question}"
+    )
+    | model
+    | StrOutputParser()
+    | RunnableLambda(lambda text: [line.strip() for line in text.splitlines() if line.strip()])
+)
+
+# the original question plus the rewrites
+queries = RunnableParallel(original=RunnablePassthrough(), extra=rewrite) | RunnableLambda(
+    lambda x: [x["original"], *x["extra"]]
+)
+
+def merge_unique(doc_lists):
+    seen, merged = set(), []
+    for docs in doc_lists:
+        for doc in docs:
+            if doc.page_content not in seen:
+                seen.add(doc.page_content)
+                merged.append(doc)
+    return merged
+
+multi_query = queries | base.map() | RunnableLambda(merge_unique)
+
+question = "How can I stay healthy?"
+print([d.page_content[:30] for d in base.invoke(question)])
+print([d.page_content[:30] for d in multi_query.invoke(question)])
+```
+
+```js
+import { ChatGroq } from "@langchain/groq";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnableLambda, RunnableParallel, RunnablePassthrough } from "@langchain/core/runnables";
+
+const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
+
+const base = healthStore.asRetriever({ k: 3 });
+
+// JavaScript prompts want an object, so wrap the question string first
+const rewrite = RunnableLambda.from((question) => ({ question }))
+  .pipe(
+    ChatPromptTemplate.fromTemplate(
+      "Write 3 different, more specific versions of this question. One per line, no numbering, no extra text.\n\nQuestion: {question}"
+    )
+  )
+  .pipe(model)
+  .pipe(new StringOutputParser())
+  .pipe(RunnableLambda.from((text) => text.split("\n").map((l) => l.trim()).filter(Boolean)));
+
+const queries = RunnableParallel.from({ original: new RunnablePassthrough(), extra: rewrite }).pipe(
+  RunnableLambda.from((x) => [x.original, ...x.extra])
+);
+
+// JavaScript runnables have no .map(), so run the retriever on each query ourselves
+const searchAll = RunnableLambda.from((qs) => Promise.all(qs.map((q) => base.invoke(q))));
+
+const mergeUnique = RunnableLambda.from((lists) => {
+  const seen = new Set();
+  return lists.flat().filter((d) => !seen.has(d.pageContent) && seen.add(d.pageContent));
+});
+
+const multiQuery = queries.pipe(searchAll).pipe(mergeUnique);
+
+const question = "How can I stay healthy?";
+console.log((await base.invoke(question)).map((d) => d.pageContent.slice(0, 30)));
+console.log((await multiQuery.invoke(question)).map((d) => d.pageContent.slice(0, 30)));
+```
+
+</CodeTabs>
+
+The store held nine documents: five about health habits (diet, exercise, sleep, stress, water) and four unrelated ones that share words like "energy" (a solar-power note, an async-programming note, photosynthesis, football). The model's rewrites for the question were:
+
+```
+How can I stay healthy?
+What daily habits can I adopt to maintain optimal cardiovascular health?
+How can I improve my mental well-being through nutrition and exercise?
+What steps should I take to prevent common illnesses during the winter season?
+```
+
+and the results:
+
+```
+plain (k=3):
+  Eating a balanced diet rich in vege...
+  Drinking enough water keeps energy ...
+  Regular exercise, around 150 minute...
+
+multi-query (merged, de-duplicated):
+  Eating a balanced diet rich in vege...
+  Drinking enough water keeps energy ...
+  Regular exercise, around 150 minute...
+  Meditation and breathing exercises ...
+  Good sleep of seven to nine hours h...
+```
+
+The plain retriever's three slots covered diet, water and exercise. Multi-query added stress/meditation and sleep, because the rewrites about mental well-being and daily habits pulled those in. The vague question got wider coverage, which is the benefit.
+
+Be honest about the cost. First, it adds one LLM call and several searches per question. Second, it casts a wider net, and a wider net can catch noise. On a different, deliberately confusing question ("How can I improve energy levels and maintain balance?", with `k=5` per query), the merged result contained the five good health documents *plus* the solar-power note and the async-programming note, which plain search with `k=5` did not return. Multi-query helps on vague questions; on questions that are already clear, as in "What helps me feel better day to day?" where it returned exactly the same three documents, it costs LLM calls and gains nothing.
+
+## Search Strategy 3: Contextual Compression
+
+**The problem.** Retrieved documents often contain the answer *and* unrelated text, because a chunk can straddle topics (for instance, when a text splitter cut in the middle of a paragraph). A document about the Grand Canyon that also has a sentence about photosynthesis in the middle: ask about photosynthesis and the whole chunk is returned. The model then reads (and you pay for) irrelevant sentences, and they can distract it.
+
+**The idea.** After the base retriever returns documents, pass each one through an LLM together with the query and ask it to keep **only the parts relevant to the query**. The result is shorter documents containing only what matters.
+
+```
+query -> base retriever -> [doc1, doc2]
+                              |  (each doc + query goes to an LLM:
+                              |   "keep only what answers the query")
+                              v
+                        [trimmed doc1, trimmed doc2]
+```
+
+This helps when documents mix topics, when you want to shrink the context you send to the final model, or when answer accuracy matters more than the extra LLM calls.
+
+**How to build it on LangChain 1.x.** `ContextualCompressionRetriever` with its `LLMChainExtractor` also lives only in `langchain-classic` in 1.x. The same pattern, again, is a few runnables: fetch documents, run an extraction prompt over them with `.batch()`, drop the ones where nothing was relevant.
+
+<CodeTabs>
+
+```python
+from langchain_core.documents import Document
+
+mixed_store = ...  # a Chroma store of the three mixed-topic documents below
+retriever = mixed_store.as_retriever(search_kwargs={"k": 2})
+
+extract = (
+    ChatPromptTemplate.from_template(
+        "Question: {question}\n\nDocument:\n{document}\n\n"
+        "Copy only the sentences from the document that help answer the question, "
+        "word for word. If none do, reply with exactly NONE."
+    )
+    | model
+    | StrOutputParser()
+)
+
+def compress(inputs):
+    texts = extract.batch(
+        [{"question": inputs["question"], "document": d.page_content} for d in inputs["docs"]]
+    )
+    return [
+        Document(page_content=t.strip(), metadata=d.metadata)
+        for d, t in zip(inputs["docs"], texts)
+        if t.strip().upper() != "NONE"
+    ]
+
+compressed = RunnableParallel(question=RunnablePassthrough(), docs=retriever) | RunnableLambda(compress)
+
+print(retriever.invoke("What is photosynthesis?"))
+print(compressed.invoke("What is photosynthesis?"))
+```
+
+```js
+import { Document } from "@langchain/core/documents";
+
+const retriever = mixedStore.asRetriever({ k: 2 });
+
+const extract = ChatPromptTemplate.fromTemplate(
+  "Question: {question}\n\nDocument:\n{document}\n\nCopy only the sentences from the document that help answer the question, word for word. If none do, reply with exactly NONE."
+)
+  .pipe(model)
+  .pipe(new StringOutputParser());
+
+const compress = RunnableLambda.from(async ({ question, docs }) => {
+  const texts = await extract.batch(docs.map((d) => ({ question, document: d.pageContent })));
+  return docs
+    .map((d, i) => new Document({ pageContent: texts[i].trim(), metadata: d.metadata }))
+    .filter((d) => d.pageContent.toUpperCase() !== "NONE");
+});
+
+const compressed = RunnableParallel.from({ question: new RunnablePassthrough(), docs: retriever }).pipe(compress);
+
+console.log(await retriever.invoke("What is photosynthesis?"));
+console.log(await compressed.invoke("What is photosynthesis?"));
+```
+
+</CodeTabs>
+
+The store held three one-paragraph documents. Two mix photosynthesis into other topics:
+
+```
+raw retriever:
+  "The Grand Canyon is a famous natural site in Arizona. Photosynthesis is how plants convert light into energy. Many tourists visit every year."
+  "Medieval Europe was defined by knights and castles. Photosynthesis happens in the chloroplasts of plant cells. Feudal lords ruled over the land."
+
+compressed:
+  "Photosynthesis is how plants convert light into energy."
+  "Photosynthesis happens in the chloroplasts of plant cells."
+```
+
+Each paragraph shrank to its one relevant sentence; the Grand Canyon, knights and tourists are gone. A caution: the LLM is asked to copy sentences word for word, but it is still an LLM, so a stricter application might verify that each kept sentence really appears in the original, or use a model that you trust to extract rather than paraphrase.
+
+## Other Retrievers, and Why There Are So Many
+
+LangChain has many more: parent document, time-weighted vector, self-query, ensemble, and others. Look them up in the documentation when a project needs them; the pattern is the same: a runnable from query to documents.
+
+The reason there are so many is practical. A first RAG system built with a plain vector store retriever often works only so-so. The retrieved documents are redundant, or the question was vague, or the chunks are noisy. The usual way to improve it is to swap in a smarter retriever (or compose one from runnables, as above) and rebuild. When you hear "advanced RAG", much of it is exactly this: better retrieval strategies. That is the next step: with the four components in hand, the next post wires them into a full RAG application.
+
+## Summary
+
+| Topic | What to remember |
+|---|---|
+| **Retriever** | A runnable: query in, list of `Document`s out, searching a data source. Pipes into chains like any runnable |
+| **Two ways to classify** | By data source (Wikipedia, vector store, arXiv) and by search strategy (MMR, multi-query, contextual compression) |
+| **Wikipedia retriever** | `WikipediaRetriever(top_k_results=2, lang="en")`: searches Wikipedia, mostly by keyword. Python only here |
+| **Vector store retriever** | `vector_store.as_retriever(search_kwargs={"k": 2})`. Same result as `similarity_search` for plain search; the retriever adds strategies and chain-composability |
+| **MMR** | Relevant *and* diverse. `search_type="mmr"` with `fetch_k` and `lambda_mult` (1 = plain similarity, 0 = most diverse). Fixes near-duplicate results. Chroma in JavaScript does not support it |
+| **Multi-query** | An LLM rewrites a vague question into several, search each, merge and de-duplicate. Wider coverage, but extra LLM calls and sometimes extra noise |
+| **Contextual compression** | An LLM trims each retrieved document to the parts relevant to the query. Useful when chunks mix topics or context is tight |
+| **On LangChain 1.x** | `MultiQueryRetriever` and `ContextualCompressionRetriever` live only in `langchain-classic`. Build them from runnables instead: prompt + model, `.map()` (Python) or `Promise.all` (JS), `RunnableLambda`, `.batch()` |
+| **Why many retrievers** | A basic RAG system often disappoints; swapping in a better retrieval strategy is the main way to improve it |
