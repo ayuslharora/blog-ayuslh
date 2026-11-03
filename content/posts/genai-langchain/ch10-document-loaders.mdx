@@ -1,6 +1,6 @@
 ---
-title: "Ch.10: Document Loaders in LangChain: Text, PDF, Directory, Web, CSV"
-description: "Why every data source gets converted into the same Document object, how to load text, PDF, web and CSV data, why DirectoryLoader needs lazy loading at scale, and how to write your own loader."
+title: "Ch.10: Document Loaders in LangChain: Text, PDF, Folder, Web, CSV"
+description: "Why every data source gets converted into the same Document object, how to load text, PDF, web and CSV data into it, why folders need lazy loading at scale, and how to write the loaders yourself on top of LangChain's BaseLoader since the old community loader package has been sunset."
 date: "2026-11-09T15:15:00+05:30"
 tags: ["generative-ai", "langchain", "rag", "document-loaders", "llm"]
 subtopic: "RAG Components"
@@ -26,13 +26,11 @@ A RAG application is built from four components, and the next four posts cover t
 
 After that we wire them together into a full application.
 
-**Setup.** Python examples ran on LangChain 1.4.9 (langchain-core 1.7.6, langchain-community 0.4.2) and the JavaScript ones on LangChain.js with @langchain/core 1.3.5 and @langchain/community 1.1.29. Install `langchain-community` and `pypdf` (Python) or `@langchain/community`, `pdf-parse`, `d3-dsv` and `cheerio` (JavaScript). Older tutorials import loaders from `langchain.document_loaders`; the current home is `langchain_community.document_loaders` in Python and `@langchain/community/document_loaders/...` in JavaScript.
-
 ## What a Document Loader Does
 
 Data lives in many places: PDFs, text files, databases, websites, cloud drives, Slack. Every one of those has its own format and its own way of being read. If each came into your program in its own shape, every later step (splitting, embedding, searching) would need special cases per source.
 
-LangChain's answer is one standard shape, the **`Document`** object, and a **document loader** is any component that reads a source and returns documents. A `Document` has exactly two fields:
+LangChain's answer is one standard shape, the **`Document`** object, and a **document loader** is any component that reads a source and returns documents. A `Document` has two main fields:
 
 - `page_content`: the actual text.
 - `metadata`: a dictionary about the text: where it came from, which page, which row, and so on.
@@ -42,19 +40,49 @@ Two rules hold for every loader, and learning them once covers all of them:
 1. You create the loader with its source (a path or a URL), then call `.load()`.
 2. `.load()` always returns a **list** of `Document` objects, even when there is only one.
 
-The loaders live in `langchain-community` because most were written by the community for their own data sources. LangChain has hundreds; you do not need to learn them all. Learn this pattern, then look up the one you need when a project requires it.
+### Where to Get Loaders in 2026
 
-## TextLoader
+Older tutorials import ready-made loaders (`TextLoader`, `PyPDFLoader`, `CSVLoader`, `WebBaseLoader`, `DirectoryLoader`) from `langchain_community`. That package, and its JavaScript twin `@langchain/community`, were **sunset in 2026** and are no longer maintained; the official docs now say the PDF and text loaders "should no longer be used". The ready-made options today are standalone partner packages, each for a specific kind of source:
 
-The simplest loader reads a plain text file. It fits log files, code snippets and transcripts. Here `cricket.txt` is a two-line file.
+| Need | Where to look |
+|---|---|
+| PDFs with layout, tables, OCR | `langchain-docling`, `langchain-pymupdf4llm`, `langchain-unstructured` |
+| Websites at scale (crawling, JavaScript pages) | `langchain-firecrawl`, `langchain-apify` |
+| Cloud storage | the provider's own package, for example `langchain-google-community`, `langchain-azure-storage` |
+| Plain text, CSV, a local folder | no package: write the few lines yourself |
+
+The last row is not a downgrade, it is how loaders were always meant to work. A loader is just a small class that yields `Document`s, and LangChain's base class does the rest. So instead of memorising a catalogue, this post builds the five common loaders from scratch. Once you can do that, you can load anything.
+
+**Setup.** Python examples ran on LangChain 1.4.9 (langchain-core 1.7.6) with `pypdf`, `requests` and `beautifulsoup4`. The JavaScript ones ran on @langchain/core 1.3.5 with `unpdf`, `cheerio` and `d3-dsv`. Everything LangChain-related comes from `langchain-core` / `@langchain/core`. The code blocks build on each other: later ones reuse the imports (`Path`, `Iterator`, `BaseLoader`, `Document`, `readFile`, ...) shown in the first.
+
+## The Pattern: A Loader Is a Class That Yields Documents
+
+In Python, subclass `BaseLoader` and implement `lazy_load`, a method that **yields** one `Document` at a time. The base class then gives you `.load()` for free: it just collects everything `lazy_load` yields into a list. In JavaScript, subclass `BaseDocumentLoader` and implement `load()`.
+
+Here is the smallest useful loader: a text file becomes one `Document`.
 
 <CodeTabs>
 
 ```python
-from langchain_community.document_loaders import TextLoader
+from pathlib import Path
+from collections.abc import Iterator
 
-loader = TextLoader("cricket.txt", encoding="utf-8")
-docs = loader.load()
+from langchain_core.document_loaders import BaseLoader
+from langchain_core.documents import Document
+
+
+class TextFileLoader(BaseLoader):
+    """One Document for the whole file."""
+
+    def __init__(self, path: str, encoding: str = "utf-8"):
+        self.path, self.encoding = path, encoding
+
+    def lazy_load(self) -> Iterator[Document]:
+        text = Path(self.path).read_text(encoding=self.encoding)
+        yield Document(page_content=text, metadata={"source": self.path})
+
+
+docs = TextFileLoader("cricket.txt").load()
 
 print(type(docs), len(docs))
 print(docs[0].page_content[:40])
@@ -64,14 +92,21 @@ print(docs[0].metadata)
 ```js
 import { readFile } from "node:fs/promises";
 import { Document } from "@langchain/core/documents";
+import { BaseDocumentLoader } from "@langchain/core/document_loaders/base";
 
-// LangChain.js 1.x has no non-legacy TextLoader, so build the Document directly.
-const docs = [
-  new Document({
-    pageContent: await readFile("cricket.txt", "utf-8"),
-    metadata: { source: "cricket.txt" },
-  }),
-];
+class TextFileLoader extends BaseDocumentLoader {
+  constructor(path) {
+    super();
+    this.path = path;
+  }
+
+  async load() {
+    const text = await readFile(this.path, "utf-8");
+    return [new Document({ pageContent: text, metadata: { source: this.path } })];
+  }
+}
+
+const docs = await new TextFileLoader("cricket.txt").load();
 
 console.log(Array.isArray(docs), docs.length);
 console.log(docs[0].pageContent.slice(0, 40));
@@ -87,42 +122,66 @@ Two team
 {'source': 'cricket.txt'}
 ```
 
-The `encoding="utf-8"` argument matters when the file contains special characters; without it, a file with accented letters or emoji can fail to decode. The result is a list with one `Document`: the whole file as `page_content`, and `metadata` holding just the source path.
+`cricket.txt` here is a two-line file. The `encoding="utf-8"` matters when a file contains special characters; without it a file with accented letters or emoji can fail to decode. The result is a list with one `Document`: the whole file as `page_content` and the path in `metadata`.
 
-Because loaders return normal objects, they plug straight into chains. Pull the text out and pass it to the `prompt | model | parser` chain from earlier posts:
+Because a loader returns normal objects, it plugs straight into chains. Pull the text out and feed it to the `prompt | model | parser` chain from earlier posts: `chain.invoke({"poem": docs[0].page_content})`. You can also wrap the loader's `.load` in a `RunnableLambda` so that loading becomes a step of the chain.
 
-```python
-chain.invoke({"poem": docs[0].page_content})
-```
+## A PDF Loader: One Document per Page
 
-You can also wrap the loader's `.load` in a `RunnableLambda` so that loading itself becomes a step in the chain.
-
-## PyPDFLoader: One Document per Page
-
-For PDFs, the loader returns **one `Document` per page**, and each page's metadata carries the page number and the total.
+For PDFs the natural unit is a page: **one `Document` per page**, with the page number in the metadata. `pypdf` (Python) and `unpdf` (JavaScript) read the PDF's text layer.
 
 <CodeTabs>
 
 ```python
-from langchain_community.document_loaders import PyPDFLoader
+from pypdf import PdfReader
 
-loader = PyPDFLoader("curriculum.pdf")
-pages = loader.load()
+
+class PdfPageLoader(BaseLoader):
+    """One Document per PDF page."""
+
+    def __init__(self, path: str):
+        self.path = path
+
+    def lazy_load(self) -> Iterator[Document]:
+        reader = PdfReader(self.path)
+        for i, page in enumerate(reader.pages):
+            yield Document(
+                page_content=page.extract_text(),
+                metadata={"source": self.path, "page": i, "total_pages": len(reader.pages)},
+            )
+
+
+pages = PdfPageLoader("curriculum.pdf").load()
 
 print(len(pages))
 print(pages[0].page_content)
-print({k: pages[0].metadata[k] for k in ("source", "total_pages", "page")})
+print(pages[0].metadata)
 ```
 
 ```js
-import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
+import { extractText, getDocumentProxy } from "unpdf";
 
-const loader = new PDFLoader("curriculum.pdf");
-const pages = await loader.load();
+class PdfPageLoader extends BaseDocumentLoader {
+  constructor(path) {
+    super();
+    this.path = path;
+  }
+
+  async load() {
+    const pdf = await getDocumentProxy(new Uint8Array(await readFile(this.path)));
+    const { text, totalPages } = await extractText(pdf, { mergePages: false });
+    return text.map(
+      (pageText, i) =>
+        new Document({ pageContent: pageText, metadata: { source: this.path, page: i, total_pages: totalPages } })
+    );
+  }
+}
+
+const pages = await new PdfPageLoader("curriculum.pdf").load();
 
 console.log(pages.length);
 console.log(pages[0].pageContent);
-console.log(pages[0].metadata.source, pages[0].metadata.pdf.totalPages, pages[0].metadata.loc.pageNumber);
+console.log(pages[0].metadata);
 ```
 
 </CodeTabs>
@@ -130,54 +189,56 @@ console.log(pages[0].metadata.source, pages[0].metadata.pdf.totalPages, pages[0]
 ```
 3
 Deep learning curriculum, page 1
-{'source': 'curriculum.pdf', 'total_pages': 3, 'page': 0}
+{'source': 'curriculum.pdf', 'page': 0, 'total_pages': 3}
 ```
 
-This ran on a small 3-page sample PDF. A 23-page PDF would give 23 documents, a 300-page book 300. Metadata also holds producer, creation date and title when the file has them. Note that the Python page index starts at 0, so `'page': 0` is the first page.
+This ran on a small 3-page sample PDF. A 23-page PDF would give 23 documents, a 300-page book 300. The page index starts at 0, so `'page': 0` is the first page.
 
-`PyPDFLoader` reads the text layer using the `pypdf` library, so it is good for ordinary text PDFs and weak for the rest. It will not read a scanned PDF (which is just pictures of pages), and it handles complex layouts and tables poorly. LangChain has other PDF loaders for those cases, and the choice is a project-by-project call:
+This is the simple version, and its limits are the limits of reading a PDF's text layer. It will not read a scanned PDF (which is just pictures of pages), and it handles tables and complicated layouts poorly. Those are the cases the PDF packages in the table above exist for: Docling and PyMuPDF4LLM keep layout and tables, Unstructured can do OCR. They all return the same thing, a list of `Document`s, so swapping one in later changes only the loader line.
 
-| Your PDF | Loader to look at |
-|---|---|
-| Mostly plain text | `PyPDFLoader` |
-| Lots of tables | `PDFPlumberLoader` |
-| Complex layouts | `PyMuPDFLoader` |
-| Scanned images, structure extraction | `UnstructuredPDFLoader`, or a cloud service such as Amazon Textract |
+## A Folder Loader: Many Files at Once
 
-All of them follow the same pattern: create, `.load()`, get a list of documents. Only the quality of the extracted text differs.
-
-## DirectoryLoader: Many Files at Once
-
-What if a folder holds many files? `DirectoryLoader` walks a folder, picks files matching a pattern, and uses the loader class you name for each one.
-
-Three arguments matter: the folder path, a `glob` pattern for which files to take (`*.pdf` is every PDF in the folder, `**/*.txt` is every text file in every subfolder), and the loader class for reading each match. `DirectoryLoader` works with any loader, not only PDFs.
+What if a folder holds many files? Write a loader that takes a folder, a glob pattern for which files to pick (`*.pdf` is every PDF in the folder, `**/*.txt` is every text file in every subfolder) and the loader class to use on each match.
 
 <CodeTabs>
 
 ```python
-from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader
+class FolderLoader(BaseLoader):
+    """Run a loader on every file matching a glob, one file at a time."""
 
-loader = DirectoryLoader(
-    "books",                 # the folder
-    glob="*.pdf",            # which files to pick
-    loader_cls=PyPDFLoader,  # how to read each one
-)
-docs = loader.load()
-print(len(docs))
+    def __init__(self, folder: str, glob: str, loader_cls):
+        self.folder, self.glob, self.loader_cls = folder, glob, loader_cls
+
+    def lazy_load(self) -> Iterator[Document]:
+        for path in sorted(Path(self.folder).glob(self.glob)):
+            yield from self.loader_cls(str(path)).lazy_load()
+
+
+loader = FolderLoader("books", "*.pdf", PdfPageLoader)
+print(len(loader.load()))
 ```
 
 ```js
-// LangChain.js 1.x only ships DirectoryLoader in the legacy @langchain/classic
-// package, so list the folder with node:fs and run a loader per file.
 import { readdir } from "node:fs/promises";
-import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 
-const names = (await readdir("books")).filter((n) => n.endsWith(".pdf"));
-const docs = [];
-for (const name of names) {
-  docs.push(...(await new PDFLoader(`books/${name}`).load()));
+class FolderLoader extends BaseDocumentLoader {
+  constructor(folder, extension, LoaderClass) {
+    super();
+    Object.assign(this, { folder, extension, LoaderClass });
+  }
+
+  async load() {
+    const names = (await readdir(this.folder)).filter((n) => n.endsWith(this.extension)).sort();
+    const docs = [];
+    for (const name of names) {
+      docs.push(...(await new this.LoaderClass(`${this.folder}/${name}`).load()));
+    }
+    return docs;
+  }
 }
-console.log(docs.length);
+
+const loader = new FolderLoader("books", ".pdf", PdfPageLoader);
+console.log((await loader.load()).length);
 ```
 
 </CodeTabs>
@@ -186,7 +247,7 @@ console.log(docs.length);
 6
 ```
 
-With two sample PDFs of 3 pages each, that prints `6`: one document per page, across all files. Pointed at three machine learning books of 326, 392 and 468 pages, the same code gives 1186 documents. Each document's `metadata["source"]` tells you which book it came from.
+With two sample PDFs of 3 pages each, that prints `6`: one document per page, across all files. Pointed at three machine learning books of 326, 392 and 468 pages, the same code gives 1186 documents. Each document's `metadata["source"]` tells you which book it came from. Because the folder loader takes the per-file loader as an argument, it works with any loader, not only PDFs.
 
 ## load vs lazy_load
 
@@ -195,7 +256,7 @@ Loading three large books takes noticeable time, and that raises a real question
 - **Time.** Nothing is returned until every file has been read.
 - **Memory.** `.load()` builds *every* `Document` and holds them all in a list at once. With enough files that no longer fits in RAM.
 
-The fix is **lazy loading**. Every loader also has `.lazy_load()`, which does the same job differently. Instead of a list, it returns a **generator**: it reads and hands you one `Document` at a time, only when you ask for the next one.
+The fix is **lazy loading**. Every Python loader also has `.lazy_load()`; in fact it is the method you wrote. It returns a **generator**: it reads and hands you one `Document` at a time, only when you ask for the next one.
 
 | | `.load()` | `.lazy_load()` |
 |---|---|---|
@@ -205,8 +266,6 @@ The fix is **lazy loading**. Every loader also has `.lazy_load()`, which does th
 | Use when | Few or small files, and you need them all together | Many or large files, or you can process each document and move on |
 
 ```python
-loader = DirectoryLoader("books", glob="*.pdf", loader_cls=PyPDFLoader)
-
 for doc in loader.lazy_load():
     print(doc.metadata["source"], doc.metadata["page"])
 ```
@@ -219,35 +278,63 @@ books/ml-basics.pdf 0
 ...
 ```
 
-With `.load()` and a big folder you stare at a blank terminal until all the work is done; with `.lazy_load()` the first line prints right away and each document is processed and then released before the next arrives. The catch is that you process documents as they stream past, so you cannot index into the result (`docs[5]`) or ask for its length without consuming it.
+With `.load()` and a big folder you stare at a blank terminal until all the work is done; with `.lazy_load()` the first line prints right away, and each document is processed and then released before the next arrives. The catch is that you handle documents as they stream past, so you cannot index into the result (`docs[5]`) or ask for its length without consuming it. Notice that `FolderLoader` is lazy end to end: it opens one file, yields its pages, and only then opens the next.
 
-LangChain.js loaders only have `load()`; there is no lazy variant. The loop in the JavaScript tab above is the equivalent: load one file at a time and process it before moving on.
+LangChain.js loaders have only `load()`, with no lazy variant. The JavaScript tab above is already the equivalent for big folders: it loads one file at a time, so you can process each file's documents inside the loop instead of collecting them all.
 
-## WebBaseLoader: Web Pages
+## A Web Page Loader
 
-`WebBaseLoader` loads the text of a web page. Under the hood it fetches the page with `requests` and strips the HTML with Beautiful Soup, so what you get is the readable text without tags. (The `bs4` package must be installed.)
+To load the text of a web page: fetch the HTML, then strip the tags so only readable text is left. Python uses `requests` plus Beautiful Soup; JavaScript uses `fetch` plus `cheerio`.
 
 <CodeTabs>
 
 ```python
-from langchain_community.document_loaders import WebBaseLoader
+import requests
+from bs4 import BeautifulSoup
 
-loader = WebBaseLoader("https://example.com")
-docs = loader.load()
+
+class WebPageLoader(BaseLoader):
+    """The visible text of a web page (works on static pages)."""
+
+    def __init__(self, url: str):
+        self.url = url
+
+    def lazy_load(self) -> Iterator[Document]:
+        html = requests.get(self.url, timeout=30, headers={"User-Agent": "my-app"}).text
+        soup = BeautifulSoup(html, "html.parser")
+        title = soup.title.string if soup.title else ""
+        yield Document(page_content=soup.get_text(" ", strip=True), metadata={"source": self.url, "title": title})
+
+
+docs = WebPageLoader("https://example.org").load()
 
 print(len(docs))
-print(docs[0].page_content.strip()[:60])
+print(docs[0].page_content[:60])
 print(docs[0].metadata)
 ```
 
 ```js
-import { CheerioWebBaseLoader } from "@langchain/community/document_loaders/web/cheerio";
+import { load as parseHtml } from "cheerio";
 
-const loader = new CheerioWebBaseLoader("https://example.com");
-const docs = await loader.load();
+class WebPageLoader extends BaseDocumentLoader {
+  constructor(url) {
+    super();
+    this.url = url;
+  }
+
+  async load() {
+    const html = await (await fetch(this.url, { headers: { "User-Agent": "my-app" } })).text();
+    const $ = parseHtml(html);
+    $("script, style").remove();
+    const text = [$("title").text(), $("body").text()].join(" ").replace(/\s+/g, " ").trim();
+    return [new Document({ pageContent: text, metadata: { source: this.url, title: $("title").text() } })];
+  }
+}
+
+const docs = await new WebPageLoader("https://example.org").load();
 
 console.log(docs.length);
-console.log(docs[0].pageContent.trim().slice(0, 60));
+console.log(docs[0].pageContent.slice(0, 60));
 console.log(docs[0].metadata);
 ```
 
@@ -255,24 +342,38 @@ console.log(docs[0].metadata);
 
 ```
 1
-Example DomainThis domain is for use in documentation exampl
-{'source': 'https://example.com', 'title': 'Example Domain', 'language': 'en'}
+Example Domain This domain is for use in documentation examp
+{'source': 'https://example.org', 'title': 'Example Domain'}
 ```
 
-You can pass a **list of URLs** and get one `Document` per page. Plug the page text into a prompt and you can ask questions about any web page: a prompt with `{text}` and `{question}` variables, `docs[0].page_content` as the text, and your question. If the page does not contain the answer, a well-prompted model says so, which is the behaviour you want.
+To load several pages, make one `Document` per URL (loop over a list of URLs inside the loader). Plug the page text into a prompt with `{text}` and `{question}` variables and you can ask questions about any page; if the page does not contain the answer, a well-prompted model says so, which is the behaviour you want.
 
-It works well on static pages (blogs, news articles, documentation). It does not work well on pages that build their content with JavaScript after loading, because the loader sees only the initial HTML. For those, use a browser-driven loader such as `SeleniumURLLoader`. A nice project idea: a Chrome extension that, on any page you open, loads that page through this loader and lets you chat with it.
+This works on static pages (blogs, news articles, documentation). It does not work on pages that build their content with JavaScript after loading, because we only see the first HTML the server sends. For those you need a browser-driven tool or a crawling service (the Firecrawl and Apify packages in the table). A nice project idea: a Chrome extension that, on any page you open, loads that page and lets you chat with it.
 
-## CSVLoader: One Document per Row
+## A CSV Loader: One Document per Row
 
-`CSVLoader` makes **one `Document` per row**. Each document's text lists the columns as `name: value` lines, and the metadata records the source file and row number.
+For a CSV file make **one `Document` per row**, with the text written as `column: value` lines and the row number in the metadata.
 
 <CodeTabs>
 
 ```python
-from langchain_community.document_loaders import CSVLoader
+import csv
 
-rows = CSVLoader("ads.csv").load()
+
+class CsvRowLoader(BaseLoader):
+    """One Document per row, written as 'column: value' lines."""
+
+    def __init__(self, path: str):
+        self.path = path
+
+    def lazy_load(self) -> Iterator[Document]:
+        with open(self.path, newline="", encoding="utf-8") as f:
+            for i, row in enumerate(csv.DictReader(f)):
+                text = "\n".join(f"{k}: {v}" for k, v in row.items())
+                yield Document(page_content=text, metadata={"source": self.path, "row": i})
+
+
+rows = CsvRowLoader("ads.csv").load()
 
 print(len(rows))
 print(rows[0].page_content)
@@ -280,9 +381,27 @@ print(rows[0].metadata)
 ```
 
 ```js
-import { CSVLoader } from "@langchain/community/document_loaders/fs/csv";
+import { csvParse } from "d3-dsv";
 
-const rows = await new CSVLoader("ads.csv").load();
+class CsvRowLoader extends BaseDocumentLoader {
+  constructor(path) {
+    super();
+    this.path = path;
+  }
+
+  async load() {
+    const rows = csvParse(await readFile(this.path, "utf-8"));
+    return rows.map(
+      (row, i) =>
+        new Document({
+          pageContent: Object.entries(row).map(([k, v]) => `${k}: ${v}`).join("\n"),
+          metadata: { source: this.path, row: i },
+        })
+    );
+  }
+}
+
+const rows = await new CsvRowLoader("ads.csv").load();
 
 console.log(rows.length);
 console.log(rows[0].pageContent);
@@ -301,67 +420,11 @@ purchased: 0
 {'source': 'ads.csv', 'row': 0}
 ```
 
-This ran on a three-row sample; a 400-row file gives 400 documents. In JavaScript the row key in the metadata is `line` instead of `row`. For a big CSV, `lazy_load()` lets you stream through the rows.
+This ran on a three-row sample; a 400-row file gives 400 documents. Because the Python version is a generator, a huge CSV streams row by row without being held in memory.
 
-## Other Loaders and Custom Loaders
+## Why Writing Loaders Is the Normal Thing to Do
 
-LangChain's documentation groups loaders by category: web pages, PDFs, cloud storage (S3, Azure, Dropbox, Google Drive), social platforms, messaging, productivity tools, and common file types. There is even one for YouTube transcripts. The advice is simple: do not study them in advance. When a project needs one, open its page in the docs; the usage is the same create-then-load pattern.
-
-If your source has no loader, write your own. Subclass `BaseLoader` and implement `lazy_load`, yielding `Document` objects. `.load()` comes for free, because the base class builds it from `lazy_load`.
-
-<CodeTabs>
-
-```python
-from langchain_core.document_loaders import BaseLoader
-from langchain_core.documents import Document
-
-class LineLoader(BaseLoader):
-    """One Document per line of a text file."""
-
-    def __init__(self, path):
-        self.path = path
-
-    def lazy_load(self):
-        with open(self.path, encoding="utf-8") as f:
-            for i, line in enumerate(f):
-                yield Document(
-                    page_content=line.strip(),
-                    metadata={"source": self.path, "line": i},
-                )
-
-print([d.metadata for d in LineLoader("cricket.txt").load()])
-```
-
-```js
-import { readFile } from "node:fs/promises";
-import { Document } from "@langchain/core/documents";
-import { BaseDocumentLoader } from "@langchain/core/document_loaders/base";
-
-class LineLoader extends BaseDocumentLoader {
-  constructor(path) {
-    super();
-    this.path = path;
-  }
-
-  async load() {
-    const text = await readFile(this.path, "utf-8");
-    return text
-      .split("\n")
-      .filter(Boolean)
-      .map((line, i) => new Document({ pageContent: line, metadata: { source: this.path, line: i } }));
-  }
-}
-
-console.log((await new LineLoader("cricket.txt").load()).map((d) => d.metadata));
-```
-
-</CodeTabs>
-
-```
-[{'source': 'cricket.txt', 'line': 0}, {'source': 'cricket.txt', 'line': 1}]
-```
-
-This is also how the existing loaders came to exist: the community wrote loaders for their own sources and contributed them.
+Every ready-made loader that ever existed was written this way: someone had a data source with no loader, wrote a `BaseLoader` subclass, and shared it. The community package that collected hundreds of them is retired, but the mechanism did not change. If your source is a database, a Notion export or an internal API, the recipe is the same three steps: read the data, turn each natural unit (page, row, record) into a `Document` with useful metadata, and `yield` it.
 
 ## Summary
 
@@ -370,13 +433,10 @@ This is also how the existing loaders came to exist: the community wrote loaders
 | **RAG** | Give the model an external knowledge base: retrieve relevant pieces, then generate an answer from them. Fixes stale knowledge, private data and documents too big for one prompt |
 | **Four components** | Document loaders, text splitters, vector stores, retrievers |
 | **`Document`** | `page_content` (the text) plus `metadata` (source, page, row...). The one shape every loader returns |
-| **The loader pattern** | Create the loader with its source, call `.load()`, get a *list* of `Document`s. Same for every loader |
-| **Where loaders live** | `langchain_community.document_loaders` (Python), `@langchain/community/document_loaders/...` (JavaScript) |
-| **`TextLoader`** | One document for the whole text file. Set `encoding="utf-8"` |
-| **`PyPDFLoader`** | One document per page; good for text PDFs, weak for scans, tables, complex layouts (use other PDF loaders) |
-| **`DirectoryLoader`** | Folder + `glob` pattern + `loader_cls`; loads every matching file with the loader you name |
-| **`load` vs `lazy_load`** | `load` returns a list of everything in memory; `lazy_load` returns a generator, one document at a time. Prefer lazy for many or large files |
-| **`WebBaseLoader`** | Page text via requests + Beautiful Soup; fine for static pages, not for JavaScript-heavy ones |
-| **`CSVLoader`** | One document per row, text as `column: value` lines |
-| **Custom loader** | Subclass `BaseLoader`, implement `lazy_load`, yield `Document`s |
-| **JavaScript gap** | 1.x has no non-legacy text or directory loader and no lazy loading; use `node:fs` with `Document`, and load files one at a time |
+| **The loader pattern** | Create the loader with its source, call `.load()`, get a *list* of `Document`s |
+| **Community loaders are retired** | `langchain_community` / `@langchain/community` were sunset in 2026. Use standalone partner packages for specialised sources, or write the loader yourself |
+| **Writing a loader** | Python: subclass `BaseLoader`, implement `lazy_load` (yield `Document`s); `.load()` comes free. JavaScript: subclass `BaseDocumentLoader`, implement `load()` |
+| **Text / PDF / CSV / web** | One document for the file / one per page (`pypdf`, `unpdf`) / one per row (`csv`, `d3-dsv`) / the page text (`requests` + Beautiful Soup, `fetch` + `cheerio`) |
+| **Folder loader** | Folder + glob + the loader to use per file; yield each file's documents in turn |
+| **`load` vs `lazy_load`** | `load` returns a list of everything in memory; `lazy_load` returns a generator, one document at a time. Prefer lazy for many or large files. JavaScript has `load()` only |
+| **Limits of the simple versions** | Text-layer PDF reading fails on scans and complex layouts; the web loader misses JavaScript-built pages. Reach for the specialised packages then |
