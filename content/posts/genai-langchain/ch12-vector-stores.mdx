@@ -92,7 +92,74 @@ LangChain wraps all the major vector stores (FAISS, Pinecone, Chroma, Qdrant, We
 
 Chroma organises data in a hierarchy: a **tenant** (a user or team) has **databases**, a database has **collections** (the equivalent of a table), and a collection holds records, each a vector plus its metadata. In LangChain you mostly deal with one collection.
 
-**Setup.** Python needs `langchain-chroma` (1.1.0 here) and an embeddings package. The JavaScript Chroma integration, in `@langchain/community` (1.1.29), talks to a running Chroma server through the `chromadb` client package, so start one first with `chroma run` (it listens on `localhost:8000` by default; I used port 8011). Python's Chroma runs inside your own process and saves to a folder, so it needs no server.
+**Setup.** Python needs `langchain-chroma` (1.1.0 here), a standalone package, and an embeddings package. Python's Chroma runs inside your own process and saves to a folder, so it needs no server.
+
+JavaScript is different. Chroma's LangChain.js integration lives only in `@langchain/community`, which was sunset in 2026, and the maintained standalone JS vector store packages (`@langchain/qdrant`, `@langchain/pinecone`, `@langchain/weaviate`, `@langchain/pgvector`) each need a running database or an account. The ready-made in-memory store sits in the legacy `@langchain/classic` package. So for the JavaScript tabs we build a small in-memory store ourselves on the `VectorStore` base class from `@langchain/core` (1.3.5). It is a good way to see what a vector store really is, and it has the same methods you would use with Qdrant or Pinecone. The post gives it as `simpleVectorStore.js`, and the next two posts import it.
+
+```js
+import { randomUUID } from "node:crypto";
+import { VectorStore } from "@langchain/core/vectorstores";
+import { cosineSimilarity, maximalMarginalRelevance } from "@langchain/core/utils/math";
+
+// A small in-memory vector store built on @langchain/core's VectorStore base class.
+export class SimpleVectorStore extends VectorStore {
+  constructor(embeddings) {
+    super(embeddings, {});
+    this.records = []; // { id, vector, document }
+  }
+
+  _vectorstoreType() {
+    return "simple";
+  }
+
+  static async fromDocuments(docs, embeddings) {
+    const store = new SimpleVectorStore(embeddings);
+    await store.addDocuments(docs);
+    return store;
+  }
+
+  async addDocuments(documents, options = {}) {
+    const vectors = await this.embeddings.embedDocuments(documents.map((d) => d.pageContent));
+    return this.addVectors(vectors, documents, options);
+  }
+
+  async addVectors(vectors, documents, options = {}) {
+    return documents.map((document, i) => {
+      const id = options.ids?.[i] ?? randomUUID();
+      this.records = this.records.filter((r) => r.id !== id); // same id replaces (an upsert)
+      this.records.push({ id, vector: vectors[i], document });
+      return id;
+    });
+  }
+
+  async delete({ ids }) {
+    this.records = this.records.filter((r) => !ids.includes(r.id));
+  }
+
+  #matching(filter) {
+    return this.records.filter((r) => !filter || Object.entries(filter).every(([k, v]) => r.document.metadata?.[k] === v));
+  }
+
+  async similaritySearchVectorWithScore(query, k, filter) {
+    const pool = this.#matching(filter);
+    if (pool.length === 0) return [];
+    const scores = cosineSimilarity([query], pool.map((r) => r.vector))[0];
+    return pool
+      .map((r, i) => [r.document, scores[i]])
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, k);
+  }
+
+  async maxMarginalRelevanceSearch(query, { k, fetchK = 20, lambda = 0.5, filter }) {
+    const queryVector = await this.embeddings.embedQuery(query);
+    const candidates = (await this.similaritySearchVectorWithScore(queryVector, fetchK, filter)).map(([d]) => d);
+    const vectors = candidates.map((d) => this.records.find((r) => r.document === d).vector);
+    return maximalMarginalRelevance(queryVector, vectors, lambda, k).map((i) => candidates[i]);
+  }
+}
+```
+
+What each piece does: `addDocuments` embeds the texts and stores each vector with its document under an id; `similaritySearchVectorWithScore` ranks the stored vectors by cosine similarity to the query vector (after an optional metadata filter); `delete` removes by id. The base class builds `similaritySearch`, `similaritySearchWithScore` and `asRetriever` on top of those. Everything is a plain array in memory, so it disappears when the program exits: fine for learning, not for production. A real vector store adds persistence and an index, which is exactly what the previous section described.
 
 **Embeddings.** Any LangChain `Embeddings` object works. `OpenAIEmbeddings(model="text-embedding-3-small")` is the standard choice. The outputs below were produced with the open `bge-m3` model through an OpenAI-compatible endpoint, so exact scores will differ with a different model.
 
@@ -123,9 +190,9 @@ vector_store = Chroma(
 ```
 
 ```js
-import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { Document } from "@langchain/core/documents";
 import { OpenAIEmbeddings } from "@langchain/openai";
+import { SimpleVectorStore } from "./simpleVectorStore.js";
 
 const embeddings = new OpenAIEmbeddings({ model: "text-embedding-3-small" });
 
@@ -137,15 +204,12 @@ const docs = [
   new Document({ pageContent: "Ravindra Jadeja is a dynamic all-rounder who contributes with both bat and ball. Representing Chennai Super Kings, he is also an outstanding fielder.", metadata: { team: "Chennai Super Kings" } }),
 ];
 
-const vectorStore = new Chroma(embeddings, {
-  collectionName: "players",
-  url: "http://localhost:8000", // the running Chroma server
-});
+const vectorStore = new SimpleVectorStore(embeddings);
 ```
 
 </CodeTabs>
 
-Creating the store takes three things: the embedding model (used to turn documents and queries into vectors), a collection name, and where to save (a folder in Python, a server URL in JavaScript). Python saves in SQLite format, so the folder survives restarts: a second `Chroma(...)` with the same arguments reloads the same data.
+Creating the Chroma store takes three things: the embedding model (used to turn documents and queries into vectors), a collection name, and a folder to save into. Chroma saves in SQLite format, so the folder survives restarts: a second `Chroma(...)` with the same arguments reloads the same data. The JavaScript store needs only the embedding model, and keeps everything in memory.
 
 ### Add Documents
 
@@ -178,7 +242,7 @@ print(len(got["ids"]), got["metadatas"][:2])
 5 [{'team': 'Royal Challengers Bangalore'}, {'team': 'Mumbai Indians'}]
 ```
 
-Add `"embeddings"` to `include` to see the raw vectors too. (JavaScript's `Chroma` class has no `get`; use the search methods below.)
+Add `"embeddings"` to `include` to see the raw vectors too. (The JavaScript store has no `get`; its records are in `vectorStore.records`.)
 
 ### Similarity Search
 
@@ -225,7 +289,7 @@ for (const [doc, score] of scored) console.log(score.toFixed(3), doc.pageContent
 0.999 Virat Kohli is one of the most
 ```
 
-Careful with the direction: Chroma returns a **distance**, so **lower means closer**. (Do not read it as a similarity where higher is better.) Bumrah at 0.942 and Kohli at 0.999 are close to each other, which is the vector store telling you that Kohli is only a barely weaker match. When you build an application, a score threshold, not just `k`, is how you avoid presenting a weak match as an answer.
+Careful with the direction: Chroma returns a **distance**, so **lower means closer**. (Do not read it as a similarity where higher is better.) The JavaScript store above reports **cosine similarity** instead, so there higher means closer; on the same two players it gave 0.529 for Bumrah and 0.501 for Kohli, the same order. Always check which one your store returns. Bumrah at 0.942 and Kohli at 0.999 are close to each other, which is the vector store telling you that Kohli is only a barely weaker match. When you build an application, a score threshold, not just `k`, is how you avoid presenting a weak match as an answer.
 
 ### Filter by Metadata
 
@@ -312,7 +376,7 @@ Four records remain, Kohli's gone. That is the whole life cycle: add, search, fi
 | **Indexing** | Example: cluster the vectors, compare to centroids, search only the closest cluster. Far fewer comparisons, slightly approximate |
 | **Store vs database** | A vector database is a vector store plus database features (scaling, backup, transactions, auth). Every database is a store, not the reverse |
 | **LangChain interface** | Same methods on every store: `add_documents`, `similarity_search`, `delete`. Swap stores by changing one line |
-| **Chroma** | Tenant, database, collection, records. Python persists to a folder (`persist_directory`); JavaScript uses a running Chroma server |
+| **Chroma** | Tenant, database, collection, records. Python persists to a folder (`persist_directory`). Its JavaScript integration is community-only (sunset), so the JS tabs use a small custom in-memory store |
 | **Scores** | Chroma returns a distance: lower is closer. Use a threshold, not just `k`, so weak matches are not presented as answers |
 | **Filtering** | `filter={"team": ...}` limits search to matching metadata. `get(where=...)` filters with no query |
 | **Update / delete** | Python `update_document(id, doc)`; JavaScript re-adds with the same id. `delete(ids=[...])` removes records |
