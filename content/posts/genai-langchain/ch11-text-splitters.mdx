@@ -78,10 +78,14 @@ Everything on a splitter works on text, so you split a plain string with `split_
 <CodeTabs>
 
 ```python
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-docs = PyPDFLoader("curriculum.pdf").load()
+# normally these come from a loader, such as the page-per-document PDF loader from the last post
+docs = [
+    Document(page_content=f"Deep learning curriculum, page {n}", metadata={"page": n - 1})
+    for n in (1, 2, 3)
+]
 splitter = RecursiveCharacterTextSplitter(chunk_size=20, chunk_overlap=0)
 chunks = splitter.split_documents(docs)
 
