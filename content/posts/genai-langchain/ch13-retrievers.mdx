@@ -27,7 +27,7 @@ Three points to hold on to:
 2. There is not one retriever but many, each for a different data source or search strategy.
 3. Every retriever is a **runnable** (the [runnables posts](/genai-langchain/ch8-runnables) explained this): it has `.invoke()`, `.batch()` and `.stream()`, and it connects to prompts, models and parsers with the same pipe. That is what lets you drop a retriever into a chain, and swap one retriever for another, without touching the rest.
 
-**Setup.** Python ran on LangChain 1.4.9 (langchain-core 1.7.6, langchain-community 0.4.2, langchain-chroma 1.1.0, langchain-groq 1.1.3, `wikipedia` for the Wikipedia retriever). JavaScript ran on @langchain/core 1.3.5 and @langchain/community 1.1.29, with a local Chroma server as in the last post. Embeddings came from the open `bge-m3` model through an OpenAI-compatible endpoint, and the chat model was `openai/gpt-oss-20b` on Groq. Exact results depend on the models you use.
+**Setup.** Python ran on LangChain 1.4.9 (langchain-core 1.7.6, langchain-chroma 1.1.0, langchain-groq 1.1.3, plus `requests`). JavaScript ran on @langchain/core 1.3.5 and @langchain/groq, using the `SimpleVectorStore` from the last post (the Chroma JS integration is community-only and sunset). Nothing here comes from `langchain-community`. Embeddings came from the open `bge-m3` model through an OpenAI-compatible endpoint, and the chat model was `openai/gpt-oss-20b` on Groq. Exact results depend on the models you use.
 
 ## Two Ways to Classify Retrievers
 
@@ -40,30 +40,95 @@ We take two data-source retrievers first, then three strategies.
 
 ## Data-Source Retrievers
 
-### Wikipedia Retriever
+### A Wikipedia Retriever
 
-It sends your query to the Wikipedia API and returns the most relevant articles as `Document`s. (The ranking is done on Wikipedia's side by keyword matching, not by semantic search, so phrase queries with the words the article is likely to use.)
+This retriever sends your query to the Wikipedia API and returns the most relevant articles as `Document`s. The ranking is done on Wikipedia's side by keyword matching, not by semantic search, so phrase queries with the words the article is likely to use.
+
+LangChain used to ship a ready-made `WikipediaRetriever` in the community package. That package is retired, but writing a retriever takes about as many lines as importing one, and it shows what a retriever really is: subclass `BaseRetriever` and implement one method that takes a query and returns a list of `Document`s.
+
+<CodeTabs>
 
 ```python
-from langchain_community.retrievers import WikipediaRetriever
+import requests
+from langchain_core.callbacks import CallbackManagerForRetrieverRun
+from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
 
-retriever = WikipediaRetriever(top_k_results=2, lang="en")
+
+class WikipediaSearchRetriever(BaseRetriever):
+    """Search Wikipedia and return the top articles' intro text as Documents."""
+
+    top_k: int = 2
+    lang: str = "en"
+
+    def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> list[Document]:
+        response = requests.get(
+            f"https://{self.lang}.wikipedia.org/w/api.php",
+            params={
+                "action": "query", "format": "json", "generator": "search",
+                "gsrsearch": query, "gsrlimit": self.top_k,
+                "prop": "extracts", "exintro": 1, "explaintext": 1,
+            },
+            headers={"User-Agent": "my-app"},
+            timeout=30,
+        )
+        pages = sorted(response.json().get("query", {}).get("pages", {}).values(), key=lambda p: p["index"])
+        return [
+            Document(page_content=p["extract"], metadata={"title": p["title"], "source": f"https://{self.lang}.wikipedia.org/?curid={p['pageid']}"})
+            for p in pages
+        ]
+
+
+retriever = WikipediaSearchRetriever(top_k=2)
 docs = retriever.invoke("Indian Premier League")
 
 print(len(docs), [d.metadata["title"] for d in docs])
 ```
 
+```js
+import { Document } from "@langchain/core/documents";
+import { BaseRetriever } from "@langchain/core/retrievers";
+
+class WikipediaSearchRetriever extends BaseRetriever {
+  lc_namespace = ["my_app", "retrievers"];
+
+  constructor({ topK = 2, lang = "en" } = {}) {
+    super();
+    this.topK = topK;
+    this.lang = lang;
+  }
+
+  async _getRelevantDocuments(query) {
+    const params = new URLSearchParams({
+      action: "query", format: "json", generator: "search",
+      gsrsearch: query, gsrlimit: String(this.topK),
+      prop: "extracts", exintro: "1", explaintext: "1",
+    });
+    const res = await fetch(`https://${this.lang}.wikipedia.org/w/api.php?${params}`, { headers: { "User-Agent": "my-app" } });
+    const pages = Object.values((await res.json()).query?.pages ?? {}).sort((a, b) => a.index - b.index);
+    return pages.map(
+      (p) => new Document({ pageContent: p.extract, metadata: { title: p.title, source: `https://${this.lang}.wikipedia.org/?curid=${p.pageid}` } })
+    );
+  }
+}
+
+const retriever = new WikipediaSearchRetriever({ topK: 2 });
+const docs = await retriever.invoke("Indian Premier League");
+
+console.log(docs.length, docs.map((d) => d.metadata.title));
+```
+
+</CodeTabs>
+
 ```
 2 ['Indian Premier League', '2026 Indian Premier League']
 ```
 
-`top_k_results` says how many articles you want and `lang` the Wikipedia language edition. It is a retriever, not a document loader, even though both hand you documents: a loader reads a source you point at, while a retriever *searches* it with a query and picks the relevant parts.
-
-The JavaScript packages ship a Wikipedia *tool* (`WikipediaQueryRun`) but no Wikipedia retriever, so this one is Python-only here.
+`top_k` says how many articles you want and `lang` the Wikipedia language edition. Notice the result: your class is a full **runnable**. It has `.invoke()`, `.batch()` and `.stream()` and pipes into chains, although you only wrote one method. That is the point of the base class. It is a retriever, not a document loader, even though both hand you documents: a loader reads a source you point at, while a retriever *searches* it with a query and picks the relevant parts.
 
 ### Vector Store Retriever
 
-This is the most common retriever. Any vector store makes one with `.as_retriever()`: it embeds the query, finds the closest stored vectors, and returns their documents. Here five documents about LangChain topics sit in Chroma:
+This is the most common retriever. Any vector store makes one with `.as_retriever()`: it embeds the query, finds the closest stored vectors, and returns their documents. Here five documents about LangChain topics sit in a vector store (Chroma in Python, our `SimpleVectorStore` in JavaScript):
 
 <CodeTabs>
 
@@ -90,9 +155,9 @@ for d in retriever.invoke("What is Chroma used for?"):
 ```
 
 ```js
-import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { Document } from "@langchain/core/documents";
 import { OpenAIEmbeddings } from "@langchain/openai";
+import { SimpleVectorStore } from "./simpleVectorStore.js";
 
 const embeddings = new OpenAIEmbeddings({ model: "text-embedding-3-small" });
 
@@ -102,12 +167,9 @@ const docs = [
   "Embeddings are numerical vectors that capture the meaning of text.",
   "Retrieval-augmented generation (RAG) combines document retrieval with an LLM to ground answers in your data.",
   "Python is a popular programming language known for its readable syntax.",
-].map((t) => new Document({ pageContent: t, metadata: { source: "demo" } })); // this Chroma client rejects empty metadata
+].map((t) => new Document({ pageContent: t }));
 
-const vectorStore = await Chroma.fromDocuments(docs, embeddings, {
-  collectionName: "demo",
-  url: "http://localhost:8000",
-});
+const vectorStore = await SimpleVectorStore.fromDocuments(docs, embeddings);
 const retriever = vectorStore.asRetriever({ k: 2 });
 
 for (const d of await retriever.invoke("What is Chroma used for?")) {
@@ -144,6 +206,8 @@ Ask about the Arctic ice and plain similarity returns D1, D2 (the same fact word
 
 **The knob.** A parameter (`lambda_mult` in LangChain) from 0 to 1 sets the balance: `1` means pure relevance (same as plain similarity), `0` means maximum diversity, and in between trades the two.
 
+<CodeTabs>
+
 ```python
 climate = [Document(page_content=t) for t in [
     "Climate change is causing glaciers to melt rapidly in the Arctic region.",
@@ -166,14 +230,40 @@ for name, r in [("similarity", similar), ("mmr", mmr)]:
     print(name, [d.page_content[:28] for d in r.invoke(query)])
 ```
 
+```js
+const climate = [
+  "Climate change is causing glaciers to melt rapidly in the Arctic region.",
+  "Glaciers in the Arctic are melting at an alarming rate due to rising temperatures.",
+  "Deforestation reduces the planet's capacity to absorb carbon dioxide.",
+  "Wildfires are becoming more frequent and intense as the climate warms.",
+  "Rising sea levels threaten coastal cities with flooding.",
+].map((t) => new Document({ pageContent: t }));
+const vectorStore = await SimpleVectorStore.fromDocuments(climate, embeddings);
+
+const query = "What is happening to the Arctic ice because of climate change?";
+
+const similar = vectorStore.asRetriever({ k: 3 });
+const mmr = vectorStore.asRetriever({
+  searchType: "mmr",
+  k: 3,
+  searchKwargs: { fetchK: 5, lambda: 0.5 },
+});
+
+for (const [name, r] of [["similarity", similar], ["mmr", mmr]]) {
+  console.log(name, (await r.invoke(query)).map((d) => d.pageContent.slice(0, 28)));
+}
+```
+
+</CodeTabs>
+
 ```
 similarity ['Climate change is causing', 'Glaciers in the Arctic', 'Wildfires are becoming']
 mmr        ['Climate change is causing', 'Deforestation reduces ', 'Rising sea levels thre']
 ```
 
-`fetch_k` is how many top candidates MMR fetches first and then re-picks `k` from. Similarity returned both glacier sentences; MMR kept the first glacier sentence and filled the other two slots with deforestation and sea level rise: three different facts instead of two repeats. Setting `lambda_mult=1.0` on the same query gave back exactly the plain similarity result, and `0.2` gave the same three documents as `0.5` here, so on a five-document store the dial has little room to move; with a real collection you tune it per application.
+`fetch_k` (`fetchK` in JavaScript) is how many top candidates MMR fetches first and then re-picks `k` from. Similarity returned both glacier sentences; MMR kept the first glacier sentence and filled the other two slots with deforestation and sea level rise: three different facts instead of two repeats. Setting `lambda_mult=1.0` (`lambda` in JavaScript) on the same query gave back exactly the plain similarity result, and `0.2` gave the same three documents as `0.5` here, so on a five-document store the dial has little room to move; with a real collection you tune it per application.
 
-In LangChain.js, the Chroma store does not implement MMR (asking for it raises "does not support max marginal relevance search"), so this is a Python example; some other stores support MMR in JavaScript.
+The JavaScript run gave the same two lists. MMR is not something every store provides: LangChain.js only offers it when the store implements `maxMarginalRelevanceSearch` (our `SimpleVectorStore` does, using the helper `maximalMarginalRelevance` from `@langchain/core/utils/math`).
 
 ## Search Strategy 2: Multi-Query
 
@@ -205,7 +295,7 @@ from langchain_core.runnables import RunnableLambda, RunnableParallel, RunnableP
 
 model = ChatGroq(model="openai/gpt-oss-20b")
 
-base = health_store.as_retriever(search_kwargs={"k": 3})  # a Chroma store of health + some unrelated docs
+base = health_store.as_retriever(search_kwargs={"k": 3})  # a vector store of health + some unrelated docs
 
 rewrite = (
     ChatPromptTemplate.from_template(
@@ -332,7 +422,7 @@ This helps when documents mix topics, when you want to shrink the context you se
 ```python
 from langchain_core.documents import Document
 
-mixed_store = ...  # a Chroma store of the three mixed-topic documents below
+mixed_store = ...  # a vector store of the three mixed-topic documents below
 retriever = mixed_store.as_retriever(search_kwargs={"k": 2})
 
 extract = (
@@ -413,9 +503,9 @@ The reason there are so many is practical. A first RAG system built with a plain
 |---|---|
 | **Retriever** | A runnable: query in, list of `Document`s out, searching a data source. Pipes into chains like any runnable |
 | **Two ways to classify** | By data source (Wikipedia, vector store, arXiv) and by search strategy (MMR, multi-query, contextual compression) |
-| **Wikipedia retriever** | `WikipediaRetriever(top_k_results=2, lang="en")`: searches Wikipedia, mostly by keyword. Python only here |
+| **Wikipedia retriever** | The ready-made class was in the retired community package. Write it: subclass `BaseRetriever`, implement `_get_relevant_documents` (Python) / `_getRelevantDocuments` (JavaScript). You get a full runnable for free |
 | **Vector store retriever** | `vector_store.as_retriever(search_kwargs={"k": 2})`. Same result as `similarity_search` for plain search; the retriever adds strategies and chain-composability |
-| **MMR** | Relevant *and* diverse. `search_type="mmr"` with `fetch_k` and `lambda_mult` (1 = plain similarity, 0 = most diverse). Fixes near-duplicate results. Chroma in JavaScript does not support it |
+| **MMR** | Relevant *and* diverse. `search_type="mmr"` with `fetch_k` and `lambda_mult` (1 = plain similarity, 0 = most diverse). Fixes near-duplicate results. In JavaScript the store must implement `maxMarginalRelevanceSearch` |
 | **Multi-query** | An LLM rewrites a vague question into several, search each, merge and de-duplicate. Wider coverage, but extra LLM calls and sometimes extra noise |
 | **Contextual compression** | An LLM trims each retrieved document to the parts relevant to the query. Useful when chunks mix topics or context is tight |
 | **On LangChain 1.x** | `MultiQueryRetriever` and `ContextualCompressionRetriever` live only in `langchain-classic`. Build them from runnables instead: prompt + model, `.map()` (Python) or `Promise.all` (JS), `RunnableLambda`, `.batch()` |
