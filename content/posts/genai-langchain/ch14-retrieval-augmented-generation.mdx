@@ -178,7 +178,6 @@ print(rag.invoke("How many days do I have to ask for a refund, and what if I hav
 ```
 
 ```js
-import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { Document } from "@langchain/core/documents";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
@@ -186,6 +185,7 @@ import { RunnableLambda, RunnablePassthrough, RunnableSequence } from "@langchai
 import { ChatGroq } from "@langchain/groq";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { SimpleVectorStore } from "./simpleVectorStore.js"; // the in-memory store from the vector stores post
 
 const embeddings = new OpenAIEmbeddings({ model: "text-embedding-3-small" });
 const model = new ChatGroq({ model: "openai/gpt-oss-20b" });
@@ -198,10 +198,7 @@ const raw = [
 ].map(([source, text]) => new Document({ pageContent: text, metadata: { source } }));
 
 const chunks = await new RecursiveCharacterTextSplitter({ chunkSize: 200, chunkOverlap: 20 }).splitDocuments(raw);
-const store = await Chroma.fromDocuments(chunks, embeddings, {
-  collectionName: "learnwell",
-  url: "http://localhost:8000",
-});
+const store = await SimpleVectorStore.fromDocuments(chunks, embeddings);
 
 // 2. RETRIEVAL
 const retriever = store.asRetriever({ k: 2 });
@@ -227,7 +224,7 @@ console.log(await rag.invoke("How many days do I have to ask for a refund, and w
 
 </CodeTabs>
 
-The 3 documents became 6 chunks. Three questions, with what the retriever found, what RAG answered, and what the *same model* answered with no context:
+(The JavaScript tab uses the small in-memory store built in the vector stores post, because the Chroma JS integration is community-only and has been sunset; everything else is identical.) The 3 documents became 6 chunks. Three questions, with what the retriever found, what RAG answered, and what the *same model* answered with no context:
 
 | Question | Retrieved from | With RAG | No context |
 |---|---|---|---|
