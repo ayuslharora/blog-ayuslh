@@ -51,7 +51,7 @@ Which leaves one more problem: **every provider wrote its API differently.** Her
 from openai import OpenAI
 
 client = OpenAI()
-response = client.responses.create(model="gpt-5.5", input="What is the capital of India?")
+response = client.responses.create(model="gpt-6-astra", input="What is the capital of India?")
 print(response.output_text)
 ```
 
@@ -60,7 +60,7 @@ print(response.output_text)
 import OpenAI from "openai";
 
 const client = new OpenAI();
-const response = await client.responses.create({ model: "gpt-5.5", input: "What is the capital of India?" });
+const response = await client.responses.create({ model: "gpt-6-astra", input: "What is the capital of India?" });
 console.log(response.output_text);
 ```
 
@@ -73,7 +73,7 @@ The capital of India is New Delhi.
 
 Response(
     id='resp_...',
-    model='gpt-5.5',
+    model='gpt-6-astra',
     output=[ResponseOutputMessage(
         role='assistant',
         content=[ResponseOutputText(text='The capital of India is New Delhi.', type='output_text')],
@@ -147,7 +147,7 @@ LangChain's idea was: what if there were a single interface that could talk to *
 ```python
 from langchain.chat_models import init_chat_model
 
-model = init_chat_model("openai:gpt-5.5")
+model = init_chat_model("openai:gpt-6-astra")
 # model = init_chat_model("anthropic:claude-sonnet-5-5")
 
 result = model.invoke("What is the capital of India?")
@@ -157,7 +157,7 @@ print(result.content)
 ```js
 import { initChatModel } from "langchain";
 
-const model = await initChatModel("openai:gpt-5.5");
+const model = await initChatModel("openai:gpt-6-astra");
 // const model = await initChatModel("anthropic:claude-sonnet-5-5");
 
 const result = await model.invoke("What is the capital of India?");
@@ -173,7 +173,7 @@ The capital of India is New Delhi.
 
 AIMessage(
     content='The capital of India is New Delhi.',
-    response_metadata={'model_name': 'gpt-5.5', 'finish_reason': 'stop', ...},
+    response_metadata={'model_name': 'gpt-6-astra', 'finish_reason': 'stop', ...},
     usage_metadata={'input_tokens': 14, 'output_tokens': 10, 'total_tokens': 24},
 )
 ```
@@ -394,7 +394,7 @@ from langchain.chat_models import init_chat_model
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-model = init_chat_model("openai:gpt-5.5")
+model = init_chat_model("openai:gpt-6-astra")
 parser = StrOutputParser()
 
 translate = PromptTemplate.from_template("Translate this text into Hindi:\n\n{text}")
@@ -412,7 +412,7 @@ import { initChatModel } from "langchain";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 
-const model = await initChatModel("openai:gpt-5.5");
+const model = await initChatModel("openai:gpt-6-astra");
 const parser = new StringOutputParser();
 
 const translate = PromptTemplate.fromTemplate("Translate this text into Hindi:\n\n{text}");
@@ -461,7 +461,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableParallel
 
-model = init_chat_model("openai:gpt-5.5")
+model = init_chat_model("openai:gpt-6-astra")
 parser = StrOutputParser()
 
 report_a = PromptTemplate.from_template("Write a short factual report on {topic}.") | model | parser
@@ -480,7 +480,7 @@ import { PromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { RunnableParallel } from "@langchain/core/runnables";
 
-const model = await initChatModel("openai:gpt-5.5");
+const model = await initChatModel("openai:gpt-6-astra");
 const parser = new StringOutputParser();
 
 const reportA = PromptTemplate.fromTemplate("Write a short factual report on {topic}.").pipe(model).pipe(parser);
@@ -516,7 +516,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableBranch, RunnableParallel
 
-model = init_chat_model("openai:gpt-5.5")
+model = init_chat_model("openai:gpt-6-astra")
 parser = StrOutputParser()
 
 classify = PromptTemplate.from_template(
@@ -540,7 +540,7 @@ import { PromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { RunnableBranch, RunnableParallel } from "@langchain/core/runnables";
 
-const model = await initChatModel("openai:gpt-5.5");
+const model = await initChatModel("openai:gpt-6-astra");
 const parser = new StringOutputParser();
 
 const classify = PromptTemplate.fromTemplate(
@@ -588,7 +588,7 @@ Indexes are made of four components, and they're exactly the pipeline from the [
 
 Together, these four do the heavy lifting of any LLM application that needs access to an external knowledge source, whether that source is PDFs, a website, or a company database.
 
-In LangChain 1.x, "indexes" is no longer a named module; the docs file these pieces under **retrieval**. The four building blocks are all still there: document loaders (`langchain_community.document_loaders` and provider packages), text splitters (`langchain_text_splitters`), vector stores (`langchain_core.vectorstores` plus integrations with vector databases like Chroma, FAISS, and Pinecone), and retrievers (any vector store's `.as_retriever()`). Later posts build this pipeline for real.
+In LangChain 1.x, "indexes" is no longer a named module; the docs file these pieces under **retrieval**. The four building blocks are all still there: document loaders (small `BaseLoader` classes in `langchain_core`, plus standalone provider packages; the old `langchain_community` loader collection has been sunset), text splitters (`langchain_text_splitters`), vector stores (`langchain_core.vectorstores` plus integrations with vector databases like Chroma, FAISS, and Pinecone), and retrievers (any vector store's `.as_retriever()`). Later posts build this pipeline for real.
 
 ## 5. Memory
 
@@ -603,7 +603,7 @@ Here's a model asked two questions, one after the other, as two separate calls:
 ```python
 from langchain.chat_models import init_chat_model
 
-model = init_chat_model("openai:gpt-5.5")
+model = init_chat_model("openai:gpt-6-astra")
 
 print(model.invoke("Who is Narendra Modi? Answer in one sentence.").content)
 print(model.invoke("How old is he?").content)
@@ -612,7 +612,7 @@ print(model.invoke("How old is he?").content)
 ```js
 import { initChatModel } from "langchain";
 
-const model = await initChatModel("openai:gpt-5.5");
+const model = await initChatModel("openai:gpt-6-astra");
 
 console.log((await model.invoke("Who is Narendra Modi? Answer in one sentence.")).content);
 console.log((await model.invoke("How old is he?")).content);
@@ -649,7 +649,7 @@ The `ConversationBufferMemory`-style classes are gone from LangChain 1.x. Memory
 from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
 
-agent = create_agent(model="openai:gpt-5.5", checkpointer=InMemorySaver())
+agent = create_agent(model="openai:gpt-6-astra", checkpointer=InMemorySaver())
 config = {"configurable": {"thread_id": "1"}}
 
 agent.invoke({"messages": [{"role": "user", "content": "Who is Narendra Modi? Answer in one sentence."}]}, config)
@@ -661,7 +661,7 @@ print(result["messages"][-1].content)
 import { createAgent } from "langchain";
 import { MemorySaver } from "@langchain/langgraph";
 
-const agent = createAgent({ model: "openai:gpt-5.5", checkpointer: new MemorySaver() });
+const agent = createAgent({ model: "openai:gpt-6-astra", checkpointer: new MemorySaver() });
 const config = { configurable: { thread_id: "1" } };
 
 await agent.invoke({ messages: [{ role: "user", content: "Who is Narendra Modi? Answer in one sentence." }] }, config);
@@ -696,9 +696,9 @@ from langchain.agents.middleware import SummarizationMiddleware
 from langgraph.checkpoint.memory import InMemorySaver
 
 agent = create_agent(
-    model="openai:gpt-5.5",
+    model="openai:gpt-6-astra",
     checkpointer=InMemorySaver(),
-    middleware=[SummarizationMiddleware(model="openai:gpt-5.5", trigger=("messages", 20), keep=("messages", 5))],
+    middleware=[SummarizationMiddleware(model="openai:gpt-6-astra", trigger=("messages", 20), keep=("messages", 5))],
 )
 ```
 
@@ -707,9 +707,9 @@ import { createAgent, summarizationMiddleware } from "langchain";
 import { MemorySaver } from "@langchain/langgraph";
 
 const agent = createAgent({
-  model: "openai:gpt-5.5",
+  model: "openai:gpt-6-astra",
   checkpointer: new MemorySaver(),
-  middleware: [summarizationMiddleware({ model: "openai:gpt-5.5", trigger: { messages: 20 }, keep: { messages: 5 } })],
+  middleware: [summarizationMiddleware({ model: "openai:gpt-6-astra", trigger: { messages: 20 }, keep: { messages: 5 } })],
 });
 ```
 
@@ -768,7 +768,7 @@ def multiply(a: float, b: float) -> float:
     """Multiply two numbers."""
     return a * b
 
-agent = create_agent(model="openai:gpt-5.5", tools=[get_weather, multiply])
+agent = create_agent(model="openai:gpt-6-astra", tools=[get_weather, multiply])
 
 result = agent.invoke(
     {"messages": [{"role": "user", "content": "Can you multiply today's temperature of Delhi with 3?"}]}
@@ -803,7 +803,7 @@ const multiply = tool(({ a, b }) => a * b, {
   schema: z.object({ a: z.number(), b: z.number() }),
 });
 
-const agent = createAgent({ model: "openai:gpt-5.5", tools: [getWeather, multiply] });
+const agent = createAgent({ model: "openai:gpt-6-astra", tools: [getWeather, multiply] });
 
 const result = await agent.invoke({
   messages: [{ role: "user", content: "Can you multiply today's temperature of Delhi with 3?" }],
