@@ -65,7 +65,7 @@ pip install langchain langchain-groq langchain-openai langchain-anthropic langch
 
 # JavaScript: in a new folder (with "type": "module" in package.json)
 npm install langchain @langchain/core @langchain/groq @langchain/openai @langchain/anthropic \
-            @langchain/google-genai @langchain/community @huggingface/transformers@3 dotenv
+            @langchain/google-genai @huggingface/transformers@3 dotenv
 ```
 
 To confirm the install worked, print the version: `python -c "import langchain; print(langchain.__version__)"` should show 1.x (these examples were run on 1.4.7).
@@ -671,8 +671,6 @@ How many dimensions should you ask for? By default `text-embedding-3-small` retu
 
 For an open-source alternative, the [sentence-transformers](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) model `all-MiniLM-L6-v2` maps text to a 384-dimensional vector and is built for tasks like clustering and semantic search. It's only about 90 MB, small enough that downloading it is the sensible choice over calling an API:
 
-<CodeTabs>
-
 ```python
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -689,24 +687,6 @@ vector = embedding.embed_documents(documents)
 print(str(vector))
 ```
 
-```js
-import { HuggingFaceTransformersEmbeddings } from "@langchain/community/embeddings/huggingface_transformers";
-
-const embedding = new HuggingFaceTransformersEmbeddings({ model: "Xenova/all-MiniLM-L6-v2" });
-
-const documents = [
-  "Delhi is the capital of India",
-  "Kolkata is the capital of West Bengal",
-  "Paris is the capital of France",
-];
-
-const vector = await embedding.embedDocuments(documents);
-
-console.log(vector);
-```
-
-</CodeTabs>
-
 ```
 [[0.0435, 0.0239, -0.0452, 0.0354, ...],
  [0.0734, 0.0438, -0.0197, 0.0560, ...],
@@ -714,6 +694,8 @@ console.log(vector);
 ```
 
 (Shortened: each of the three vectors has 384 numbers.)
+
+There is no JavaScript twin for this one. LangChain.js's local embedding class lived in `@langchain/community`, which was sunset in 2026, and there is no maintained replacement, so in JavaScript use a hosted embedding model such as the OpenAI one above.
 
 The interface is identical to OpenAI's: `embed_query` for one text, `embed_documents` for many. The trade-off is quality: a 90 MB local model is free and private, but on nuanced retrieval it is usually less accurate than a large hosted model like `text-embedding-3-large`.
 
